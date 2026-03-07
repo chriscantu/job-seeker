@@ -1,0 +1,9 @@
+{
+  "name": "job-seeker",
+  "version": "0.1.0",
+  "description": "Executive job search lifecycle — daily digest, cover letters, why-this-company responses, interview prep, and application tracking",
+  "author": {
+    "name": "Cantu"
+  },
+  "keywords": ["job-search", "cover-letter", "interview", "resume", "networking", "career"]
+}
