@@ -1,0 +1,11 @@
+# Generated application materials (per-company outputs)
+output/
+
+# State mirrors (source of truth is Apple Notes)
+memory/
+
+# Outdated files
+job-search-system.md
+
+# OS files
+.DS_Store
