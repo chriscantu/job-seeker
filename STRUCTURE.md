@@ -69,7 +69,7 @@ job-seeker/
 
 | Skill | Status | Description |
 |-------|--------|-------------|
-| `daily-digest` | **Active** | Runs daily at 7am via scheduled task, writes to Apple Notes |
+| `daily-digest` | **Active** | Runs interactively on session open, writes to Apple Notes (requires macOS) |
 | `why-this-company` | **Active** | Generates "why this company" responses |
 | `cover-letter` | **Active** | Generates tailored cover letters |
 | `resume-tailor` | Planned | Customizes resume emphasis per role |

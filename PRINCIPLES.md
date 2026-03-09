@@ -69,6 +69,16 @@ shapes company direction.
 
 ---
 
+## Output Directory
+
+All generated deliverables — resumes, cover letters, PDFs, research docs, and any
+other files produced for Chris — must be saved to the `output/` directory, not the
+project root. Use subdirectories as needed (e.g., `output/resumes/`, `output/cover-letters/`).
+
+The project root is for configuration, skills, and references. Deliverables go in `output/`.
+
+---
+
 ## State Continuity
 
 Every skill should read relevant state before acting and write state after completing.
