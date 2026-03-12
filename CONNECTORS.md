@@ -1,14 +1,10 @@
 # Connectors
 
-## Required: Control your Mac (osascript)
+## Runtime: Claude Code on macOS
 
-**MCP tool**: `mcp__Control_your_Mac__osascript`
-**Used by**: `skills/daily-digest/SKILL.md`
-**Purpose**: Runs AppleScript on the Mac host to read and write Apple Notes natively.
-Without this, the digest falls back to HTML output only (`output/digest-{date}.html`).
-
-**Install**: Search "Control your Mac" in the Claude plugins marketplace or MCP registry.
-Once installed, it is available automatically — no additional configuration required.
+This plugin runs in **Claude Code CLI on macOS**, not Cowork. Claude Code has
+direct access to `osascript` via the Bash tool, which is how all native macOS
+app integrations work. No MCP servers, no background daemons.
 
 ---
 
@@ -16,8 +12,8 @@ Once installed, it is available automatically — no additional configuration re
 
 | Tool | Status | How it works |
 |------|--------|-------------|
-| Apple Notes | ✅ Active | Read/write via osascript. Four scripts in `scripts/`. Used by `daily-digest` for digest delivery and state notes. Requires "Control your Mac" MCP. |
-| Web search (job boards) | ✅ Active | WebSearch + WebFetch for role discovery and URL verification. Built into Cowork. |
+| Apple Notes | ✅ Active | Read/write via `osascript` (Bash tool). Four scripts in `scripts/`. Used by `daily-digest` for digest delivery and state notes. |
+| Web search (job boards) | ✅ Active | WebSearch + WebFetch for role discovery and URL verification. Built into Claude Code. |
 
 ---
 
@@ -33,4 +29,4 @@ Once installed, it is available automatically — no additional configuration re
 
 ## External Skill Dependencies
 
-None currently. All skills are self-contained within this plugin.
+None. All skills are self-contained within this plugin.

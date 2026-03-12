@@ -2,13 +2,12 @@
 name: daily-digest
 description: >
   Search executive job boards for Senior Director/VP Engineering roles
-  and deliver a filtered, deduplicated digest via Apple Notes. Runs
-  interactively when Chris opens Cowork — trigger with "run my job
-  digest", "check for new roles", "any new jobs today", or "job search
-  update". Uses the Control your Mac MCP tool (mcp__Control_your_Mac__osascript)
-  to run AppleScript on the Mac host and write to Apple Notes natively.
-  State is persisted in Apple Notes. Requires "Control your Mac" MCP server.
-allowed-tools: Read, Write, Edit, WebSearch, WebFetch, mcp__Control_your_Mac__osascript
+  and deliver a filtered, deduplicated digest via Apple Notes. Trigger with
+  "run my job digest", "check for new roles", "any new jobs today", or
+  "job search update". Runs in Claude Code on macOS — osascript is called
+  directly via Bash to read and write Apple Notes natively.
+  State is persisted in Apple Notes.
+allowed-tools: Read, Write, Edit, Bash, WebSearch, WebFetch
 ---
 
 # Daily Job Digest
@@ -18,36 +17,34 @@ against previously seen postings, and writes a formatted Apple Note.
 
 ## How Apple Notes Access Works
 
-This skill uses the **`mcp__Control_your_Mac__osascript`** MCP tool to run
-AppleScript directly on the Mac host. No background daemon, no local server —
-the "Control your Mac" MCP server (installed separately) bridges the Cowork VM
-to native macOS apps.
+This skill runs in **Claude Code on macOS**. AppleScript files in `scripts/`
+are called directly via the Bash tool using `osascript`. No MCP server, no
+background daemon.
 
-Standalone AppleScript files live in `scripts/` for complex operations. Read
-`integrations/config/notes-config.md` to get `plugin_root` before any call.
+Read `integrations/config/notes-config.md` to get `plugin_root` before any call.
 
 ### Invocation Pattern
 
 Replace `{plugin_root}` with the value from `notes-config.md`.
 
-**Read a note** — use the `mcp__Control_your_Mac__osascript` tool with:
-```applescript
-do shell script "osascript " & quoted form of "{plugin_root}/scripts/apple_notes_read.applescript" & " " & quoted form of noteTitle & " " & quoted form of folderName
+**Read a note:**
+```bash
+osascript {plugin_root}/scripts/apple_notes_read.applescript "noteTitle" "folderName"
 ```
 
 **Create the digest note** (replaces if exists):
-```applescript
-do shell script "osascript " & quoted form of "{plugin_root}/scripts/apple_notes_create.applescript" & " " & quoted form of noteTitle & " " & quoted form of htmlBody & " " & quoted form of folderName
+```bash
+osascript {plugin_root}/scripts/apple_notes_create.applescript "noteTitle" "htmlBody" "folderName"
 ```
 
 **Update a state note** (upsert — preserves note identity):
-```applescript
-do shell script "osascript " & quoted form of "{plugin_root}/scripts/apple_notes_update.applescript" & " " & quoted form of noteTitle & " " & quoted form of htmlBody & " " & quoted form of folderName
+```bash
+osascript {plugin_root}/scripts/apple_notes_update.applescript "noteTitle" "htmlBody" "folderName"
 ```
 
 **List notes in a folder:**
-```applescript
-do shell script "osascript " & quoted form of "{plugin_root}/scripts/apple_notes_list.applescript" & " " & quoted form of folderName
+```bash
+osascript {plugin_root}/scripts/apple_notes_list.applescript "folderName"
 ```
 
 See `integrations/adapters/apple-notes.md` for full field mapping, return
@@ -232,7 +229,7 @@ rules exactly — every line wrapped in `<div>` tags or the note will collapse.
 <div><span style="font-size: 11px">• Korn Ferry — retained executive search</span></div>
 <div><span style="font-size: 11px">• BlueSteps/AESC — global executive search network</span></div>
 <div><span style="font-size: 11px"><br></span></div>
-<div><i><span style="font-size: 11px">Automated by Claude Cowork | Adjust criteria anytime</span></i></div>
+<div><i><span style="font-size: 11px">Automated by Claude Code | Adjust criteria anytime</span></i></div>
 ```
 
 ### HTML Rules (non-negotiable)

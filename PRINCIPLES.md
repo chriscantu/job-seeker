@@ -6,6 +6,21 @@ any deliverable.
 
 ---
 
+## Runtime: Claude Code on macOS — Hard Rule
+
+**This plugin runs exclusively in Claude Code CLI on macOS. It does not run
+in Cowork.**
+
+Claude Code has `osascript` in PATH and calls it directly via the Bash tool.
+This is the only supported runtime. Do not add Cowork-specific patterns,
+MCP server declarations, or anything that assumes a Linux VM environment.
+
+If a future session is tempted to use `mcp__Control_your_Mac__osascript` or
+any other MCP bridge to reach macOS — stop. That is the wrong architecture.
+Use the Bash tool to call `osascript` directly.
+
+---
+
 ## Engineering Principles (Read First)
 
 These rules apply to all code, specs, tests, and AI-assisted work in this

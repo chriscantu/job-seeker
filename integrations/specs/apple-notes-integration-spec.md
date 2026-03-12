@@ -9,14 +9,14 @@
 ## Problem
 
 The job-seeker plugin wraps Apple Notes access in a full MCP server (JSON-RPC
-protocol, background process, stdio transport). Cowork either does not launch
+protocol, background process, stdio transport). Claude Code either does not launch
 this server on the Mac host or launches it inside the Linux VM where `osascript`
 is unavailable. The result: zero Apple Notes tools are accessible at runtime,
 and the daily digest falls back to HTML files.
 
 ## Root Cause
 
-The architecture was wrong. The eisenhower plugin — built for the same Cowork
+The architecture was wrong. The eisenhower plugin — built for the same Claude Code
 environment — successfully integrates with Mac Reminders and Mac Calendar using
 **direct AppleScript/Swift calls from skill instructions**. No MCP server, no
 protocol handshake, no background daemon.
@@ -102,7 +102,7 @@ Matches eisenhower's non-blocking pattern:
 
 1. **Unit**: Run each AppleScript standalone from Terminal on macOS to verify
    create/read/update/list operations
-2. **Integration**: Run `/daily-digest` in Cowork and verify note appears in
+2. **Integration**: Run `/daily-digest` in Claude Code and verify note appears in
    Apple Notes
 3. **Fallback**: Disconnect from iCloud (or rename folder) and verify HTML
    fallback triggers with clear error message

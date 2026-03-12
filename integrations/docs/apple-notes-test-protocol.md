@@ -11,7 +11,7 @@
 1. `notes-config.md` exists at `integrations/config/notes-config.md` with correct `plugin_root`
 2. Apple Notes is running (or will auto-launch)
 3. iCloud sync is enabled (or `account: On My Mac` is set in config)
-4. You are running these commands from macOS Terminal (not the Cowork VM)
+4. You are running these commands from macOS Terminal (Claude Code runs natively on macOS — osascript is in PATH)
 
 ---
 
@@ -177,9 +177,9 @@ Test Note Upsert 002
 
 ---
 
-## Step 9 — Integration: daily digest via Cowork
+## Step 9 — Integration: daily digest via Claude Code
 
-1. Open Cowork with the job-seeker plugin loaded
+1. Open Claude Code with the job-seeker plugin loaded
 2. Run: "run my job digest"
 3. Skill should call `apple_notes_create.applescript` with today's digest title
 4. Verify note appears in Apple Notes with correct title format: `Job Search Digest - {date}`
@@ -189,20 +189,20 @@ Test Note Upsert 002
 - [ ] Digest note appears in Apple Notes
 - [ ] Title matches expected format
 - [ ] Body renders without visible HTML tags
-- [ ] No error reported in Cowork session
+- [ ] No error reported in Claude Code session
 
 ---
 
 ## Step 10 — Fallback: Notes unavailable
 
 1. Quit the Notes app (`⌘Q`)
-2. Run the daily digest in Cowork
+2. Run the daily digest in Claude Code
 3. Skill should attempt the AppleScript, fail, then save `output/digest-{date}.html`
-4. Verify Cowork reports the exact error message (not a silent fallback)
+4. Verify Claude Code reports the exact error message (not a silent fallback)
 
 **Pass criteria:**
 - [ ] `output/digest-{date}.html` is created
-- [ ] Cowork session shows: "Apple Notes write failed — saved HTML fallback. Error: {message}"
+- [ ] Claude Code session shows: "Apple Notes write failed — saved HTML fallback. Error: {message}"
 - [ ] Error message is not swallowed or generic
 
 ---
