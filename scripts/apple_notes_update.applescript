@@ -45,9 +45,10 @@ on run argv
         -- Step 2: Look for an existing note (case-insensitive, trimmed)
         set existingNotes to every note of targetFolder
         repeat with n in existingNotes
-            if (my lowerTrim(name of n)) is (my lowerTrim(noteTitle)) then
+            if (my trim(name of n)) is (my trim(noteTitle)) then
                 try
                     set body of n to noteBody
+                    set name of n to noteTitle
                     return "updated: " & noteTitle
                 on error errMsg
                     return "error: Could not update note '" & noteTitle & "' — " & errMsg
@@ -66,9 +67,10 @@ on run argv
     end tell
 end run
 
--- Helper: lowercase and trim whitespace from a string
-on lowerTrim(str)
-    set str to my lower(str)
+-- Helper: trim leading/trailing whitespace from a string.
+-- AppleScript's `is` operator is case-insensitive by default,
+-- so no manual lowercasing is needed.
+on trim(str)
     repeat while str begins with " "
         set str to text 2 thru -1 of str
     end repeat
@@ -76,19 +78,4 @@ on lowerTrim(str)
         set str to text 1 thru -2 of str
     end repeat
     return str
-end lowerTrim
-
-on lower(str)
-    set upperChars to "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-    set lowerChars to "abcdefghijklmnopqrstuvwxyz"
-    set result to ""
-    repeat with c in every character of str
-        set charOffset to offset of c in upperChars
-        if charOffset > 0 then
-            set result to result & character charOffset of lowerChars
-        else
-            set result to result & c
-        end if
-    end repeat
-    return result
-end lower
+end trim
