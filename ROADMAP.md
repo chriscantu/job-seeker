@@ -1,38 +1,42 @@
 # job-seeker — Product Roadmap
 
 **Format**: Near-Term / Long-Term / Won't Do / Open Questions / Deferred
-**Last updated**: 2026-03-11
+**Last updated**: 2026-03-12
 **Owner**: Cantu
 
 For a full history of what has shipped, see [CHANGELOG.md](CHANGELOG.md).
 
 ---
 
-## Near-Term — v0.3 (In Progress)
+## Near-Term — v0.3 (Complete)
 
-### 1. Apple Notes Integration Rewrite (Direct Script Pattern)
+### 1. Claude Code Migration + Apple Notes Integration
 
-**Spec**: `integrations/specs/apple-notes-integration-spec.md`
-**Status**: Spec complete, implementation in progress
+**Status**: Shipped
 
-Replace the broken MCP server approach with direct AppleScript calls, mirroring
-the proven eisenhower plugin pattern. The MCP server was never invoked at runtime
-— Cowork does not launch custom plugin MCP servers. The eisenhower pattern (direct
-`osascript` calls from skill instructions, no background daemon) is the correct
-architecture for all macOS native app integrations.
+Resolved the fundamental architectural mismatch: the plugin was built for
+Cowork but Cowork runs in a Linux VM with no path to `osascript`. Decision:
+abandon Cowork, run exclusively in Claude Code CLI on macOS where `osascript`
+is in PATH and callable via the Bash tool — matching the eisenhower pattern.
 
-**Deliverables**:
-- `scripts/apple_notes_create.applescript`
-- `scripts/apple_notes_read.applescript`
-- `scripts/apple_notes_update.applescript`
-- `scripts/apple_notes_list.applescript`
+**Shipped**:
+- `scripts/apple_notes_create.applescript` — creates digest note; dedup replaces
+- `scripts/apple_notes_read.applescript` — reads state notes as plaintext
+- `scripts/apple_notes_update.applescript` — upserts state notes
+- `scripts/apple_notes_list.applescript` — lists notes in a folder
 - `integrations/adapters/apple-notes.md` — field mapping, invocation, error handling
 - `integrations/config/notes-config.md.example` — plugin_root, folder, account
-- `integrations/docs/apple-notes-test-protocol.md` — manual test protocol
-- Updated `skills/daily-digest/SKILL.md` — remove MCP references, add direct calls
-- Removal of `scripts/apple-notes-mcp/` and `.mcp.json`
+- `integrations/docs/apple-notes-test-protocol.md` — 10-step manual test protocol
+- `integrations/specs/apple-notes-integration-spec.md` — spec before implementation
+- `CONNECTORS.md` — runtime documented: Claude Code on macOS, Bash/osascript
+- `PRINCIPLES.md` — hard rule added: Claude Code only, no Cowork
+- `STRUCTURE.md`, `README.md`, `CLAUDE.md` — updated throughout
+- `skills/daily-digest/SKILL.md` — full rewrite: Bash tool, direct osascript
+- Deleted: `scripts/apple-notes-mcp/`, `.mcp.json`, `scripts/build-plugin.sh`,
+  `scripts/setup-mcp.sh`, stale planning docs
 
-**Dependency**: None. Unblocked.
+**Pending validation**: Run the 10-step test protocol in
+`integrations/docs/apple-notes-test-protocol.md` before closing v0.3.
 
 ---
 
@@ -130,6 +134,7 @@ search, not on building general-purpose tooling.
 | Multi-user support | This plugin is calibrated to Chris specifically — generalization would degrade quality |
 | Job board scraping / crawling | Brittle, against ToS on most boards; WebSearch + WebFetch on direct URLs is sufficient |
 | Salary negotiation scripting | Too high-stakes to automate — provide frameworks, not scripts |
+| Cowork support | Cowork's Linux VM has no path to osascript. Claude Code on macOS is the only supported runtime. |
 
 ---
 
@@ -140,10 +145,9 @@ search, not on building general-purpose tooling.
    the right call? If Notes sync is slow or unavailable, the skill degrades.
    Alternative: local `memory/` as primary, Notes as a read-friendly view.
 
-2. **Daily digest scheduling**: The digest currently requires an interactive
-   Cowork session. A scheduled task could run it automatically each morning —
-   but scheduled tasks run in the Linux VM without osascript access. Is there
-   a path to automated delivery once the direct-script pattern is validated?
+2. **Daily digest scheduling**: Claude Code supports scheduled tasks on macOS
+   where osascript is available. Once v0.3 is validated interactively, automated
+   morning delivery is achievable. Deferred until manual flow is confirmed stable.
 
 3. **Skill activation order**: Should `application-tracker` or `resume-tailor`
    come first? Tracking applications provides immediate value; resume tailoring
@@ -165,7 +169,5 @@ search, not on building general-purpose tooling.
 
 | Item | Description | Why Deferred |
 |------|-------------|--------------|
-| Remove `.mcp.json` from repo | The file is untracked but exists in the working directory. Should be deleted and added to `.gitignore`. | Blocked on completing the Apple Notes rewrite first — want to verify the replacement works before removing the old approach entirely. |
-| Remove `scripts/apple-notes-mcp/` | Full MCP server directory. Untracked, not committed. | Same as above — delete after v0.3 is validated. |
-| `skills/daily-digest/SKILL.md` MCP references | Still references MCP tools in some sections. Needs full rewrite to direct-script pattern. | Spec is complete; implementation is next in queue. |
-| README.md for the plugin | No user-facing README exists. Useful once the plugin is shared or reinstalled. | Low priority while the plugin is single-user and actively evolving. |
+| CHANGELOG.md | Version history lives only in git log. | Low priority while v0.3 test protocol is pending. |
+| README.md polish | User-facing README could be cleaner. | Low priority while the plugin is single-user and actively evolving. |
