@@ -1,9 +1,19 @@
 {
   "name": "job-seeker",
-  "version": "0.1.0",
+  "version": "0.2.2",
   "description": "Executive job search lifecycle — daily digest, cover letters, why-this-company responses, interview prep, and application tracking",
   "author": {
     "name": "Cantu"
   },
-  "keywords": ["job-search", "cover-letter", "interview", "resume", "networking", "career"]
+  "keywords": ["job-search", "cover-letter", "interview", "resume", "networking", "career"],
+  "skills": [
+    { "file": "skills/daily-digest/SKILL.md" },
+    { "file": "skills/why-this-company/SKILL.md" },
+    { "file": "skills/cover-letter/SKILL.md" },
+    { "file": "skills/resume-tailor/SKILL.md" },
+    { "file": "skills/company-research/SKILL.md" },
+    { "file": "skills/interview-prep/SKILL.md" },
+    { "file": "skills/application-tracker/SKILL.md" },
+    { "file": "skills/networking-outreach/SKILL.md" }
+  ]
 }

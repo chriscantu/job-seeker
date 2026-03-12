@@ -35,7 +35,7 @@ constraints that govern all work in this plugin.
 
 ## State Management
 
-All persistent state lives in Apple Notes (accessible across all Cowork sessions):
+All persistent state lives in Apple Notes (read and written via `osascript` through the Bash tool — requires Claude Code on macOS):
 
 | Apple Note | Purpose |
 |------------|---------|

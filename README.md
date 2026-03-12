@@ -1,6 +1,6 @@
 # job-seeker
 
-A Claude Cowork plugin that automates the executive job search lifecycle. Built for a specific candidate (me), not as a general-purpose tool.
+A Claude Code plugin that automates the executive job search lifecycle. Built for a specific candidate (me), not as a general-purpose tool. Runs in Claude Code CLI on macOS — not Cowork.
 
 ## What It Does
 
@@ -19,9 +19,9 @@ Eight skills that cover the full arc of a senior engineering leadership job sear
 
 ## How It Works
 
-Each skill is a prompt-based agent defined in `skills/{name}/SKILL.md`. When invoked in Claude Cowork, the skill reads the candidate profile from `CLAUDE.md`, follows the voice and quality rules in `PRINCIPLES.md`, and produces output to `output/{company}/`.
+Each skill is a prompt-based agent defined in `skills/{name}/SKILL.md`. When invoked in Claude Code, the skill reads the candidate profile from `CLAUDE.md`, follows the voice and quality rules in `PRINCIPLES.md`, and produces output to `output/{company}/`.
 
-State (which roles have been seen, what interests me, where I've applied) lives in Apple Notes so it persists across Cowork sessions. Local `memory/` files are mirrors, not source of truth.
+State (which roles have been seen, what interests me, where I've applied) lives in Apple Notes, read and written via `osascript` through the Bash tool. Local `memory/` files are mirrors, not source of truth.
 
 ## Project Structure
 
