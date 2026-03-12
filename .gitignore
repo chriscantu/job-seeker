@@ -4,6 +4,10 @@ output/
 # State mirrors (source of truth is Apple Notes)
 memory/
 
+# Personal config files (only .example templates are committed)
+integrations/config/*.md
+!integrations/config/*.md.example
+
 # Outdated files
 job-search-system.md
 

@@ -12,6 +12,8 @@ When adding a new file, find the right directory here first.
 | `CLAUDE.md` | Runtime instructions, candidate profile, skill table |
 | `PRINCIPLES.md` | Engineering principles (7 rules) + quality standards + voice guidelines |
 | `STRUCTURE.md` | This file — canonical directory structure |
+| `ROADMAP.md` | Near-term, long-term, deferred, and won't-do planning |
+| `CONNECTORS.md` | Runtime declaration — Claude Code on macOS, Bash/osascript, no MCP servers |
 | `.gitignore` | Excludes output/, memory/, personal config, OS files |
 | `.claude-plugin/plugin.json` | Plugin metadata (name, version, author, keywords, skills) |
 
@@ -47,8 +49,7 @@ job-seeker/
 │   ├── apple_notes_create.applescript
 │   ├── apple_notes_read.applescript
 │   ├── apple_notes_update.applescript
-│   ├── apple_notes_list.applescript
-│   └── build-plugin.sh
+│   └── apple_notes_list.applescript
 │
 ├── integrations/            ← Everything related to external system connections
 │   ├── config/              ← Per-integration config files (gitignored) + .example templates

@@ -73,38 +73,30 @@ Apple Notes renders a limited HTML subset. Violations produce garbled output.
 
 ---
 
-## AppleScript Execution Pattern
+## Invocation Pattern (from Bash tool)
 
-All four scripts follow the same invocation pattern from skill instructions.
+Skills call these scripts directly via the Bash tool in Claude Code on macOS.
 Replace `{plugin_root}` with the value from `integrations/config/notes-config.md`.
+Expand `~` to the absolute home directory path when constructing the command.
 
 **Create** (digest):
-```applescript
-do shell script "osascript " & quoted form of ("{plugin_root}/scripts/apple_notes_create.applescript") & " " & ¬
-    quoted form of noteTitle & " " & ¬
-    quoted form of htmlBody & " " & ¬
-    quoted form of folderName
+```bash
+osascript {plugin_root}/scripts/apple_notes_create.applescript "noteTitle" "htmlBody" "folderName"
 ```
 
 **Read** (state notes):
-```applescript
-do shell script "osascript " & quoted form of ("{plugin_root}/scripts/apple_notes_read.applescript") & " " & ¬
-    quoted form of noteTitle & " " & ¬
-    quoted form of folderName
+```bash
+osascript {plugin_root}/scripts/apple_notes_read.applescript "noteTitle" "folderName"
 ```
 
 **Update** (state notes):
-```applescript
-do shell script "osascript " & quoted form of ("{plugin_root}/scripts/apple_notes_update.applescript") & " " & ¬
-    quoted form of noteTitle & " " & ¬
-    quoted form of htmlBody & " " & ¬
-    quoted form of folderName
+```bash
+osascript {plugin_root}/scripts/apple_notes_update.applescript "noteTitle" "htmlBody" "folderName"
 ```
 
 **List** (folder inventory):
-```applescript
-do shell script "osascript " & quoted form of ("{plugin_root}/scripts/apple_notes_list.applescript") & " " & ¬
-    quoted form of folderName
+```bash
+osascript {plugin_root}/scripts/apple_notes_list.applescript "folderName"
 ```
 
 ---
@@ -141,10 +133,11 @@ do shell script "osascript " & quoted form of ("{plugin_root}/scripts/apple_note
 
 | Outcome | Script returns | Skill action |
 |---------|---------------|--------------|
-| Note found | Full plaintext body | Parse and use |
+| Note found with content | Full plaintext body | Parse and use |
+| Note found but empty | `NOTE_EMPTY` | Treat as empty state (note exists, no content yet) |
 | Note not found | `NOTE_NOT_FOUND` | Treat as empty state |
 | Folder not found | `FOLDER_NOT_FOUND` | Create folder + treat as empty state |
-| Any other error | `error: {message}` | Log warning, proceed with empty state |
+| Any other error | `error: {message}` | Log warning to `output/error-{date}.log`, proceed with empty state |
 
 ### Update
 
@@ -161,9 +154,10 @@ do shell script "osascript " & quoted form of ("{plugin_root}/scripts/apple_note
 | Outcome | Script returns | Skill action |
 |---------|---------------|--------------|
 | Notes exist | Newline-separated titles | Parse into list |
+| Some notes unreadable | Titles + `SKIPPED_UNREADABLE:{N}` line | Parse titles, warn Chris that N notes could not be read — state note may be absent |
 | Folder empty | `""` (empty string) | Treat as no notes |
 | Folder not found | `FOLDER_NOT_FOUND` | Treat as no notes |
-| Any other error | `error: {message}` | Log warning, proceed |
+| Any other error | `error: {message}` | Log warning to `output/error-{date}.log`, proceed |
 
 ---
 

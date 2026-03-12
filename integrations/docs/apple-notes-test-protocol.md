@@ -76,7 +76,17 @@ Updated body content
 ```
 (Plaintext — HTML tags stripped by Notes)
 
-**Pass criteria:** Returns the plaintext body matching Step 2 content.
+> **Caveat:** Apple Notes prepends the note title to the `plaintext` property when the
+> note body contains no explicit heading element (which is the case for a bare `<div>`).
+> Actual output will typically be:
+> ```
+> Test Note 001
+> Updated body content
+> ```
+> The pass criterion is that the body text appears in the output. The leading title line
+> is expected Apple Notes behavior and is not a bug.
+
+**Pass criteria:** Returns plaintext containing "Updated body content" (title prefix is expected).
 
 ---
 
@@ -195,13 +205,26 @@ Test Note Upsert 002
 
 ## Step 10 — Fallback: Notes unavailable
 
-1. Quit the Notes app (`⌘Q`)
+> **Caveat:** Quitting Notes with `⌘Q` does NOT reliably trigger this failure path.
+> `osascript` uses `tell application "Notes"` which causes macOS to automatically
+> relaunch the Notes app before the script executes. The script will usually succeed
+> even after quitting.
+>
+> **Recommended alternative to trigger fallback:**
+> Temporarily rename the target folder in Apple Notes (e.g., rename "Notes" to
+> "Notes-temp"), then run the digest. The create script will return
+> `FOLDER_NOT_FOUND`-path behavior, exercising the fallback. Or pass a folder name
+> longer than 128 characters to `apple_notes_create.applescript` to force an error.
+> Restore the folder name afterward.
+
+1. Trigger a failure condition (see caveat above)
 2. Run the daily digest in Claude Code
-3. Skill should attempt the AppleScript, fail, then save `output/digest-{date}.html`
-4. Verify Claude Code reports the exact error message (not a silent fallback)
+3. Skill should attempt the AppleScript, detect the `error:` return, then save `output/digest-{date}.html`
+4. Verify Claude Code reports the exact error message and an `output/error-{date}.log` is written
 
 **Pass criteria:**
 - [ ] `output/digest-{date}.html` is created
+- [ ] `output/error-{date}.log` is created with the exact error
 - [ ] Claude Code session shows: "Apple Notes write failed — saved HTML fallback. Error: {message}"
 - [ ] Error message is not swallowed or generic
 

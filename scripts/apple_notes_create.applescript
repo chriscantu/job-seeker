@@ -22,57 +22,68 @@
 --   - HTML is passed as a single quoted argument — caller must escape quotes
 
 on run argv
-    set noteTitle to item 1 of argv
-    set noteBody  to item 2 of argv
+    -- Guard: require exactly 3 arguments
+    if (count of argv) < 3 then
+        return "error: Expected 3 arguments (title, body, folder) but got " & (count of argv)
+    end if
+
+    set noteTitle  to item 1 of argv
+    set noteBody   to item 2 of argv
     set folderName to item 3 of argv
 
     tell application "Notes"
-
-        -- Step 1: Locate the target folder; create it if missing
-        set targetFolder to missing value
-        repeat with f in folders
-            if name of f is folderName then
-                set targetFolder to f
-                exit repeat
-            end if
-        end repeat
-
-        if targetFolder is missing value then
-            try
-                set targetFolder to make new folder with properties {name: folderName}
-            on error errMsg
-                return "error: Could not create folder '" & folderName & "' — " & errMsg
-            end try
-        end if
-
-        -- Step 2: Dedup check — delete existing note with the same title
-        --         (case-insensitive, whitespace-trimmed)
-        set existingNotes to every note of targetFolder
-        repeat with n in existingNotes
-            if (my lowerTrim(name of n)) is (my lowerTrim(noteTitle)) then
-                try
-                    delete n
-                on error errMsg
-                    return "error: Could not delete existing note '" & noteTitle & "' — " & errMsg
-                end try
-                exit repeat
-            end if
-        end repeat
-
-        -- Step 3: Create the note
         try
-            make new note at targetFolder with properties {name: noteTitle, body: noteBody}
-            return "success: " & noteTitle
-        on error errMsg
-            return "error: " & errMsg
-        end try
+            -- Step 1: Locate the target folder; create it if missing
+            set targetFolder to missing value
+            repeat with f in folders
+                if name of f is folderName then
+                    set targetFolder to f
+                    exit repeat
+                end if
+            end repeat
 
+            if targetFolder is missing value then
+                try
+                    set targetFolder to make new folder with properties {name: folderName}
+                on error errMsg
+                    return "error: Could not create folder '" & folderName & "' — " & errMsg
+                end try
+            end if
+
+            -- Step 2: Dedup check — delete existing note with the same title
+            --         (case-insensitive, whitespace-trimmed via AppleScript's `is`)
+            set existingNotes to every note of targetFolder
+            repeat with n in existingNotes
+                if (my trim(name of n)) is (my trim(noteTitle)) then
+                    try
+                        delete n
+                    on error errMsg
+                        return "error: Could not delete existing note '" & noteTitle & "' — " & errMsg
+                    end try
+                    exit repeat
+                end if
+            end repeat
+
+            -- Step 3: Create the note
+            try
+                make new note at targetFolder with properties {name: noteTitle, body: noteBody}
+                return "success: " & noteTitle
+            on error errMsg
+                return "error: " & errMsg
+            end try
+
+        on error outerErr
+            -- Catch any runtime error not handled by inner try blocks
+            -- (e.g. iCloud sync timeout, Notes IPC failure, sandboxing denial)
+            return "error: Unexpected Notes error — " & outerErr
+        end try
     end tell
 end run
 
--- Helper: lowercase and trim whitespace from a string
-on lowerTrim(str)
-    set str to my lower(str)
+-- Helper: trim leading/trailing whitespace from a string.
+-- AppleScript's `is` operator is case-insensitive by default,
+-- so no manual lowercasing is needed.
+on trim(str)
     repeat while str begins with " "
         set str to text 2 thru -1 of str
     end repeat
@@ -80,19 +91,4 @@ on lowerTrim(str)
         set str to text 1 thru -2 of str
     end repeat
     return str
-end lowerTrim
-
-on lower(str)
-    set upperChars to "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-    set lowerChars to "abcdefghijklmnopqrstuvwxyz"
-    set result to ""
-    repeat with c in every character of str
-        set charOffset to offset of c in upperChars
-        if charOffset > 0 then
-            set result to result & character charOffset of lowerChars
-        else
-            set result to result & c
-        end if
-    end repeat
-    return result
-end lower
+end trim

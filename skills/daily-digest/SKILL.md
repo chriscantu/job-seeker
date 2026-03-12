@@ -57,10 +57,12 @@ values, and error handling reference.
 1. Read `CLAUDE.md` for candidate profile and filter criteria
 2. Read `integrations/config/notes-config.md` — extract `plugin_root` and `default_folder`
 3. Run `apple_notes_read.applescript "Job Search - Seen Postings" "{default_folder}"` —
-   do NOT resurface any role already listed. If output is `NOTE_NOT_FOUND` or
-   `FOLDER_NOT_FOUND`, treat as empty (no previously seen postings).
+   do NOT resurface any role already listed. If output is `NOTE_NOT_FOUND`, `NOTE_EMPTY`,
+   or `FOLDER_NOT_FOUND`, treat as empty (no previously seen postings).
+   If output starts with `error:`, treat as empty AND note the warning in the digest footer.
 4. Run `apple_notes_read.applescript "Job Search - Preferences" "{default_folder}"` —
-   use interest signals to weight searches. Treat `NOTE_NOT_FOUND` as no preferences.
+   use interest signals to weight searches. Treat `NOTE_NOT_FOUND` and `NOTE_EMPTY` as no
+   preferences. If output starts with `error:`, treat as no preferences and note the warning.
 
 ---
 
@@ -253,7 +255,7 @@ rules exactly — every line wrapped in `<div>` tags or the note will collapse.
 
 If `apple_notes_create.applescript` returns a value starting with `error:`:
 
-1. Log the exact error message
+1. Write the exact error message to `output/error-{date}.log` so it persists after the session ends
 2. Save the digest as `output/digest-{date}.html`
 3. Tell Chris:
    > "Apple Notes write failed — saved HTML fallback at `output/digest-{date}.html`. Error: {exact error message}"
@@ -271,8 +273,17 @@ After the digest note is written:
 1. Build the updated Seen Postings content (append all new role titles + URLs + date)
 2. Run `apple_notes_update.applescript "Job Search - Seen Postings" "{html_body}" "{default_folder}"`
    — this is an upsert: updates the note body if found, creates it if not.
+   **Check the return value**: if it starts with `error:`, write the exact message to
+   `output/error-{date}.log` and warn Chris: "Seen Postings state was not persisted —
+   duplicate roles may appear on the next run. Error: {message}"
 3. Build updated Preferences content (update source effectiveness counts)
 4. Run `apple_notes_update.applescript "Job Search - Preferences" "{html_body}" "{default_folder}"`
+   **Check the return value**: if it starts with `error:`, write the exact message to
+   `output/error-{date}.log` and warn Chris: "Preferences were not saved. Error: {message}"
+
+Also check reads before acting: if `apple_notes_read.applescript` returns a value starting
+with `error:`, treat as empty state AND warn Chris in the digest footer that Notes access
+is degraded for this field.
 
 These state notes are the source of truth across all sessions. No local files
 required — the notes persist in iCloud.

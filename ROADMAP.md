@@ -35,8 +35,10 @@ is in PATH and callable via the Bash tool — matching the eisenhower pattern.
 - Deleted: `scripts/apple-notes-mcp/`, `.mcp.json`, `scripts/build-plugin.sh`,
   `scripts/setup-mcp.sh`, stale planning docs
 
-**Pending validation**: Run the 10-step test protocol in
-`integrations/docs/apple-notes-test-protocol.md` before closing v0.3.
+**Validation complete**: All 10 steps of the test protocol passed (2026-03-11).
+Two bugs were found and fixed in the same PR: note-matching always returned the
+first note (broken `lower()` helper); update script silently renamed notes on body
+write. Protocol caveats documented in `integrations/docs/apple-notes-test-protocol.md`.
 
 ---
 
@@ -169,5 +171,18 @@ search, not on building general-purpose tooling.
 
 | Item | Description | Why Deferred |
 |------|-------------|--------------|
-| CHANGELOG.md | Version history lives only in git log. | Low priority while v0.3 test protocol is pending. |
+| CHANGELOG.md | Version history lives only in git log. | Low priority while the plugin is single-user and actively evolving. |
 | README.md polish | User-facing README could be cleaner. | Low priority while the plugin is single-user and actively evolving. |
+
+---
+
+## Technical Debt (surfaced in v0.3 code review)
+
+Low-priority cleanup items identified during PR review. None block functionality.
+
+| Item | File | Description |
+|------|------|-------------|
+| `plugin_root` tilde expansion | `integrations/config/notes-config.md` + `SKILL.md` | The `~` in `plugin_root` may not expand inside double-quoted `osascript` arguments. Add an explicit expansion note to SKILL.md or store an absolute path in config. |
+| Redundant `set name` in update script | `scripts/apple_notes_update.applescript` | `set name of n to noteTitle` after `set body` is usually a no-op (title already matches), but it fires a modification event and creates a retry-on-success risk if it fails after the body write succeeds. Evaluate removing it. |
+| `account` field unused in scripts | `integrations/config/notes-config.md` | Config declares `account: iCloud` but scripts iterate all folders globally. Add account-scoped lookup or document the field as reserved for future multi-account support. |
+| Spec `Files Changed` section stale | `integrations/specs/apple-notes-integration-spec.md` | The "Files Changed" pre-implementation list diverges from what actually shipped. Git is the canonical diff record — consider removing or archiving this section from the spec. |

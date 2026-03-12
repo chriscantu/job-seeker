@@ -1,7 +1,7 @@
 # Specification: Apple Notes Integration (Direct Script Pattern)
 
 **Date**: 2026-03-11
-**Status**: Draft — awaiting user approval before implementation
+**Status**: Implemented — shipped in v0.3 (fix/apple-notes-scripts, 2026-03-11)
 **Replaces**: MCP server approach (`scripts/apple-notes-mcp/`)
 
 ---
@@ -117,7 +117,7 @@ Matches eisenhower's non-blocking pattern:
 - `scripts/apple_notes_read.applescript`
 - `scripts/apple_notes_update.applescript`
 - `scripts/apple_notes_list.applescript`
-- `scripts/apple-notes-spec.md` (this file)
+- `integrations/specs/apple-notes-integration-spec.md` (this file)
 - `integrations/config/notes-config.md.example`
 
 ### Updated
