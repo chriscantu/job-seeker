@@ -5,8 +5,10 @@ description: >
   and deliver a filtered, deduplicated digest via Apple Notes. Runs
   interactively when Chris opens Cowork — trigger with "run my job
   digest", "check for new roles", "any new jobs today", or "job search
-  update". Uses direct AppleScript calls (osascript) to read and write
-  Apple Notes natively. State is persisted in Apple Notes.
+  update". Uses the Control your Mac MCP tool (mcp__Control_your_Mac__osascript)
+  to run AppleScript on the Mac host and write to Apple Notes natively.
+  State is persisted in Apple Notes. Requires "Control your Mac" MCP server.
+allowed-tools: Read, Write, Edit, WebSearch, WebFetch, mcp__Control_your_Mac__osascript
 ---
 
 # Daily Job Digest
@@ -16,36 +18,36 @@ against previously seen postings, and writes a formatted Apple Note.
 
 ## How Apple Notes Access Works
 
-This skill uses **direct AppleScript scripts** called via `osascript` from the
-Mac host. No MCP server, no background daemon — just four standalone scripts
-in `scripts/` that Claude invokes as shell commands from its skill instructions.
+This skill uses the **`mcp__Control_your_Mac__osascript`** MCP tool to run
+AppleScript directly on the Mac host. No background daemon, no local server —
+the "Control your Mac" MCP server (installed separately) bridges the Cowork VM
+to native macOS apps.
 
-The config file `integrations/config/notes-config.md` must exist (copy
-`notes-config.md.example` and fill in `plugin_root`). Read it before running
-any script to get the correct `plugin_root` path.
+Standalone AppleScript files live in `scripts/` for complex operations. Read
+`integrations/config/notes-config.md` to get `plugin_root` before any call.
 
-### Script Invocation Pattern
+### Invocation Pattern
 
 Replace `{plugin_root}` with the value from `notes-config.md`.
 
-**Read a note:**
-```
-do shell script "osascript {plugin_root}/scripts/apple_notes_read.applescript " & quoted form of noteTitle & " " & quoted form of folderName
-```
-
-**Create the digest note (replaces if exists):**
-```
-do shell script "osascript {plugin_root}/scripts/apple_notes_create.applescript " & quoted form of noteTitle & " " & quoted form of htmlBody & " " & quoted form of folderName
+**Read a note** — use the `mcp__Control_your_Mac__osascript` tool with:
+```applescript
+do shell script "osascript " & quoted form of "{plugin_root}/scripts/apple_notes_read.applescript" & " " & quoted form of noteTitle & " " & quoted form of folderName
 ```
 
-**Update a state note (upsert — preserves note identity):**
+**Create the digest note** (replaces if exists):
+```applescript
+do shell script "osascript " & quoted form of "{plugin_root}/scripts/apple_notes_create.applescript" & " " & quoted form of noteTitle & " " & quoted form of htmlBody & " " & quoted form of folderName
 ```
-do shell script "osascript {plugin_root}/scripts/apple_notes_update.applescript " & quoted form of noteTitle & " " & quoted form of htmlBody & " " & quoted form of folderName
+
+**Update a state note** (upsert — preserves note identity):
+```applescript
+do shell script "osascript " & quoted form of "{plugin_root}/scripts/apple_notes_update.applescript" & " " & quoted form of noteTitle & " " & quoted form of htmlBody & " " & quoted form of folderName
 ```
 
 **List notes in a folder:**
-```
-do shell script "osascript {plugin_root}/scripts/apple_notes_list.applescript " & quoted form of folderName
+```applescript
+do shell script "osascript " & quoted form of "{plugin_root}/scripts/apple_notes_list.applescript" & " " & quoted form of folderName
 ```
 
 See `integrations/adapters/apple-notes.md` for full field mapping, return
