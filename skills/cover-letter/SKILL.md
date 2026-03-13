@@ -6,8 +6,8 @@ description: >
   letter for [company]", "application letter", or any request to create
   a formal letter accompanying a job application. Also use when Chris
   says "apply to [company]" and a cover letter is part of the process.
-  This skill produces a professional .docx or .md cover letter that
-  maps Chris's specific accomplishments to the role requirements.
+  This skill produces a professional .docx cover letter (plus a .md source)
+  that maps Chris's specific accomplishments to the role requirements.
 ---
 
 # Cover Letter Generator
@@ -30,7 +30,7 @@ Ask the user for what you don't already have:
 - **Role title** (required)
 - **Job posting URL** (strongly recommended — fetch and read to extract requirements)
 - **Specific points to emphasize** (optional — Chris may want to highlight certain experience)
-- **Format preference** (optional — .docx or .md, default to .md)
+- **Format preference** (optional — default is .docx + .md source)
 
 ## Research Phase
 
@@ -87,8 +87,16 @@ company and role. End with a clear call to action.
 
 ## Output
 
-1. Write the cover letter to `output/{company-name}/cover-letter-{date}.md`
-2. If Chris requests .docx, invoke the docx skill to produce a formatted document
+All files go in `output/{company-slug}/` (e.g., `output/natera/`).
+
+1. Write the cover letter source:
+   ```
+   output/{company-slug}/Christopher_Cantu_CoverLetter_{Company}.md
+   ```
+2. Generate a .docx by invoking the `anthropic-skills:docx` skill, saving to:
+   ```
+   output/{company-slug}/Christopher_Cantu_CoverLetter_{Company}.docx
+   ```
 3. The `output/` directory is gitignored — generated materials stay local
 
 ## Quality Checks

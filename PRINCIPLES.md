@@ -56,24 +56,40 @@ Implementation MUST follow DRY (Don't Repeat Yourself) and SOLID principles.
 - Open/Closed: adapters are swappable without changing skills.
 - Dependency Inversion: skills describe *what* to do; scripts handle *how*.
 
-### 4. Structure Compliance
+### 4. JavaScript / TypeScript Only — No Python
+
+All scripts in `scripts/` MUST be written in JavaScript or TypeScript and run
+via `node`. Python is not an approved runtime.
+
+**Why:** The project already requires Node for `docx` generation. Adding Python
+creates a second dependency tree (`pip`, virtual envs, interpreter versions) with
+no benefit. One runtime = one install = one less failure mode.
+
+**Enforced:**
+- `scripts/*.py` — forbidden. Delete and replace with `scripts/*.js`.
+- AppleScript files (`scripts/*.applescript`) are exempt — they are macOS-native
+  and have no JS equivalent.
+- If a Node package doesn't exist for a task, solve it differently. Don't reach
+  for Python.
+
+### 5. Structure Compliance
 
 Code MUST be organized according to the project `STRUCTURE.md` guide.
 When adding a new file, check the decision tree there first. Do not create
 files at the repo root or in ad-hoc directories.
 
-### 5. Deviation Requires Approval
+### 6. Deviation Requires Approval
 
 ANY deviations from these rules MUST be validated by the user before
 proceeding. This includes architectural changes, new dependencies, and
 any departure from the eisenhower-proven plugin patterns.
 
-### 6. Iterative Commits
+### 7. Iterative Commits
 
 Work MUST be done in small iterative batches. Commit after each logical
 unit of work. Show `git diff --stat` and confirm before every commit.
 
-### 7. PR Merge Gate
+### 8. PR Merge Gate
 
 All manual test steps listed in the PR description MUST be completed and
 confirmed before a PR is merged. No checklist item may be left unchecked
@@ -184,11 +200,31 @@ shapes company direction.
 
 ## Output Directory
 
-All generated deliverables — resumes, cover letters, PDFs, research docs, and any
-other files produced for Chris — must be saved to the `output/` directory, not the
-project root. Use subdirectories as needed (e.g., `output/resumes/`, `output/cover-letters/`).
+All generated deliverables — resumes, cover letters, PDFs, research docs — must be
+saved to `output/` under a **per-company subdirectory**, not the project root.
 
-The project root is for configuration, skills, and references. Deliverables go in `output/`.
+### Structure
+
+```
+output/
+  natera/
+    Christopher_Cantu_Resume_Natera.md
+    Christopher_Cantu_Resume_Natera.docx
+    Christopher_Cantu_CoverLetter_Natera.md
+    Christopher_Cantu_CoverLetter_Natera.docx
+    why-this-company-natera.md
+  gitlab/
+    ...
+  clickup/
+    ...
+```
+
+**Rules:**
+- Company slug = lowercase company name, no spaces (e.g., `natera`, `gitlab`, `clickup`)
+- All artifacts for one company go in one directory — no splitting by artifact type
+- Filename convention: `Christopher_Cantu_{ArtifactType}_{Company}.{ext}`
+- Default output format is `.docx` (+ `.md` source) — no PDF exports
+- The project root is for config, skills, and references. Deliverables go in `output/`.
 
 ---
 
