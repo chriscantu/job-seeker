@@ -15,35 +15,34 @@ constraints that govern all work in this plugin.
 
 ---
 
-## Candidate Profile (Always in Context)
+## Candidate Profile
 
-| Field | Value |
-|-------|-------|
-| **Name** | Christopher Cantu |
-| **Current Role** | Director of Engineering, Procore Technologies |
-| **Target Roles** | Senior Director of Engineering, VP of Engineering, Head of Engineering, SVP Engineering |
-| **Experience** | 15+ years leading platform engineering teams (60+ engineers) |
-| **Core Strengths** | Delivery transformation, CI/CD optimization, platform engineering, multinational team leadership, design systems, DevOps excellence |
-| **Previous Companies** | Procore, Babylon Health, Vrbo (Expedia Group) |
-| **Education** | MS Information Systems + BBA, Baylor University |
-| **Location** | Austin, TX — Remote or Hybrid preferred |
-| **Comp Floor** | $265K base + 15% bonus + $100K RSUs (current) |
-| **What He Wants** | Mission-driven company where he can shape engineering culture, not just maintain it |
-| **Email** | chris.m.cantu@icloud.com |
+Read `config/candidate.md` for the full candidate profile (name, current role,
+target roles, experience, strengths, education, location, email, accomplishments).
+
+## Search Preferences
+
+Read `config/search.md` for target role titles, location constraints, comp floor,
+company types, sources, and companies to skip.
 
 ---
 
 ## State Management
 
-All persistent state lives in Apple Notes (read and written via `osascript` through the Bash tool — requires Claude Code on macOS):
+State persists in date-prefixed markdown files in `output/` (gitignored):
 
-| Apple Note | Purpose |
-|------------|---------|
-| `Job Search - Seen Postings` | Deduplication log — every role ever surfaced |
-| `Job Search - Preferences` | Interest signals, liked/passed roles, source effectiveness |
-| `Job Search - Applications` | Application pipeline tracker |
+| File pattern | Purpose |
+|-------------|---------|
+| `output/*-seen-postings.md` | Deduplication log — every role ever surfaced |
+| `output/*-preferences.md` | Interest signals, liked/passed roles, source effectiveness |
+| `output/*-applications.md` | Application pipeline tracker |
 
-Local `memory/job-search/` files mirror this state when a session has the folder mounted.
+Skills glob for the most recent file of each type. If none exists, create one
+with today's date: `output/YYYY-MM-DD-{type}.md`.
+
+Apple Notes integration is Chris's personal layer — `daily-digest` also writes
+there when `integrations/config/notes-config.md` is present. See
+`integrations/adapters/apple-notes.md` to enable it as a new user.
 
 ---
 
@@ -51,7 +50,7 @@ Local `memory/job-search/` files mirror this state when a session has the folder
 
 The canonical resume lives at `references/resume.pdf`. Every skill that needs
 resume context should read this file rather than hardcoding experience details.
-The candidate profile table above provides a quick reference, but the resume
+Read `config/candidate.md` for a quick profile reference, but the resume
 is the source of truth for detailed accomplishments.
 
 ---
