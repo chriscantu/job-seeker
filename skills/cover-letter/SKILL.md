@@ -19,8 +19,12 @@ could only have been written by Chris for this specific role.
 ## Before You Start
 
 1. Read `PRINCIPLES.md` — especially "Quantify Everything" and "Respect the Level"
-2. Read `references/resume.pdf` for detailed accomplishments
-3. Read the `why-this-company` skill's output if one exists for this company
+2. Read `config/candidate.md` — candidate name, role, accomplishments
+3. Read `references/resume.pdf` for full detailed accomplishments
+4. Glob `references/writing-samples/*.md` — if any files exist, read them to
+   calibrate tone and voice before writing. Fall back to `references/voice-guide.md`
+   if the directory is empty or missing.
+5. Read the `why-this-company` skill's output if one exists for this company
    (avoid duplicating the research)
 
 ## Required Inputs
@@ -65,16 +69,10 @@ and that's exactly the kind of problem I've spent the last decade solving."
 Each paragraph should follow: [Role requirement] → [Chris's specific
 accomplishment with numbers] → [How this translates to value for this company]
 
-Pull from these accomplishment categories based on role requirements:
-
-| Requirement Area | Chris's Evidence |
-|-----------------|-----------------|
-| Delivery/velocity | CI/CD 1% → 95%; deploy 6mo → minutes; 20x release velocity |
-| Revenue impact | $18M+ business value; $12M international revenue; $8M A/B testing |
-| Scale/platform | 85% design system adoption across 185 repos; micro-frontend architecture |
-| Team leadership | 60+ engineers, 8 international teams, US/Europe/Africa/Asia |
-| Cost optimization | $10M+ operational savings through automation |
-| Culture/transformation | ShapeUp methodology adoption; pioneered accessibility (WCAG) |
+Pull from the `## Accomplishments` section of `config/candidate.md`. Map each
+listed accomplishment to the most relevant requirement area from the job posting.
+Prefer accomplishments with specific numbers — any bullet without a number is
+weak evidence.
 
 **Closing paragraph** — Forward-looking. What Chris will bring to this specific
 company and role. End with a clear call to action.
@@ -82,7 +80,7 @@ company and role. End with a clear call to action.
 ### What to Avoid
 - Generic phrases: "I am a passionate leader" / "I thrive in fast-paced environments"
 - Repeating the resume bullet-for-bullet — the letter should tell a narrative
-- Underselling: Chris leads 60 engineers across 8 teams at a public company — own that
+- Underselling: own the candidate's actual scope — team size, org scale, company stage
 - Overselling: Don't claim CTO-level scope; be honest about Director-level experience with VP-level ambition
 
 ## Output
@@ -110,6 +108,13 @@ Before presenting:
 
 ## State Update
 
-After generating, update `Job Search - Seen Postings` Apple Note to reflect
-that materials have been prepared for this role. If an `Applications` note
-exists, log the activity there.
+After generating, append to the seen-postings state file:
+
+1. Glob `output/*-seen-postings.md`, sort descending.
+2. Append to the most recent file (or create `output/YYYY-MM-DD-seen-postings.md`
+   if none exists):
+   ```
+   - {Company} | {Title} | cover letter generated | {date}
+   ```
+
+Note: Applications pipeline tracking is deferred to the `application-tracker` skill.
