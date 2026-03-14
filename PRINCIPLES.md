@@ -17,8 +17,9 @@ the Bash tool — no MCP servers, no background daemons, no Cowork.
 
 - **JS/TS only** — All scripts in `scripts/` run via `node`. No Python.
   AppleScript files are exempt (macOS-native, no JS equivalent).
-- **Don't duplicate config** — Candidate profile, search preferences, and
-  paths live in one place. Skills read them; they don't hardcode them.
+- **Don't duplicate config** — Candidate profile and search preferences live in
+  `config/candidate.md` and `config/search.md`. Skills read them; they don't
+  hardcode them. Never copy profile data into a skill file.
 - **Small commits** — Commit after each logical unit. Show the diff, get sign-off.
 - **No deviations without approval** — Architectural changes, new dependencies,
   and new patterns require explicit user confirmation.
@@ -48,8 +49,18 @@ output/
 
 ## State Continuity
 
-Apple Notes is the source of truth. Local `memory/` files are a convenience
-mirror, not authoritative.
+`output/` markdown files are the source of truth for state that persists across
+sessions (seen postings, preferences, applications). Apple Notes is an optional
+personal integration — `daily-digest` writes there as a secondary layer when
+configured, but it is not required for the plugin to function.
+
+State files live at the `output/` root (e.g., `output/2026-03-14-seen-postings.md`).
+Per-company artifacts (cover letters, resumes) continue to live in
+`output/{company-slug}/`. Both patterns coexist in `output/` with no conflict.
+
+Skills glob for the most recent `output/*-{state-type}.md` file before acting
+and append to it after completing. If no file exists, create one with today's
+date prefix: `output/YYYY-MM-DD-{state-type}.md`.
 
 Every skill reads relevant state before acting and writes state after completing.
 Never show a role that's already been seen. Never ask for information that's
