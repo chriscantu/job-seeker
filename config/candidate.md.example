@@ -1,0 +1,26 @@
+# Candidate Profile
+
+Copy this file to `config/candidate.md` and fill in your details.
+This file is gitignored — only the .example template is committed.
+
+| Field | Value |
+|-------|-------|
+| Name | Your Full Name |
+| Current Role | Title, Company |
+| Target Roles | Senior Director of Engineering, VP of Engineering, Head of Engineering |
+| Experience | X+ years leading [domain] engineering teams (N+ engineers) |
+| Core Strengths | Strength 1, Strength 2, Strength 3 |
+| Previous Companies | Company A, Company B, Company C |
+| Education | Degree, University |
+| Location | City, State |
+| Email | you@example.com |
+
+## Accomplishments
+
+Add 3–5 bullet points with specific, quantified accomplishments relevant to
+your target roles. Skills use these to ground cover letters and interview prep
+in real evidence.
+
+- [Example: Reduced deployment cycle from X months to Y minutes, unlocking $Z in revenue]
+- [Example: Led N engineers across M teams across X geographies]
+- [Example: Saved $X through automation/platform consolidation]
