@@ -1,7 +1,7 @@
 # job-seeker — Product Roadmap
 
 **Format**: Near-Term / Long-Term / Won't Do / Open Questions / Deferred
-**Last updated**: 2026-03-12
+**Last updated**: 2026-03-13
 **Owner**: Cantu
 
 For a full history of what has shipped, see [CHANGELOG.md](CHANGELOG.md).
@@ -79,6 +79,46 @@ Formalize the three Apple Notes state notes as a proper read/write layer:
 Define a schema for each note (fields, format, update rules) so all skills
 read and write consistently. Spec required before implementation.
 
+### 5. Candidate-Agnostic Configuration
+
+**Goal**: Any job seeker should be able to clone this repo, drop in their resume
+and a couple of writing samples, fill out one config file, and have every skill
+work for them — without touching CLAUDE.md or hardcoded profile strings.
+
+**Problem today**: The candidate profile (name, current role, target roles, comp
+floor, accomplishments, location) is hardcoded in `CLAUDE.md` and duplicated
+across skill files. Swapping this plugin to a new user requires a find-and-replace
+across the whole repo.
+
+**Approach**:
+
+1. **`config/candidate.md`** — Single file the user fills in. All fields currently
+   in the CLAUDE.md "Candidate Profile" table move here. Skills read this file
+   instead of relying on CLAUDE.md context.
+
+2. **`references/` as a drop-in convention** — Document clearly:
+   - `references/resume.pdf` — canonical resume (replace to use as a new user)
+   - `references/writing-samples/` — 2–3 cover letters or writing samples that
+     establish the candidate's voice; skills use these to calibrate tone
+
+3. **`config/search.md`** — Job search preferences separate from the candidate
+   profile: target roles, location constraints, comp floor, sources to search,
+   companies to skip.
+
+4. **Thin CLAUDE.md** — After migration, CLAUDE.md points to config files rather
+   than duplicating data. The plugin becomes a framework; the config files make
+   it personal.
+
+5. **State note naming** — Apple Notes state keys (`Job Search - Seen Postings`,
+   etc.) should be configurable so two users on the same machine don't share
+   state.
+
+**Spec required before implementation.** This is a breaking change to how skills
+read context — all skills need to be updated together.
+
+**Not in scope**: Running the plugin for multiple users simultaneously. One active
+job search per instance. This is about *portability*, not *concurrency*.
+
 ---
 
 ## Long-Term — v1.0+
@@ -133,7 +173,7 @@ search, not on building general-purpose tooling.
 | Auto-apply to jobs | Applications require human judgment and personalization — never automate the submission |
 | LinkedIn automation | ToS violation risk; manual LinkedIn search is the right boundary |
 | Recruiter email auto-reply | Responses to recruiters require tone judgment — always draft, never send |
-| Multi-user support | This plugin is calibrated to Chris specifically — generalization would degrade quality |
+| Concurrent multi-user support | Running the plugin for multiple active job seekers simultaneously is out of scope. One instance = one candidate. Portability (clone → configure → use) is v0.4 item #5 above. |
 | Job board scraping / crawling | Brittle, against ToS on most boards; WebSearch + WebFetch on direct URLs is sufficient |
 | Salary negotiation scripting | Too high-stakes to automate — provide frameworks, not scripts |
 | Cowork support | Cowork's Linux VM has no path to osascript. Claude Code on macOS is the only supported runtime. |
