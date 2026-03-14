@@ -2,24 +2,27 @@
 name: why-this-company
 description: >
   Generate a compelling "Why did you decide to apply to this company?" response
-  tailored to a specific company and role. Use this skill when Chris asks
-  "why this company", "why am I applying", "write a why statement", "application
-  response for [company]", or any variation of explaining motivation for applying
-  to a specific role. Also use when preparing application materials that need
-  a motivation narrative.
+  tailored to a specific company and role. Triggers: "why this company", "why am I applying",
+  "write a why statement", "application response for [company]", or any variation of
+  explaining motivation for applying to a specific role. Also use when preparing
+  application materials that need a motivation narrative.
 ---
 
 # Why This Company — Response Generator
 
 Creates an authentic, executive-level response to "Why did you decide to apply
-to this company?" by connecting Chris's real career trajectory and values to
+to this company?" by connecting the candidate's real career trajectory and values to
 the company's mission, stage, and engineering challenges.
 
 ## Before You Start
 
 1. Read `PRINCIPLES.md` — especially "Authenticity Over Polish" and "Mission Alignment Is Not Performative"
-2. Read `references/resume.pdf` for detailed accomplishments
-3. Read the `Job Search - Preferences` Apple Note for interest signals
+2. Read `config/candidate.md` — candidate name, role, previous companies, strengths
+3. Read `references/resume.pdf` for detailed accomplishments
+4. Glob `references/writing-samples/*.md` — if any files exist, read them to
+   calibrate tone before writing.
+5. Glob `output/*-preferences.md`, sort descending, read the most recent file
+   for interest signals. If no file exists, proceed without preference context.
 
 ## Required Inputs
 
@@ -39,11 +42,12 @@ Before writing anything, research the company:
    - Engineering blog posts or tech talks (reveals engineering culture)
    - Glassdoor/Blind reputation signals
 
-2. **Identify genuine connection points** between Chris's background and the company:
-   - Mission alignment (healthcare → Babylon, construction tech → Procore, travel → Vrbo)
-   - Engineering challenges that match his strengths (broken delivery, scaling, platform consolidation)
-   - Culture-shaping opportunity (his stated goal for the next role)
-   - Company stage alignment (growth-stage where he can have impact)
+2. **Identify genuine connection points** between the candidate's background and the company:
+   - Mission alignment — connect to the candidate's previous company domains
+     (read from `config/candidate.md` Previous Companies and Core Strengths fields)
+   - Engineering challenges that match the candidate's core strengths
+   - The candidate's stated goal for their next role (from `config/candidate.md`)
+   - Company stage alignment (growth-stage where they can have impact)
 
 3. **Check for weak connections** — if the alignment is thin, flag it honestly.
    "The mission connection here is less direct than your Babylon or Procore experience,
@@ -55,7 +59,7 @@ Structure the response in three parts:
 
 ### 1. The Hook (1-2 sentences)
 Connect to the company's mission using a specific, personal thread.
-Not generic admiration — a real reason grounded in Chris's experience.
+Not generic admiration — a real reason grounded in the candidate's experience.
 
 **Bad:** "I've always been passionate about [industry]."
 **Good:** "At Babylon Health, I saw firsthand how broken delivery systems
@@ -64,10 +68,10 @@ is solving [specific problem] and I know what it takes to build the
 engineering platform that makes that possible at scale."
 
 ### 2. The Bridge (2-3 sentences)
-Connect Chris's specific accomplishments to the company's current challenges.
+Connect the candidate's specific accomplishments to the company's current challenges.
 Use numbers. Reference the actual role requirements if you have the posting.
 
-**Template:** "In my current role at Procore, I [specific accomplishment
+**Template:** "In my current role, I [specific accomplishment
 with numbers]. [Company] is at a stage where [specific challenge from
 job posting or research], and that's exactly the kind of problem I've
 built my career around solving."
@@ -78,7 +82,7 @@ Explain what makes this company different from staying put. This is where
 grounded in specifics about this company, not generic ambition.
 
 **Template:** "What excites me about [Company] is [specific thing about
-their stage/mission/challenge]. At [large company], the culture is already
+their stage/mission/challenge]. At my current company, the culture is already
 set. I want to be somewhere I can [specific impact tied to company context]."
 
 ## Output Format
@@ -90,14 +94,21 @@ Produce two versions:
 ## Quality Checks
 
 Before presenting the output:
-- Does it sound like Chris, not a career coach?
-- Are there specific numbers from his actual experience?
+- Does it sound like the candidate, not a career coach?
+- Are there specific numbers from their actual experience?
 - Is the mission connection genuine, not manufactured?
 - Does it read at an executive level?
-- Would Chris actually say this in conversation?
+- Would the candidate actually say this in conversation?
 
 ## State Update
 
-After generating, ask Chris if he wants to apply. If yes, update the
-`Job Search - Seen Postings` Apple Note to mark the role as "APPLYING"
-and log it in the `Job Search - Applications` note if it exists.
+After generating, ask the candidate if they want to apply. If yes:
+
+1. Glob `output/*-seen-postings.md`, sort descending.
+2. Append to the most recent file (or create `output/YYYY-MM-DD-seen-postings.md`
+   if none exists):
+   ```
+   - {Company} | {Title} | APPLYING | {date}
+   ```
+
+Note: Applications pipeline tracking is deferred to the `application-tracker` skill.
