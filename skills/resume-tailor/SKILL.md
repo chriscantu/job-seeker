@@ -35,6 +35,23 @@ This skill is stubbed for future development.
 
 All files saved to `output/{company-slug}/` — same directory as the cover letter.
 
+## DOCX Generation Rules
+
+When writing the generation script, always `require('../../scripts/docx-styles')` for
+shared constants and helpers. This ensures consistent formatting across all resumes.
+
+**Critical — bullet alignment (enforced in `scripts/docx-styles.js`):**
+Use `NUMBERING_CONFIG` from `docx-styles.js`. Never override bullet indent values inline.
+The correct values are `left: 720, hanging: 360` for level 0 and `left: 1080, hanging: 360`
+for level 1. Smaller values (e.g. `left: 480, hanging: 240`) cause wrapped bullet text
+to misalign with the line above — a known formatting defect.
+
+**Run with:**
+```fish
+set NODE_PATH /opt/homebrew/lib/node_modules
+node output/{company-slug}/generate_resume.js
+```
+
 ## Key Constraints
 
 - Never fabricate experience — only reorder and emphasize existing content

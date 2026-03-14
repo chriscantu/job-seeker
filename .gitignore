@@ -18,5 +18,11 @@ references/writing-samples/
 # Outdated files
 job-search-system.md
 
+# Dependencies
+node_modules/
+
+# Claude Code local session data
+.claude/
+
 # OS files
 .DS_Store
