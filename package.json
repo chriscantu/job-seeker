@@ -1,0 +1,28 @@
+{
+  "name": "job-seeker",
+  "version": "1.0.0",
+  "description": "A Claude Code plugin that automates the executive job search lifecycle. Built for a specific candidate (me), not as a general-purpose tool. Runs in Claude Code CLI on macOS — not Cowork.",
+  "main": "index.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/chriscantu/job-seeker.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/chriscantu/job-seeker/issues"
+  },
+  "homepage": "https://github.com/chriscantu/job-seeker#readme",
+  "dependencies": {
+    "docx": "^9.6.1",
+    "pdfkit": "^0.17.2"
+  }
+}
