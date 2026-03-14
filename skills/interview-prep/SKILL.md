@@ -14,6 +14,13 @@ experience to likely questions using the STAR framework.
 
 This skill is stubbed for future development.
 
+## Before You Start
+
+1. Run `node scripts/validate-config.js` — if it exits non-zero, stop and show the error
+2. Read `config/candidate.md` — candidate name, experience, core strengths, accomplishments
+3. Read `config/search.md` — target roles
+4. Read `references/resume.pdf` — for STAR story material
+
 ## Intended Behavior
 
 1. Accept company name and role details
@@ -22,7 +29,7 @@ This skill is stubbed for future development.
 4. Cover: leadership philosophy, delivery transformation, scaling teams,
    conflict resolution, cross-functional influence, technical strategy
 5. Include company-specific questions based on research brief
-6. Output as a study guide in Apple Notes
+6. Output as a study guide saved to `output/{company-slug}/interview-prep.md`
 
 ## Key Frameworks
 

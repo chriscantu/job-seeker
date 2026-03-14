@@ -54,32 +54,34 @@ values, and error handling reference.
 
 ## Before You Start
 
-1. Read `CLAUDE.md` for candidate profile and filter criteria
-2. Read `integrations/config/notes-config.md` — extract `plugin_root` and `default_folder`
-3. Run `apple_notes_read.applescript "Job Search - Seen Postings" "{default_folder}"` —
-   do NOT resurface any role already listed. If output is `NOTE_NOT_FOUND`, `NOTE_EMPTY`,
-   or `FOLDER_NOT_FOUND`, treat as empty (no previously seen postings).
-   If output starts with `error:`, treat as empty AND note the warning in the digest footer.
-4. Run `apple_notes_read.applescript "Job Search - Preferences" "{default_folder}"` —
-   use interest signals to weight searches. Treat `NOTE_NOT_FOUND` and `NOTE_EMPTY` as no
-   preferences. If output starts with `error:`, treat as no preferences and note the warning.
+1. Read `config/candidate.md` — candidate name and profile
+2. Read `config/search.md` — target role titles, comp floor, location constraints, sources
+3. Run `node scripts/validate-config.js` — if it exits non-zero, stop and show the error to the user
+4. Glob `output/*-seen-postings.md`, sort descending, read the most recent file.
+   Do NOT resurface any role already listed. If no file exists, treat as empty
+   (no previously seen postings).
+5. Glob `output/*-preferences.md`, sort descending, read the most recent file.
+   Use interest signals to weight searches. If no file exists, treat as no preferences.
+6. (Optional — Apple Notes only) If `integrations/config/notes-config.md` exists,
+   read it to get `plugin_root` and `default_folder` for Apple Notes writes.
+   Skip this step if the file does not exist.
 
 ---
 
 ## Filter Criteria
 
+Read from `config/search.md`. Use the following fields to filter:
+
 **Include:**
-- Titles: Senior Director of Engineering, VP of Engineering, Head of Engineering,
-  SVP Engineering, VP Platform Engineering, VP Developer Experience
-- Location: Remote, Hybrid (Austin TX area OK)
-- Company type: Mission-driven, growth-stage, midsize
-- Comp: $250K+ total likely
+- Titles: values from "Target Role Titles" section of `config/search.md`
+- Location: values from "Location Constraints" section
+- Company type: "Company Types" field
+- Comp: "Comp Floor" field — include roles likely to meet or exceed this
 
 **Exclude:**
-- Relocation required outside Austin
-- 100% in-office downtown Austin
+- Any company listed in "Companies to Skip" field
+- Roles that violate location constraints
 - IC/Staff Engineer roles
-- Junior Director at very large companies
 - Consulting or contract
 - Postings that return 404, redirect to a general careers page, or indicate
   the role is filled / no longer accepting applications — verify before including
@@ -200,9 +202,12 @@ follow the fallback procedure below.
 The `html_body` passed to the create script must follow Apple Notes' HTML
 rules exactly — every line wrapped in `<div>` tags or the note will collapse.
 
+Substitute `{Name from config/candidate.md}` with the `Name` field value read
+from `config/candidate.md` before constructing the HTML body.
+
 ```html
 <div><b><span style="font-size: 21px">Executive Job Digest — {Month Day, Year}</span></b></div>
-<div><span style="font-size: 11px">Good morning Chris — here are today's executive engineering leadership opportunities:</span></div>
+<div><span style="font-size: 11px">Good morning {Name from config/candidate.md} — here are today's executive engineering leadership opportunities:</span></div>
 <div><span style="font-size: 11px"><br></span></div>
 <div><b><span style="font-size: 15px">🏢 {Company Name}</span></b></div>
 <div><b><span style="font-size: 11px">📍 Location:</span></b><span style="font-size: 11px"> {Location}</span></div>
@@ -270,20 +275,41 @@ is the intended delivery channel — everything else is a workaround.
 
 After the digest note is written:
 
-1. Build the updated Seen Postings content (append all new role titles + URLs + date)
-2. Run `apple_notes_update.applescript "Job Search - Seen Postings" "{html_body}" "{default_folder}"`
-   — this is an upsert: updates the note body if found, creates it if not.
-   **Check the return value**: if it starts with `error:`, write the exact message to
-   `output/error-{date}.log` and warn Chris: "Seen Postings state was not persisted —
-   duplicate roles may appear on the next run. Error: {message}"
-3. Build updated Preferences content (update source effectiveness counts)
-4. Run `apple_notes_update.applescript "Job Search - Preferences" "{html_body}" "{default_folder}"`
-   **Check the return value**: if it starts with `error:`, write the exact message to
-   `output/error-{date}.log` and warn Chris: "Preferences were not saved. Error: {message}"
+### Primary state — output/ files
 
-Also check reads before acting: if `apple_notes_read.applescript` returns a value starting
-with `error:`, treat as empty state AND warn Chris in the digest footer that Notes access
-is degraded for this field.
+1. Glob `output/*-seen-postings.md`, sort descending. If a file exists, append
+   new role entries to it. If no file exists, create `output/YYYY-MM-DD-seen-postings.md`
+   (use today's date).
 
-These state notes are the source of truth across all sessions. No local files
-required — the notes persist in iCloud.
+   Entry format:
+   ```
+   ## YYYY-MM-DD
+   - {Company} | {Title} | {URL}
+   ```
+
+2. Glob `output/*-preferences.md`, sort descending. If a file exists, append
+   updated source effectiveness counts. If no file exists, create
+   `output/YYYY-MM-DD-preferences.md`.
+
+   Entry format:
+   ```
+   ## YYYY-MM-DD
+   ### Source Effectiveness
+   - {Source}: {N} relevant roles found
+   ```
+
+### Secondary state — Apple Notes (optional, Chris's personal integration)
+
+If `integrations/config/notes-config.md` exists, also run the Apple Notes
+state updates below. Skip this block entirely if the file does not exist.
+
+Read `integrations/config/notes-config.md` to get `plugin_root`, `default_folder`,
+and `Apple Notes Prefix` (from `config/search.md`, default: `Job Search`).
+
+Construct note names using the prefix:
+- `{prefix} - Seen Postings`
+- `{prefix} - Preferences`
+
+Run `apple_notes_update.applescript` for each note as before. Check return values;
+if either starts with `error:`, log to `output/error-{date}.log` and warn the user
+but do NOT fail the digest — primary state already succeeded.

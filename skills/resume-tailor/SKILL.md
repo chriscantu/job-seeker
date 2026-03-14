@@ -14,14 +14,19 @@ adjusting emphasis, and surfacing the most relevant accomplishments.
 
 This skill is stubbed for future development.
 
+## Before You Start
+
+1. Run `node scripts/validate-config.js` — if it exits non-zero, stop and show the error
+2. Read `config/candidate.md` — candidate name, role, accomplishments
+3. Read `config/search.md` — target roles, comp floor
+4. Read `references/resume.pdf` — canonical resume content
+
 ## Intended Behavior
 
-1. Read `references/resume.pdf` for the canonical resume
-2. Read CLAUDE.md for candidate profile
-3. Accept a job posting URL or pasted description
-4. Analyze which accomplishments map strongest to the role requirements
-5. Produce a reordered/emphasized version of the resume as a `.md` source
-6. Generate a .docx using:
+1. Accept a job posting URL or pasted description
+2. Analyze which accomplishments map strongest to the role requirements
+3. Produce a reordered/emphasized version of the resume as a `.md` source
+4. Generate a .docx using:
    ```
    node scripts/generate_resume_docx.js \
      output/{company-slug}/Christopher_Cantu_Resume_{Company}.md \

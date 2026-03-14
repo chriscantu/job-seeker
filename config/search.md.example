@@ -1,0 +1,33 @@
+# Search Preferences
+
+Copy this file to `config/search.md` and fill in your preferences.
+This file is gitignored — only the .example template is committed.
+
+| Field | Value |
+|-------|-------|
+| Remote Preference | Remote or Hybrid |
+| Comp Floor | $X base + Y% bonus + $Z equity |
+| Company Types | Mission-driven, growth-stage, midsize |
+| Companies to Skip | (comma-separated list of companies to exclude) |
+| Sources | LinkedIn, Greenhouse, Wellfound, Lever, Ashby |
+| Apple Notes Prefix | Job Search |
+
+## Target Role Titles
+
+List the exact titles to search for, one per line:
+
+- Senior Director of Engineering
+- VP of Engineering
+- Head of Engineering
+
+## Location Constraints
+
+- Remote: Yes
+- Hybrid (Austin TX area): Yes
+- Relocation required: No
+- 100% in-office: No
+
+## Notes
+
+Add any current search context here — companies you're actively pursuing,
+sources that have been most effective, or search adjustments.

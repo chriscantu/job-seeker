@@ -8,6 +8,13 @@ memory/
 integrations/config/*.md
 !integrations/config/*.md.example
 
+# Candidate config files (personal — only .example templates are committed)
+config/candidate.md
+config/search.md
+
+# Writing samples (personal voice calibration — gitignored)
+references/writing-samples/
+
 # Outdated files
 job-search-system.md
 

@@ -14,6 +14,13 @@ contacts, recruiters, and executive search firms.
 
 This skill is stubbed for future development.
 
+## Before You Start
+
+1. Run `node scripts/validate-config.js` — if it exits non-zero, stop and show the error
+2. Read `config/candidate.md` — candidate name, current role, target roles
+3. Glob `references/writing-samples/*.md` — if any files exist, read them to
+   calibrate tone before writing
+
 ## Intended Behavior
 
 1. Accept target person/company and context (warm intro, cold outreach, recruiter)
