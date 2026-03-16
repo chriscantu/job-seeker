@@ -59,7 +59,7 @@ Company size and location/remote filtering are not supported as direct API query
 
 **job_title_or** — the correct API parameter for title matching. Provide an array of exact or partial title strings from the Target Role Titles list in search.md. Example for current search.md:
 ```json
-["VP of Engineering", "Senior Director of Engineering", "Head of Engineering", "SVP of Engineering", "VP of Platform Engineering", "VP of Developer Experience"]
+["VP of Engineering", "Senior Director of Engineering", "Head of Engineering", "SVP Engineering", "VP Platform Engineering", "VP of Developer Experience"]
 ```
 
 **company_size and location/remote filtering** — not supported as API query parameters. Apply these filters during Phase 3 compose using the `company_object.employee_count_range` field in the response and by reading location from the `location` field.

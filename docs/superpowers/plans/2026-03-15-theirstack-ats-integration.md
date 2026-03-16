@@ -129,6 +129,13 @@
     limit: 10
   ```
 
+  > **Implementation note (from live API validation):** The parameters above were
+  > found to be unsupported. The actual API uses:
+  > - `job_title_or`: array of title strings (not a regex)
+  > - `posted_at_gte`: date string (not `posted_after`)
+  > - `company_size`, `location`, `remote` are NOT supported query params — filter post-retrieval
+  > See `integrations/adapters/theirstack.md` for the validated API contract.
+
   ### Query Parameter Construction
 
   **job_title_pattern** — build a regex from the Target Role Titles list in
@@ -391,6 +398,12 @@
   ````
 
 - [ ] **Step 2: Verify file exists**
+
+  > **Implementation note (from live API validation):**
+  > - Ashby: endpoint is GET, not POST. No request body.
+  > - Ashby fields: `location` and `team` (not `locationName`/`teamName`)
+  > - Lever fields: `hostedUrl` and `applyUrl` at top level (not `urls.apply` nested)
+  > See `integrations/adapters/ats-apis.md` for the validated API contracts.
 
   Run: `ls integrations/adapters/`
   Expected: `apple-notes.md  ats-apis.md  theirstack.md`
