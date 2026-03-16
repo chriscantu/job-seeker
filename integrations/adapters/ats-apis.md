@@ -115,7 +115,8 @@ the posting is open. If not found in the array, the posting is closed.
 
 **Interpretation**:
 - 200 + title found in `jobs` array → posting is open ✅
-- 200 + title NOT found → posting is closed ❌ — mark as CLOSED in seen-postings
+- 200 + title NOT found → title match failed — fall back to WebFetch for this URL before marking CLOSED. ATS posting titles may differ from TheirStack's indexed title. Only mark CLOSED if WebFetch also confirms the role is unavailable.
+- 200 + empty `jobs[]` array → company has no open postings ❌ — mark as CLOSED in seen-postings (this is definitive, no WebFetch needed)
 - 404 → company board does not exist ❌
 - Any other error → fall back to WebFetch for this URL
 

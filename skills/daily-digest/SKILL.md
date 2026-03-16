@@ -127,10 +127,14 @@ Phase 1c runs instead.
 After a successful call, append credit usage to `output/*-preferences.md`:
 ```
 ### TheirStack Credits
-- {YYYY-MM-DD}: credits_used={N}, month_total={running_total}, month_limit=200
+- {YYYY-MM-DD}: credits_used={N}, month_total={N}, month_limit=200
 ```
 
 Wait for the TheirStack response before proceeding to Phase 1b or 1c.
+
+If the response is 200 but the `data` array is empty, log:
+"TheirStack returned 0 results for today's query — running Phase 1c WebSearch fallback."
+Set `use_theirstack = false` and proceed to Phase 1c.
 
 #### Phase 1b — Niche board supplement (Monday and Thursday only)
 
@@ -187,6 +191,7 @@ Issue all verification calls as a single parallel batch:
 - 404 → posting is closed — mark as `CLOSED` in Seen Postings note, exclude
 - API error (5xx, timeout, parse failure) → fall back to WebFetch for that URL only
 - WebFetch returns 404 or "no longer accepting" text → mark CLOSED, exclude
+- WebFetch fallback also fails (error or uninterpretable content) → exclude role, add URL to digest footer: "Could not verify: {URL} — check manually"
 
 Wait for all results before composing the digest.
 
