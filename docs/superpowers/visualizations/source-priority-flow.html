@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Job Seeker — Source Priority & Daily Execution Flow</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f1117; color: #e1e4e8; min-height: 100vh; }
+
+  .header { padding: 24px 32px; border-bottom: 1px solid #21262d; }
+  .header h1 { font-size: 20px; font-weight: 600; color: #f0f6fc; }
+  .header p { font-size: 13px; color: #8b949e; margin-top: 4px; }
+
+  .container { display: flex; height: calc(100vh - 80px); }
+
+  .flow-panel { flex: 1; padding: 32px; overflow-y: auto; }
+  .detail-panel { width: 340px; border-left: 1px solid #21262d; padding: 24px; overflow-y: auto; background: #161b22; }
+
+  .phase { margin-bottom: 32px; }
+  .phase-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1.2px; color: #8b949e; margin-bottom: 12px; font-weight: 600; }
+
+  .node {
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    padding: 14px 18px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+  }
+  .node:hover { border-color: #58a6ff; background: #1c2333; }
+  .node.active { border-color: #58a6ff; background: #1c2333; box-shadow: 0 0 0 1px #58a6ff; }
+  .node.decision { border-left: 3px solid #d29922; }
+  .node.api { border-left: 3px solid #3fb950; }
+  .node.fallback { border-left: 3px solid #8b949e; }
+  .node.output { border-left: 3px solid #bc8cff; }
+
+  .node-title { font-size: 14px; font-weight: 600; color: #f0f6fc; }
+  .node-subtitle { font-size: 12px; color: #8b949e; margin-top: 3px; }
+  .node-badge {
+    display: inline-block;
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    margin-top: 6px;
+    font-weight: 600;
+  }
+  .badge-free { background: #0d3320; color: #3fb950; }
+  .badge-credits { background: #3d2e00; color: #d29922; }
+  .badge-daily { background: #1c2333; color: #58a6ff; }
+  .badge-2x { background: #2a1a3e; color: #bc8cff; }
+
+  .connector {
+    width: 2px; height: 20px; background: #30363d; margin: 0 auto;
+    position: relative;
+  }
+  .connector::after {
+    content: '';
+    position: absolute;
+    bottom: -4px;
+    left: -3px;
+    width: 8px;
+    height: 8px;
+    border-right: 2px solid #30363d;
+    border-bottom: 2px solid #30363d;
+    transform: rotate(45deg);
+  }
+
+  .branch { display: flex; gap: 8px; }
+  .branch > div { flex: 1; }
+  .branch-label { font-size: 11px; color: #58a6ff; text-align: center; margin-bottom: 6px; font-weight: 500; }
+
+  .detail-panel h2 { font-size: 16px; font-weight: 600; color: #f0f6fc; margin-bottom: 16px; }
+  .detail-panel .empty-state { color: #484f58; font-size: 13px; font-style: italic; margin-top: 40px; text-align: center; }
+
+  .detail-section { margin-bottom: 20px; }
+  .detail-section h3 { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: #8b949e; margin-bottom: 8px; }
+  .detail-section p { font-size: 13px; line-height: 1.6; color: #c9d1d9; }
+  .detail-section code { background: #21262d; padding: 2px 6px; border-radius: 4px; font-size: 12px; color: #79c0ff; }
+  .detail-section ul { padding-left: 16px; font-size: 13px; line-height: 1.8; color: #c9d1d9; }
+
+  .budget-bar { margin-top: 24px; padding: 16px; background: #0d1117; border: 1px solid #21262d; border-radius: 8px; }
+  .budget-bar h3 { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: #8b949e; margin-bottom: 10px; }
+  .bar-track { height: 8px; background: #21262d; border-radius: 4px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 4px; transition: width 0.5s ease; }
+  .bar-fill.safe { background: #3fb950; }
+  .bar-fill.warn { background: #d29922; }
+  .budget-label { display: flex; justify-content: space-between; font-size: 11px; color: #8b949e; margin-top: 6px; }
+
+  .sim-controls { margin-top: 24px; padding: 16px; background: #0d1117; border: 1px solid #21262d; border-radius: 8px; }
+  .sim-controls h3 { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: #8b949e; margin-bottom: 12px; }
+  .sim-btn {
+    display: block;
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 8px;
+    background: #21262d;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    color: #c9d1d9;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    text-align: left;
+  }
+  .sim-btn:hover { background: #30363d; border-color: #58a6ff; color: #f0f6fc; }
+  .sim-btn.active-sim { background: #1c2333; border-color: #58a6ff; color: #58a6ff; }
+  .sim-btn .sim-day { font-weight: 600; }
+  .sim-btn .sim-desc { font-size: 11px; color: #8b949e; margin-top: 2px; }
+
+  .node.dimmed { opacity: 0.3; }
+  .node.highlighted { border-color: #3fb950; box-shadow: 0 0 12px rgba(63, 185, 80, 0.15); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Source Priority & Daily Execution Flow</h1>
+  <p>Click any node for details &middot; Use simulation buttons to walk through different day scenarios</p>
+</div>
+
+<div class="container">
+  <div class="flow-panel">
+
+    <!-- Phase 1: Discovery -->
+    <div class="phase">
+      <div class="phase-label">Phase 1 &mdash; Discovery</div>
+
+      <div class="node decision" id="node-budget" data-detail="budget">
+        <div class="node-title">Check TheirStack credits remaining</div>
+        <div class="node-subtitle">Daily budget ceiling: 8 credits</div>
+        <span class="node-badge badge-daily">Daily check</span>
+      </div>
+
+      <div class="branch">
+        <div>
+          <div class="branch-label">&ge; 8 credits</div>
+          <div class="node api" id="node-theirstack" data-detail="theirstack">
+            <div class="node-title">TheirStack API</div>
+            <div class="node-subtitle">Title regex + company size + location + recency</div>
+            <span class="node-badge badge-credits">5-8 credits/call</span>
+          </div>
+        </div>
+        <div>
+          <div class="branch-label">&lt; 8 credits</div>
+          <div class="node fallback" id="node-ws-fallback" data-detail="ws-fallback">
+            <div class="node-title">WebSearch fallback</div>
+            <div class="node-subtitle">Full WebSearch mode (same as current behavior)</div>
+            <span class="node-badge badge-daily">Budget protection</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="connector"></div>
+
+      <div class="node decision" id="node-dow" data-detail="dow">
+        <div class="node-title">Check day of week</div>
+        <div class="node-subtitle">Mon &amp; Thu &rarr; supplement with niche boards</div>
+      </div>
+
+      <div class="branch">
+        <div>
+          <div class="branch-label">Mon / Thu</div>
+          <div class="node api" id="node-niche" data-detail="niche">
+            <div class="node-title">WebSearch &mdash; Niche boards</div>
+            <div class="node-subtitle">Tech Jobs for Good, Purpose Jobs, Built In</div>
+            <span class="node-badge badge-2x">2x / week</span>
+          </div>
+        </div>
+        <div>
+          <div class="branch-label">Other days</div>
+          <div class="node fallback" id="node-skip-ws" data-detail="skip-ws">
+            <div class="node-title">Skip WebSearch</div>
+            <div class="node-subtitle">TheirStack covers primary discovery</div>
+            <span class="node-badge badge-free">$0</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="connector"></div>
+
+    <!-- Phase 2: Dedup + Verify -->
+    <div class="phase">
+      <div class="phase-label">Phase 2 &mdash; Deduplicate &amp; Verify</div>
+
+      <div class="node" id="node-dedup" data-detail="dedup">
+        <div class="node-title">Deduplicate against seen-postings</div>
+        <div class="node-subtitle">Filter roles already surfaced in previous digests</div>
+      </div>
+
+      <div class="connector"></div>
+
+      <div class="node decision" id="node-verify" data-detail="verify">
+        <div class="node-title">Route by URL domain</div>
+        <div class="node-subtitle">Match URL pattern to verification method</div>
+      </div>
+
+      <div class="branch">
+        <div>
+          <div class="branch-label">greenhouse.io</div>
+          <div class="node api" id="node-gh" data-detail="gh">
+            <div class="node-title">Greenhouse API</div>
+            <div class="node-subtitle">boards-api.greenhouse.io</div>
+            <span class="node-badge badge-free">Free</span>
+          </div>
+        </div>
+        <div>
+          <div class="branch-label">lever.co</div>
+          <div class="node api" id="node-lv" data-detail="lv">
+            <div class="node-title">Lever API</div>
+            <div class="node-subtitle">api.lever.co</div>
+            <span class="node-badge badge-free">Free</span>
+          </div>
+        </div>
+        <div>
+          <div class="branch-label">ashbyhq.com</div>
+          <div class="node api" id="node-ab" data-detail="ab">
+            <div class="node-title">Ashby API</div>
+            <div class="node-subtitle">Public job board API</div>
+            <span class="node-badge badge-free">Free</span>
+          </div>
+        </div>
+        <div>
+          <div class="branch-label">other</div>
+          <div class="node fallback" id="node-wf" data-detail="wf">
+            <div class="node-title">WebFetch</div>
+            <div class="node-subtitle">HTML parse fallback</div>
+            <span class="node-badge badge-free">Free</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="connector"></div>
+
+    <!-- Phase 3: Output -->
+    <div class="phase">
+      <div class="phase-label">Phase 3 &mdash; Compose &amp; Write</div>
+
+      <div class="branch">
+        <div>
+          <div class="node output" id="node-notes" data-detail="notes">
+            <div class="node-title">Apple Notes</div>
+            <div class="node-subtitle">Daily digest note</div>
+          </div>
+        </div>
+        <div>
+          <div class="node output" id="node-state" data-detail="state">
+            <div class="node-title">State files</div>
+            <div class="node-subtitle">seen-postings, preferences</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Detail Panel -->
+  <div class="detail-panel">
+    <h2>Details</h2>
+    <div id="detail-content">
+      <p class="empty-state">Click any node to see details</p>
+    </div>
+
+    <div class="budget-bar">
+      <h3>Monthly credit budget</h3>
+      <div class="bar-track">
+        <div class="bar-fill safe" id="budget-fill" style="width: 0%"></div>
+      </div>
+      <div class="budget-label">
+        <span id="budget-used">0 used</span>
+        <span>200 credits</span>
+      </div>
+    </div>
+
+    <div class="sim-controls">
+      <h3>Simulate a day</h3>
+      <button class="sim-btn" id="sim-tuesday" data-scenario="tuesday">
+        <div class="sim-day">Tuesday (typical)</div>
+        <div class="sim-desc">TheirStack only &mdash; no niche boards</div>
+      </button>
+      <button class="sim-btn" id="sim-monday" data-scenario="monday">
+        <div class="sim-day">Monday</div>
+        <div class="sim-desc">TheirStack + niche board WebSearch</div>
+      </button>
+      <button class="sim-btn" id="sim-eom" data-scenario="end-of-month">
+        <div class="sim-day">End of month (low budget)</div>
+        <div class="sim-desc">WebSearch fallback &mdash; credits exhausted</div>
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  var details = {
+    budget: {
+      title: 'Credit Budget Check',
+      sections: [
+        { heading: 'What it does', text: 'Reads the current month\'s credit usage from preferences.md and compares against the daily ceiling of 8 credits.' },
+        { heading: 'Decision logic', items: ['If >= 8 credits remain: call TheirStack API', 'If < 8 credits remain: fall back to WebSearch-only mode'] },
+        { heading: 'Why 8 per day?', text: '200 credits/month / 25 weekdays = 8/day. This leaves a small buffer for months with fewer workdays or retry scenarios.' }
+      ]
+    },
+    theirstack: {
+      title: 'TheirStack API',
+      sections: [
+        { heading: 'Endpoint', text: 'POST https://api.theirstack.com/v1/jobs/search' },
+        { heading: 'Query parameters', items: ['job_title_pattern: regex from search.md titles', 'company_size: 51-500, 501-1000', 'location: Austin, TX + remote', 'posted_after: yesterday\'s date', 'limit: 10'] },
+        { heading: 'Why primary?', text: 'Aggregates 321K+ job sites. Filters by company size and funding stage — maps perfectly to "mission-driven, growth-stage, midsize" targets. Structured JSON output eliminates parsing issues.' },
+        { heading: 'Cost', text: '5-8 credits per call depending on result count. Daily ceiling of 8 credits.' }
+      ]
+    },
+    'ws-fallback': {
+      title: 'WebSearch Fallback',
+      sections: [
+        { heading: 'When triggered', text: 'Only activates when TheirStack credits are exhausted for the month. Reverts to the current WebSearch-based discovery approach.' },
+        { heading: 'Expected frequency', text: 'Should rarely trigger if daily budget of 8 credits is respected. Most likely at end-of-month if earlier days used more than 8.' }
+      ]
+    },
+    dow: {
+      title: 'Day-of-Week Check',
+      sections: [
+        { heading: 'Purpose', text: 'Niche mission-driven job boards (Tech Jobs for Good, Purpose Jobs, Built In) have lower posting volume. Searching them daily wastes cycles. Monday and Thursday catches new postings without over-polling.' },
+        { heading: 'Configurable?', text: 'Days can be changed in integrations/config/theirstack-config.md.' }
+      ]
+    },
+    niche: {
+      title: 'WebSearch — Niche Boards',
+      sections: [
+        { heading: 'Sources', items: ['Tech Jobs for Good', 'Purpose Jobs', 'Built In (Austin)'] },
+        { heading: 'Why keep these?', text: 'These boards cater specifically to mission-driven companies — your target market. TheirStack may not index all of them, so this supplements discovery.' },
+        { heading: 'Cost', text: 'Free — uses existing WebSearch tool.' }
+      ]
+    },
+    'skip-ws': {
+      title: 'Skip WebSearch',
+      sections: [
+        { heading: 'Rationale', text: 'On non-Monday/Thursday days, TheirStack provides sufficient discovery coverage. Skipping WebSearch avoids duplicate results and keeps the digest focused.' }
+      ]
+    },
+    dedup: {
+      title: 'Deduplication',
+      sections: [
+        { heading: 'How it works', text: 'Every role surfaced is checked against output/*-seen-postings.md. Matches on company + title + URL. Already-seen roles are filtered out before verification.' },
+        { heading: 'No changes', text: 'This step is unchanged from the current implementation.' }
+      ]
+    },
+    verify: {
+      title: 'URL Domain Router',
+      sections: [
+        { heading: 'Purpose', text: 'Inspects each result URL to determine the best verification method. ATS-hosted URLs get direct API calls; everything else falls back to WebFetch.' },
+        { heading: 'Pattern matching', items: ['boards.greenhouse.io/* → Greenhouse API', 'jobs.lever.co/* → Lever API', 'jobs.ashbyhq.com/* → Ashby API', 'Everything else → WebFetch'] }
+      ]
+    },
+    gh: {
+      title: 'Greenhouse API',
+      sections: [
+        { heading: 'Endpoint', text: 'GET https://boards-api.greenhouse.io/v1/boards/{company}/jobs/{id}' },
+        { heading: 'Response', text: 'Structured JSON: title, location, status, department, updated_at. If the job ID returns 404, the posting is closed.' },
+        { heading: 'Auth', text: 'None required — public API.' }
+      ]
+    },
+    lv: {
+      title: 'Lever API',
+      sections: [
+        { heading: 'Endpoint', text: 'GET https://api.lever.co/v0/postings/{company}/{id}' },
+        { heading: 'Response', text: 'Structured JSON: title, team, location, commitment, apply URL. 404 = closed.' },
+        { heading: 'Auth', text: 'None required — public API.' }
+      ]
+    },
+    ab: {
+      title: 'Ashby API',
+      sections: [
+        { heading: 'Endpoint', text: 'Ashby public job board API (company-specific endpoint).' },
+        { heading: 'Response', text: 'Structured JSON: title, location, team. Absent from response = closed.' },
+        { heading: 'Auth', text: 'None required — public API.' }
+      ]
+    },
+    wf: {
+      title: 'WebFetch Fallback',
+      sections: [
+        { heading: 'When used', text: 'Any URL not matching Greenhouse, Lever, or Ashby patterns. This covers Workday, iCIMS, SmartRecruiters, direct company career pages, etc.' },
+        { heading: 'Limitation', text: 'HTML parsing is less reliable. May encounter 403s, JS-rendered pages, or ambiguous open/closed signals. This is the weak link in verification.' },
+        { heading: 'Expected %', text: 'With TheirStack as primary discovery, most results should come from known ATS platforms. WebFetch fallback should handle <20% of verifications.' }
+      ]
+    },
+    notes: {
+      title: 'Apple Notes Output',
+      sections: [
+        { heading: 'Unchanged', text: 'Digest format, note naming, and osascript integration remain exactly as they are today.' }
+      ]
+    },
+    state: {
+      title: 'State Files',
+      sections: [
+        { heading: 'Files updated', items: ['output/*-seen-postings.md — new roles appended', 'output/*-preferences.md — TheirStack credits consumed today appended to monthly tracker'] },
+        { heading: 'New field', text: 'preferences.md gains a theirstack_credits_used section tracking daily/monthly consumption.' }
+      ]
+    }
+  };
+
+  function buildDetailHTML(d) {
+    var container = document.createElement('div');
+    var title = document.createElement('h2');
+    title.style.marginBottom = '16px';
+    title.textContent = d.title;
+    container.appendChild(title);
+
+    d.sections.forEach(function(s) {
+      var section = document.createElement('div');
+      section.className = 'detail-section';
+      var h3 = document.createElement('h3');
+      h3.textContent = s.heading;
+      section.appendChild(h3);
+
+      if (s.items) {
+        var ul = document.createElement('ul');
+        s.items.forEach(function(item) {
+          var li = document.createElement('li');
+          li.textContent = item;
+          ul.appendChild(li);
+        });
+        section.appendChild(ul);
+      } else {
+        var p = document.createElement('p');
+        p.textContent = s.text;
+        section.appendChild(p);
+      }
+      container.appendChild(section);
+    });
+    return container;
+  }
+
+  function showDetail(key) {
+    document.querySelectorAll('.node').forEach(function(n) { n.classList.remove('active'); });
+    var el = document.getElementById('node-' + key);
+    if (el) el.classList.add('active');
+
+    var d = details[key];
+    if (!d) return;
+
+    var content = document.getElementById('detail-content');
+    content.replaceChildren(buildDetailHTML(d));
+  }
+
+  function simulate(scenario) {
+    document.querySelectorAll('.sim-btn').forEach(function(b) { b.classList.remove('active-sim'); });
+    document.querySelector('[data-scenario="' + scenario + '"]').classList.add('active-sim');
+
+    document.querySelectorAll('.node').forEach(function(n) {
+      n.classList.remove('dimmed', 'highlighted');
+    });
+
+    var fill = document.getElementById('budget-fill');
+    var used = document.getElementById('budget-used');
+
+    var highlightIds, dimIds;
+
+    if (scenario === 'tuesday') {
+      highlightIds = ['node-budget', 'node-theirstack', 'node-dow', 'node-skip-ws', 'node-dedup', 'node-verify', 'node-gh', 'node-lv', 'node-ab', 'node-wf', 'node-notes', 'node-state'];
+      dimIds = ['node-ws-fallback', 'node-niche'];
+      fill.style.width = '40%';
+      fill.className = 'bar-fill safe';
+      used.textContent = '~80 used (day 10)';
+    } else if (scenario === 'monday') {
+      highlightIds = ['node-budget', 'node-theirstack', 'node-dow', 'node-niche', 'node-dedup', 'node-verify', 'node-gh', 'node-lv', 'node-ab', 'node-wf', 'node-notes', 'node-state'];
+      dimIds = ['node-ws-fallback', 'node-skip-ws'];
+      fill.style.width = '20%';
+      fill.className = 'bar-fill safe';
+      used.textContent = '~40 used (day 5)';
+    } else if (scenario === 'end-of-month') {
+      highlightIds = ['node-budget', 'node-ws-fallback', 'node-dow', 'node-niche', 'node-dedup', 'node-verify', 'node-gh', 'node-lv', 'node-ab', 'node-wf', 'node-notes', 'node-state'];
+      dimIds = ['node-theirstack', 'node-skip-ws'];
+      fill.style.width = '95%';
+      fill.className = 'bar-fill warn';
+      used.textContent = '~190 used (day 24)';
+    }
+
+    highlightIds.forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) el.classList.add('highlighted');
+    });
+    dimIds.forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) el.classList.add('dimmed');
+    });
+  }
+
+  // Attach click handlers to all nodes
+  document.querySelectorAll('.node[data-detail]').forEach(function(node) {
+    node.addEventListener('click', function() {
+      showDetail(this.getAttribute('data-detail'));
+    });
+  });
+
+  // Attach click handlers to simulation buttons
+  document.querySelectorAll('.sim-btn[data-scenario]').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      simulate(this.getAttribute('data-scenario'));
+    });
+  });
+})();
+</script>
+
+</body>
+</html>
