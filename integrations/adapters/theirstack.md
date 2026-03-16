@@ -97,6 +97,12 @@ After each TheirStack call, append to `output/*-preferences.md`:
 4. If `month_total + daily_credit_budget >= 200` → skip TheirStack, use WebSearch fallback
 5. If `month_total + daily_credit_budget < 200` → proceed with TheirStack
 
+Note: The TheirStack API does not return a `credits_used` count in the response
+envelope. Use `data.length` (number of results returned) as the `credits_used`
+value in the log entry. This is an approximation based on the pricing model
+(credits charged per result returned). Check https://theirstack.com/pricing
+for current credit costs and adjust `daily_credit_budget` accordingly.
+
 ---
 
 ## Error Handling
