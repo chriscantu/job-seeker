@@ -142,3 +142,24 @@ TheirStack charges credits per result returned (not per query). Approximate cost
 - `limit: 10` with `daily_credit_budget: 8` gives ~1-2 calls per day safely
 
 Check https://theirstack.com/pricing for current credit costs.
+
+---
+
+## Known Issues
+
+### API Key Invalid (validated 2026-03-15)
+
+Live validation of the TheirStack API returned **HTTP 401** with the error:
+`"Could not validate credentials"`.
+
+The `api_key` in `integrations/config/theirstack-config.md` appears to be a
+placeholder — it begins with `tsk_xxxxxxxxxxxxxxxx` (sentinel placeholder prefix)
+followed by a JWT segment, which is not a valid TheirStack API key format.
+
+**Resolution required:** Obtain a real API key from
+https://theirstack.com/dashboard/api-keys and replace the value in
+`integrations/config/theirstack-config.md`. The file is gitignored, so the
+real key will not be committed.
+
+Until the key is replaced, the `daily-digest` skill will fall back to WebSearch
+for job discovery (per the Error Handling table above).
