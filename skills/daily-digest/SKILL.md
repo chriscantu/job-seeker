@@ -129,6 +129,8 @@ After a successful call, append credit usage to `output/*-preferences.md`:
 - {YYYY-MM-DD}: credits_used={N}, month_total={running_total}, month_limit=200
 ```
 
+Wait for the TheirStack response before proceeding to Phase 1b or 1c.
+
 #### Phase 1b — Niche board supplement (Monday and Thursday only)
 
 Check `date +%A` to determine the current day. If Monday or Thursday, issue
@@ -144,7 +146,7 @@ Wait for all results before merging with Phase 1a results.
 
 #### Phase 1c — WebSearch fallback (only when `use_theirstack` is false)
 
-If TheirStack is unavailable or budget is exhausted, issue ALL search queries
+If `use_theirstack` is false (config missing, budget exhausted, or API error), issue ALL search queries
 simultaneously (same as original Phase 1):
 
 ```
