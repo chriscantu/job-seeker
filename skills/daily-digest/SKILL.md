@@ -113,12 +113,13 @@ Issue a single WebFetch call to the TheirStack API with criteria from
 request format, field mapping, and error handling.
 
 Build the request body at runtime from search.md:
-- `job_title_pattern`: regex from Target Role Titles (join with `|`)
-- `company_size`: `["51-500", "501-1000"]`
-- `location`: hybrid city from Location Constraints (e.g., `"Austin, TX"`)
-- `remote`: `true` (Remote Preference = "Remote or Hybrid")
-- `posted_after`: yesterday's date in `YYYY-MM-DD` format
+- `job_title_or`: array of titles from Target Role Titles (e.g. `["VP of Engineering", "Senior Director of Engineering", "Head of Engineering"]`)
+- `posted_at_gte`: yesterday's date in `YYYY-MM-DD` format
 - `limit`: `10`
+
+Note: company size, location, and remote filtering are not supported as API
+query params — apply these filters during Phase 3 compose using
+`company_object.employee_count_range` and the `location` field in each result.
 
 On any non-200 response, log the error and set `use_theirstack = false` so
 Phase 1c runs instead.

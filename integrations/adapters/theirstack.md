@@ -12,8 +12,8 @@
 
 The daily-digest skill calls the TheirStack `/jobs/search` endpoint to
 discover executive engineering roles. TheirStack aggregates 321K+ job sites
-and supports regex title matching, company size filtering, and recency
-filtering — enabling high-precision queries that WebSearch cannot match.
+and supports title matching and recency filtering — enabling high-precision
+queries that WebSearch cannot match.
 
 All query parameters are derived from `config/search.md` at runtime.
 The skill never hardcodes search criteria.
@@ -57,32 +57,12 @@ Company size and location/remote filtering are not supported as direct API query
 
 ### Query Parameter Construction
 
-**job_title_or** — provide an array of exact or partial title strings from the Target Role Titles list in search.md. Example for current search.md:
+**job_title_or** — the correct API parameter for title matching. Provide an array of exact or partial title strings from the Target Role Titles list in search.md. Example for current search.md:
 ```json
 ["VP of Engineering", "Senior Director of Engineering", "Head of Engineering", "SVP of Engineering", "VP of Platform Engineering", "VP of Developer Experience"]
 ```
 
-**company_size** — derived from "Company Types: Mission-driven, growth-stage,
-midsize" in search.md:
-
-| search.md term | TheirStack value | Rationale |
-|---------------|-----------------|-----------|
-| growth-stage  | "51-500"        | Series A-C companies scaling engineering |
-| midsize       | "501-1000"      | Established but not enterprise-scale |
-| mission-driven| (not filterable)| Assessed in Phase 3 for star rating and "Why this fits" |
-
-**location + remote** — derived from Location Constraints in search.md:
-
-| search.md field          | TheirStack param | Value         |
-|--------------------------|-----------------|---------------|
-| Remote Preference        | `remote`        | `true`        |
-| Hybrid (Austin TX area)  | `location`      | `"Austin, TX"`|
-| Relocation required: No  | (Phase 3 filter)| —             |
-| 100% in-office: No       | (Phase 3 filter)| —             |
-
-Setting both `remote: true` and `location: "Austin, TX"` captures remote-anywhere
-AND Austin-hybrid roles. Relocation-required and in-office-only roles are filtered
-during Phase 3 compose, not at the API level.
+**company_size and location/remote filtering** — not supported as API query parameters. Apply these filters during Phase 3 compose using the `company_object.employee_count_range` field in the response and by reading location from the `location` field.
 
 ---
 
