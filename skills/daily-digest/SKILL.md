@@ -197,7 +197,14 @@ Use all verified results to write the digest in a single pass.
 
 ## Search Strategy
 
-Vary queries each run. Mix approaches — don't repeat the same searches daily:
+**Primary (daily):** TheirStack API — see Phase 1a above. Covers 321K+ job
+sites with structured filters for title, company size, location, and recency.
+
+**Supplement (Mon + Thu):** WebSearch against niche mission-driven boards
+(Tech Jobs for Good, Purpose Jobs, Built In Austin) — see Phase 1b above.
+
+**Fallback (when TheirStack unavailable or credits exhausted):** Full WebSearch
+across all sources — see Phase 1c above. Vary queries each run:
 - Major boards (Indeed, LinkedIn, Glassdoor, Built In)
 - Mission-driven boards (Tech Jobs for Good, Purpose Jobs, Wellfound)
 - Industry-specific (healthcare tech, EdTech, construction tech, PropTech)
