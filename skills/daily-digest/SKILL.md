@@ -104,15 +104,59 @@ Read from `config/search.md`. Use the following fields to filter:
 verifications one at a time — this forces the user to approve each call
 individually and creates a terrible experience.**
 
-### Phase 1 — Parallel Searches (single message, all calls at once)
+### Phase 1 — Discovery (single message per sub-phase, all calls at once)
 
-Issue ALL search queries simultaneously in one message as parallel tool calls:
+#### Phase 1a — TheirStack API (if `use_theirstack` is true)
+
+Issue a single WebFetch call to the TheirStack API with criteria from
+`config/search.md`. See `integrations/adapters/theirstack.md` for the full
+request format, field mapping, and error handling.
+
+Build the request body at runtime from search.md:
+- `job_title_pattern`: regex from Target Role Titles (join with `|`)
+- `company_size`: `["51-500", "501-1000"]`
+- `location`: hybrid city from Location Constraints (e.g., `"Austin, TX"`)
+- `remote`: `true` (Remote Preference = "Remote or Hybrid")
+- `posted_after`: yesterday's date in `YYYY-MM-DD` format
+- `limit`: `10`
+
+On any non-200 response, log the error and set `use_theirstack = false` so
+Phase 1c runs instead.
+
+After a successful call, append credit usage to `output/*-preferences.md`:
 ```
-[WebSearch: Ashby VP Engineering] [WebSearch: Greenhouse VP Engineering]
-[WebSearch: Lever healthcare VP Engineering] [WebSearch: EdTech VP Engineering]
-[WebSearch: Lever climate/sustainability VP Engineering] [WebSearch: Mission-driven VP Engineering]
+### TheirStack Credits
+- {YYYY-MM-DD}: credits_used={N}, month_total={running_total}, month_limit=200
 ```
-Wait for all results before proceeding. Do NOT issue searches one at a time.
+
+#### Phase 1b — Niche board supplement (Monday and Thursday only)
+
+Check `date +%A` to determine the current day. If Monday or Thursday, issue
+these WebSearch queries in parallel (single message):
+
+```
+[WebSearch: site:techjobsforgood.com "VP Engineering" OR "Senior Director Engineering" remote]
+[WebSearch: site:purpose.jobs "VP Engineering" OR "Senior Director Engineering"]
+[WebSearch: site:builtin.com/jobs Austin "VP Engineering" OR "Senior Director Engineering"]
+```
+
+Wait for all results before merging with Phase 1a results.
+
+#### Phase 1c — WebSearch fallback (only when `use_theirstack` is false)
+
+If TheirStack is unavailable or budget is exhausted, issue ALL search queries
+simultaneously (same as original Phase 1):
+
+```
+[WebSearch: Ashby VP Engineering remote]
+[WebSearch: Greenhouse VP Engineering remote]
+[WebSearch: Lever healthcare VP Engineering]
+[WebSearch: EdTech VP Engineering remote]
+[WebSearch: Lever climate/sustainability VP Engineering]
+[WebSearch: Mission-driven VP Engineering remote]
+```
+
+Wait for all results before proceeding.
 
 ### Phase 2 — Parallel URL Verification (single message, all calls at once)
 
