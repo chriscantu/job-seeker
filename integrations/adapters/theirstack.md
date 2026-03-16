@@ -52,6 +52,8 @@ Body:
   limit: 10
 ```
 
+Note: The body must be sent as JSON (Content-Type is already set in the headers above).
+
 ### Query Parameter Construction
 
 **job_title_pattern** — build a regex from the Target Role Titles list in
@@ -110,7 +112,7 @@ After each TheirStack call, append to `output/*-preferences.md`:
 
 1. Read most recent `output/*-preferences.md`
 2. Find the `### TheirStack Credits` section
-3. Sum all entries for the current calendar month to get `month_total`
+3. Sum all `credits_used` values for the current calendar month to get `month_total`
 4. If `month_total + daily_credit_budget >= 200` → skip TheirStack, use WebSearch fallback
 5. If `month_total + daily_credit_budget < 200` → proceed with TheirStack
 
