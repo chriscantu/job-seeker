@@ -121,8 +121,9 @@ Note: company size, location, and remote filtering are not supported as API
 query params — apply these filters during Phase 3 compose using
 `company_object.employee_count_range` and the `location` field in each result.
 
-On any non-200 response, log the error and set `use_theirstack = false` so
-Phase 1c runs instead.
+On any non-200 response, append the error to `output/error-{YYYY-MM-DD}.log`
+so it persists after the session ends, set `use_theirstack = false`, and
+proceed to Phase 1c.
 
 After a successful call, append credit usage to `output/*-preferences.md`:
 ```
@@ -198,6 +199,10 @@ Wait for all results before composing the digest.
 ### Phase 3 — Compose and Write
 
 Use all verified results to write the digest in a single pass.
+
+If `use_theirstack` is false because of an API error or budget exhaustion
+(not simply because the config file is absent), add a footer line to the digest:
+"Note: TheirStack unavailable today ({reason}) — results sourced from web search only."
 
 ---
 

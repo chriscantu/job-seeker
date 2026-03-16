@@ -4,7 +4,7 @@
 
 **Goal:** Replace WebSearch-only discovery with TheirStack API as primary source and add direct ATS API verification for Greenhouse, Lever, and Ashby to improve hit rate from ~20% to 85-90%.
 
-**Architecture:** TheirStack API fires daily via WebFetch, returning structured JSON filtered by title regex, company size, location, and recency. ATS URL routing dispatches Greenhouse/Lever/Ashby postings to their respective free public APIs instead of WebFetch, giving definitive open/closed status. WebSearch covers niche boards 2x/week and serves as a full fallback when TheirStack credits are exhausted.
+**Architecture:** TheirStack API fires daily via WebFetch, returning structured JSON filtered by title and recency. Company size, location, and remote filtering are applied post-retrieval (not supported as API query params — validated during implementation). ATS URL routing dispatches Greenhouse/Lever/Ashby postings to their respective free public APIs instead of WebFetch, giving definitive open/closed status. WebSearch covers niche boards 2x/week and serves as a full fallback when TheirStack credits are exhausted.
 
 **Tech Stack:** Markdown skill files (Claude Code), WebFetch for API calls, existing state file pattern (`output/*-preferences.md` for credit tracking).
 
@@ -47,7 +47,9 @@
   base_url: https://api.theirstack.com/v1
 
   # Maximum TheirStack credits to spend per day.
-  # Free tier: 200 credits/month. Setting 8 gives ~25 days of coverage.
+  # Free tier: 200 credits/month. Setting 8 gives ~25 days of coverage
+  # (approximate — credits_used is tracked via data.length as a proxy,
+  # which may overcount; actual coverage depends on results returned).
   daily_credit_budget: 8
   ```
 
@@ -341,6 +343,11 @@
 
   **Endpoint**: `POST https://api.ashbyhq.com/posting-api/job-board/{company}`
 
+  > **Implementation note (from live API validation):** Ashby requires GET, not
+  > POST (POST returns 404). Field names are `location` and `team` (not
+  > `locationName`/`teamName`). See `integrations/adapters/ats-apis.md` for
+  > the validated contract.
+
   **Extract from URL**: Parse `{company}` from `jobs.ashbyhq.com/{company}`.
   Note: Ashby URLs do not include a job ID in the path — the endpoint returns
   ALL open postings for the company, and the skill must match by title.
@@ -538,6 +545,12 @@ Replace the current "Phase 1 — Parallel Searches" section with three sub-phase
   - `remote`: `true` (Remote Preference = "Remote or Hybrid")
   - `posted_after`: yesterday's date in `YYYY-MM-DD` format
   - `limit`: `10`
+
+  > **Implementation note (from live API validation):** The params above are
+  > stale. The actual validated params are: `job_title_or` (array of title
+  > strings), `posted_at_gte` (date string). `company_size`, `location`, and
+  > `remote` are NOT supported — filter post-retrieval. See
+  > `integrations/adapters/theirstack.md` for the current API contract.
 
   On any non-200 response, log the error and set `use_theirstack = false` so
   Phase 1c runs instead.
