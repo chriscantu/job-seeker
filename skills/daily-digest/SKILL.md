@@ -65,6 +65,16 @@ values, and error handling reference.
 6. (Optional — Apple Notes only) If `integrations/config/notes-config.md` exists,
    read it to get `plugin_root` and `default_folder` for Apple Notes writes.
    Skip this step if the file does not exist.
+7. (Optional — TheirStack only) If `integrations/config/theirstack-config.md`
+   exists, read it to get `api_key`, `base_url`, and `daily_credit_budget`.
+   Then check budget: using the preferences file already read in step 5, find
+   the `### TheirStack Credits` section and sum all `credits_used=N` values for
+   entries dated in the current calendar month to get `month_total`. If the
+   section does not exist or has no entries for the current month, treat
+   `month_total` as 0. If `month_total + daily_credit_budget >= 200`, set
+   `use_theirstack = false` (budget exhausted, fall back to WebSearch).
+   Otherwise set `use_theirstack = true`. If the config file does not exist,
+   set `use_theirstack = false` and proceed.
 
 ---
 
@@ -94,34 +104,119 @@ Read from `config/search.md`. Use the following fields to filter:
 verifications one at a time — this forces the user to approve each call
 individually and creates a terrible experience.**
 
-### Phase 1 — Parallel Searches (single message, all calls at once)
+### Phase 1 — Discovery (single message per sub-phase, all calls at once)
 
-Issue ALL search queries simultaneously in one message as parallel tool calls:
+#### Phase 1a — TheirStack API (if `use_theirstack` is true)
+
+Issue a single WebFetch call to the TheirStack API with criteria from
+`config/search.md`. See `integrations/adapters/theirstack.md` for the full
+request format, field mapping, and error handling.
+
+Build the request body at runtime from search.md:
+- `job_title_or`: array of titles from Target Role Titles (e.g. `["VP of Engineering", "Senior Director of Engineering", "Head of Engineering"]`)
+- `posted_at_gte`: yesterday's date in `YYYY-MM-DD` format
+- `limit`: `10`
+
+Note: company size, location, and remote filtering are not supported as API
+query params — apply these filters during Phase 3 compose using
+`company_object.employee_count_range` and the `location` field in each result.
+
+On any non-200 response, append the error to `output/error-{YYYY-MM-DD}.log`
+so it persists after the session ends, set `use_theirstack = false`, and
+proceed to Phase 1c.
+
+After a successful call, append credit usage to `output/*-preferences.md`:
 ```
-[WebSearch: Ashby VP Engineering] [WebSearch: Greenhouse VP Engineering]
-[WebSearch: Lever healthcare VP Engineering] [WebSearch: EdTech VP Engineering]
-[WebSearch: Lever climate/sustainability VP Engineering] [WebSearch: Mission-driven VP Engineering]
+### TheirStack Credits
+- {YYYY-MM-DD}: credits_used={N}, month_total={N}, month_limit=200
 ```
-Wait for all results before proceeding. Do NOT issue searches one at a time.
+
+Wait for the TheirStack response before proceeding to Phase 1b or 1c.
+
+If the response is 200 but the `data` array is empty, log:
+"TheirStack returned 0 results for today's query — running Phase 1c WebSearch fallback."
+Set `use_theirstack = false` and proceed to Phase 1c.
+
+#### Phase 1b — Niche board supplement (Monday and Thursday only)
+
+Check `date +%A` to determine the current day. If Monday or Thursday, issue
+these WebSearch queries in parallel (single message):
+
+```
+[WebSearch: site:techjobsforgood.com "VP Engineering" OR "Senior Director Engineering" remote]
+[WebSearch: site:purpose.jobs "VP Engineering" OR "Senior Director Engineering"]
+[WebSearch: site:builtin.com/jobs Austin "VP Engineering" OR "Senior Director Engineering"]
+```
+
+Wait for all results before merging with Phase 1a results.
+
+#### Phase 1c — WebSearch fallback (only when `use_theirstack` is false)
+
+If `use_theirstack` is false (config missing, budget exhausted, or API error), issue ALL search queries
+simultaneously (same as original Phase 1):
+
+```
+[WebSearch: Ashby VP Engineering remote]
+[WebSearch: Greenhouse VP Engineering remote]
+[WebSearch: Lever healthcare VP Engineering]
+[WebSearch: EdTech VP Engineering remote]
+[WebSearch: Lever climate/sustainability VP Engineering]
+[WebSearch: Mission-driven VP Engineering remote]
+```
+
+Wait for all results before proceeding.
 
 ### Phase 2 — Parallel URL Verification (single message, all calls at once)
 
-After collecting candidates from Phase 1, issue ALL WebFetch verifications
-simultaneously in one message:
+After collecting candidates from Phase 1, group URLs by domain and issue ALL
+verifications simultaneously in one message. See
+`integrations/adapters/ats-apis.md` for full endpoint details and response
+interpretation.
+
+**For each URL, determine the verification method:**
+
+| URL matches pattern | Method |
+|--------------------|--------|
+| `boards.greenhouse.io/{company}/jobs/{id}` or `job-boards.greenhouse.io/{company}/jobs/{id}` | `GET https://boards-api.greenhouse.io/v1/boards/{company}/jobs/{id}` |
+| `jobs.lever.co/{company}/{id}` | `GET https://api.lever.co/v0/postings/{company}/{id}` |
+| `jobs.ashbyhq.com/{company}` | `GET https://api.ashbyhq.com/posting-api/job-board/{company}` (match by title in response `jobs[]` array) |
+| Anything else | WebFetch (existing behavior) |
+
+Issue all verification calls as a single parallel batch:
 ```
-[WebFetch: url1] [WebFetch: url2] [WebFetch: url3] ... [WebFetch: urlN]
+[WebFetch: greenhouse API for url1] [WebFetch: lever API for url2] [WebFetch: url3] ...
 ```
-Wait for all results before composing the digest. Do NOT verify URLs one at a time.
+
+**Interpreting results:**
+- 200 + job data → posting is open, include in digest
+- 404 → posting is closed — mark as `CLOSED` in Seen Postings note, exclude
+- API error (5xx, timeout, parse failure) → fall back to WebFetch for that URL only
+- WebFetch returns 404 or "no longer accepting" text → mark CLOSED, exclude
+- WebFetch fallback also fails (error or uninterpretable content) → exclude role, add URL to digest footer: "Could not verify: {URL} — check manually"
+
+Wait for all results before composing the digest.
 
 ### Phase 3 — Compose and Write
 
 Use all verified results to write the digest in a single pass.
 
+If `use_theirstack` is false because of an API error or budget exhaustion
+(not simply because the config file is absent), add a footer line to the digest:
+"Note: TheirStack unavailable today ({reason}) — results sourced from web search only."
+
 ---
 
 ## Search Strategy
 
-Vary queries each run. Mix approaches — don't repeat the same searches daily:
+**Primary (daily):** TheirStack API — see Phase 1a above. Covers 321K+ job
+sites with structured title and recency filters. Company size and location are
+applied as post-retrieval filters during Phase 3 compose.
+
+**Supplement (Mon + Thu):** WebSearch against niche mission-driven boards
+(Tech Jobs for Good, Purpose Jobs, Built In Austin) — see Phase 1b above.
+
+**Fallback (when TheirStack config missing, credits exhausted, or API error):** Full WebSearch
+across all sources — see Phase 1c above. Vary queries each run:
 - Major boards (Indeed, LinkedIn, Glassdoor, Built In)
 - Mission-driven boards (Tech Jobs for Good, Purpose Jobs, Wellfound)
 - Industry-specific (healthcare tech, EdTech, construction tech, PropTech)
@@ -161,7 +256,7 @@ Aggregator sites (EchoJobs, Jobera, SimplyHired, RemoteRocketship) are
 **Common ATS URL patterns to look for:**
 - Greenhouse: `boards.greenhouse.io/{company}/jobs/{id}` or `job-boards.greenhouse.io/{company}/jobs/{id}`
 - Lever: `jobs.lever.co/{company}/{id}`
-- Ashby: `jobs.ashbyhq.com/{company}/{id}`
+- Ashby: `jobs.ashbyhq.com/{company}` (no job ID in path — Ashby returns all open postings for the company)
 - Workday: `{company}.wd5.myworkdayjobs.com/.../job/{title}_{id}`
 - SmartRecruiters: `jobs.smartrecruiters.com/{company}/{id}`
 
