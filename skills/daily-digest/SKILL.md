@@ -67,12 +67,14 @@ values, and error handling reference.
    Skip this step if the file does not exist.
 7. (Optional — TheirStack only) If `integrations/config/theirstack-config.md`
    exists, read it to get `api_key`, `base_url`, and `daily_credit_budget`.
-   Then check budget: read `output/*-preferences.md` (most recent), find the
-   `### TheirStack Credits` section, and sum all entries for the current
-   calendar month to get `month_total`. If `month_total + daily_credit_budget
-   >= 200`, set `use_theirstack = false` (budget exhausted, fall back to
-   WebSearch). Otherwise set `use_theirstack = true`. Skip this step entirely
-   if the config file does not exist (`use_theirstack = false`).
+   Then check budget: using the preferences file already read in step 5, find
+   the `### TheirStack Credits` section and sum all `credits_used=N` values for
+   entries dated in the current calendar month to get `month_total`. If the
+   section does not exist or has no entries for the current month, treat
+   `month_total` as 0. If `month_total + daily_credit_budget >= 200`, set
+   `use_theirstack = false` (budget exhausted, fall back to WebSearch).
+   Otherwise set `use_theirstack = true`. If the config file does not exist,
+   set `use_theirstack = false` and proceed.
 
 ---
 
