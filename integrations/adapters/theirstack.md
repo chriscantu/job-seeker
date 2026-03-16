@@ -44,22 +44,22 @@ Headers:
   Authorization: Bearer {api_key}
   Content-Type: application/json
 Body:
-  job_title_pattern: "{regex from Target Role Titles in search.md}"
-  company_size: ["51-500", "501-1000"]
-  location: "Austin, TX"
-  remote: true
-  posted_after: "{YYYY-MM-DD of yesterday}"
+  job_title_or: ["{title1}", "{title2}", ...]
+  posted_at_gte: "{YYYY-MM-DD of yesterday}"
   limit: 10
 ```
 
 Note: The body must be sent as JSON (Content-Type is already set in the headers above).
 
+The API requires at least one of: `posted_at_max_age_days`, `posted_at_gte`, `posted_at_lte`, `job_id_or`, `company_name_or`, `company_id_or`, `company_domain_or`, or `company_linkedin_url_or`.
+
+Company size and location/remote filtering are not supported as direct API query parameters; apply these filters post-retrieval during Phase 3 compose.
+
 ### Query Parameter Construction
 
-**job_title_pattern** — build a regex from the Target Role Titles list in
-search.md. Join titles with `|`. Example for current search.md:
-```
-"Senior Director.*Engineering|VP.*Engineering|Head.*Engineering|SVP.*Engineering|VP.*Platform Engineering|VP.*Developer Experience"
+**job_title_or** — provide an array of exact or partial title strings from the Target Role Titles list in search.md. Example for current search.md:
+```json
+["VP of Engineering", "Senior Director of Engineering", "Head of Engineering", "SVP of Engineering", "VP of Platform Engineering", "VP of Developer Experience"]
 ```
 
 **company_size** — derived from "Company Types: Mission-driven, growth-stage,
@@ -91,11 +91,12 @@ during Phase 3 compose, not at the API level.
 | TheirStack field | Digest field | Notes |
 |-----------------|-------------|-------|
 | `job_title`     | Title       | Direct map |
-| `company_name`  | Company     | Direct map |
+| `company`       | Company     | Direct map (field is `company`, not `company_name`) |
 | `location`      | Location    | Direct map |
 | `url`           | Link        | Verify via ATS API or WebFetch before use |
-| `posted_at`     | (internal)  | Used to confirm recency |
-| `company_size`  | (internal)  | Already filtered in query |
+| `date_posted`   | (internal)  | Used to confirm recency (field is `date_posted`, not `posted_at`) |
+| `discovered_at` | (internal)  | ISO timestamp of when TheirStack indexed the role |
+| `company_object.employee_count_range` | (internal) | Use for post-retrieval company size filtering |
 
 ---
 
@@ -145,21 +146,3 @@ Check https://theirstack.com/pricing for current credit costs.
 
 ---
 
-## Known Issues
-
-### API Key Invalid (validated 2026-03-15)
-
-Live validation of the TheirStack API returned **HTTP 401** with the error:
-`"Could not validate credentials"`.
-
-The `api_key` in `integrations/config/theirstack-config.md` appears to be a
-placeholder — it begins with `tsk_xxxxxxxxxxxxxxxx` (sentinel placeholder prefix)
-followed by a JWT segment, which is not a valid TheirStack API key format.
-
-**Resolution required:** Obtain a real API key from
-https://theirstack.com/dashboard/api-keys and replace the value in
-`integrations/config/theirstack-config.md`. The file is gitignored, so the
-real key will not be committed.
-
-Until the key is replaced, the `daily-digest` skill will fall back to WebSearch
-for job discovery (per the Error Handling table above).
