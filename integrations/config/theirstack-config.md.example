@@ -1,0 +1,13 @@
+# TheirStack Configuration
+
+# API key from https://theirstack.com/dashboard/api-keys
+# Rename this file to theirstack-config.md and add your key.
+# This file is gitignored — never commit the real key.
+api_key: tsk_xxxxxxxxxxxxxxxx
+
+# TheirStack API base URL (do not change)
+base_url: https://api.theirstack.com/v1
+
+# Maximum TheirStack credits to spend per day.
+# Free tier: 200 credits/month. Setting 8 gives ~25 days of coverage.
+daily_credit_budget: 8
