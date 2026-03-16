@@ -199,7 +199,8 @@ Use all verified results to write the digest in a single pass.
 ## Search Strategy
 
 **Primary (daily):** TheirStack API — see Phase 1a above. Covers 321K+ job
-sites with structured filters for title, company size, location, and recency.
+sites with structured title and recency filters. Company size and location are
+applied as post-retrieval filters during Phase 3 compose.
 
 **Supplement (Mon + Thu):** WebSearch against niche mission-driven boards
 (Tech Jobs for Good, Purpose Jobs, Built In Austin) — see Phase 1b above.
