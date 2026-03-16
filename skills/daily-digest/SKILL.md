@@ -169,11 +169,11 @@ interpretation.
 
 **For each URL, determine the verification method:**
 
-| URL contains | Method |
-|-------------|--------|
-| `boards.greenhouse.io` or `job-boards.greenhouse.io` | `GET https://boards-api.greenhouse.io/v1/boards/{company}/jobs/{id}` |
-| `jobs.lever.co` | `GET https://api.lever.co/v0/postings/{company}/{id}` |
-| `jobs.ashbyhq.com` | `POST https://api.ashbyhq.com/posting-api/job-board/{company}` (match by title in response) |
+| URL matches pattern | Method |
+|--------------------|--------|
+| `boards.greenhouse.io/{company}/jobs/{id}` or `job-boards.greenhouse.io/{company}/jobs/{id}` | `GET https://boards-api.greenhouse.io/v1/boards/{company}/jobs/{id}` |
+| `jobs.lever.co/{company}/{id}` | `GET https://api.lever.co/v0/postings/{company}/{id}` |
+| `jobs.ashbyhq.com/{company}` | `POST https://api.ashbyhq.com/posting-api/job-board/{company}` (match by title in response) |
 | Anything else | WebFetch (existing behavior) |
 
 Issue all verification calls as a single parallel batch:
@@ -184,7 +184,7 @@ Issue all verification calls as a single parallel batch:
 **Interpreting results:**
 - 200 + job data → posting is open, include in digest
 - 404 → posting is closed — mark as `CLOSED` in Seen Postings note, exclude
-- API error → fall back to WebFetch for that URL only
+- API error (5xx, timeout, parse failure) → fall back to WebFetch for that URL only
 - WebFetch returns 404 or "no longer accepting" text → mark CLOSED, exclude
 
 Wait for all results before composing the digest.
