@@ -237,7 +237,7 @@ Aggregator sites (EchoJobs, Jobera, SimplyHired, RemoteRocketship) are
 **Common ATS URL patterns to look for:**
 - Greenhouse: `boards.greenhouse.io/{company}/jobs/{id}` or `job-boards.greenhouse.io/{company}/jobs/{id}`
 - Lever: `jobs.lever.co/{company}/{id}`
-- Ashby: `jobs.ashbyhq.com/{company}/{id}`
+- Ashby: `jobs.ashbyhq.com/{company}` (no job ID in path — Ashby returns all open postings for the company)
 - Workday: `{company}.wd5.myworkdayjobs.com/.../job/{title}_{id}`
 - SmartRecruiters: `jobs.smartrecruiters.com/{company}/{id}`
 
