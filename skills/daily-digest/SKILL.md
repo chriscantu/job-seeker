@@ -162,12 +162,32 @@ Wait for all results before proceeding.
 
 ### Phase 2 — Parallel URL Verification (single message, all calls at once)
 
-After collecting candidates from Phase 1, issue ALL WebFetch verifications
-simultaneously in one message:
+After collecting candidates from Phase 1, group URLs by domain and issue ALL
+verifications simultaneously in one message. See
+`integrations/adapters/ats-apis.md` for full endpoint details and response
+interpretation.
+
+**For each URL, determine the verification method:**
+
+| URL contains | Method |
+|-------------|--------|
+| `boards.greenhouse.io` or `job-boards.greenhouse.io` | `GET https://boards-api.greenhouse.io/v1/boards/{company}/jobs/{id}` |
+| `jobs.lever.co` | `GET https://api.lever.co/v0/postings/{company}/{id}` |
+| `jobs.ashbyhq.com` | `POST https://api.ashbyhq.com/posting-api/job-board/{company}` (match by title in response) |
+| Anything else | WebFetch (existing behavior) |
+
+Issue all verification calls as a single parallel batch:
 ```
-[WebFetch: url1] [WebFetch: url2] [WebFetch: url3] ... [WebFetch: urlN]
+[WebFetch: greenhouse API for url1] [WebFetch: lever API for url2] [WebFetch: url3] ...
 ```
-Wait for all results before composing the digest. Do NOT verify URLs one at a time.
+
+**Interpreting results:**
+- 200 + job data → posting is open, include in digest
+- 404 → posting is closed — mark as `CLOSED` in Seen Postings note, exclude
+- API error → fall back to WebFetch for that URL only
+- WebFetch returns 404 or "no longer accepting" text → mark CLOSED, exclude
+
+Wait for all results before composing the digest.
 
 ### Phase 3 — Compose and Write
 
