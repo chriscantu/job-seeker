@@ -174,7 +174,7 @@ interpretation.
 |--------------------|--------|
 | `boards.greenhouse.io/{company}/jobs/{id}` or `job-boards.greenhouse.io/{company}/jobs/{id}` | `GET https://boards-api.greenhouse.io/v1/boards/{company}/jobs/{id}` |
 | `jobs.lever.co/{company}/{id}` | `GET https://api.lever.co/v0/postings/{company}/{id}` |
-| `jobs.ashbyhq.com/{company}` | `POST https://api.ashbyhq.com/posting-api/job-board/{company}` (match by title in response) |
+| `jobs.ashbyhq.com/{company}` | `GET https://api.ashbyhq.com/posting-api/job-board/{company}` (match by title in response `jobs[]` array) |
 | Anything else | WebFetch (existing behavior) |
 
 Issue all verification calls as a single parallel batch:

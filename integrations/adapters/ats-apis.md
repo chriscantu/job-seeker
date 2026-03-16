@@ -72,7 +72,8 @@ verification method. Check these patterns in order:
   "id": "abc-123",
   "text": "VP of Engineering",
   "categories": { "team": "Engineering", "location": "Remote" },
-  "urls": { "apply": "https://jobs.lever.co/acme/abc-123/apply" }
+  "hostedUrl": "https://jobs.lever.co/acme/abc-123",
+  "applyUrl": "https://jobs.lever.co/acme/abc-123/apply"
 }
 ```
 
@@ -87,13 +88,11 @@ verification method. Check these patterns in order:
 
 ## Ashby
 
-**Endpoint**: `POST https://api.ashbyhq.com/posting-api/job-board/{company}`
+**Endpoint**: `GET https://api.ashbyhq.com/posting-api/job-board/{company}`
 
 **Extract from URL**: Parse `{company}` from `jobs.ashbyhq.com/{company}`.
 Note: Ashby URLs do not include a job ID in the path — the endpoint returns
 ALL open postings for the company, and the skill must match by title.
-
-**Request body**: `{}` (empty JSON object — no filters needed)
 
 **Response**:
 ```json
@@ -102,8 +101,8 @@ ALL open postings for the company, and the skill must match by title.
     {
       "id": "abc-123",
       "title": "VP of Engineering",
-      "locationName": "Remote",
-      "teamName": "Engineering",
+      "location": "Remote",
+      "team": "Engineering",
       "jobUrl": "https://jobs.ashbyhq.com/acme/abc-123"
     }
   ]
@@ -144,50 +143,3 @@ Issue ALL verification calls (ATS API + WebFetch) in a single parallel batch,
 matching the existing batching protocol in `skills/daily-digest/SKILL.md`.
 Do not verify URLs one at a time.
 
----
-
-## Known Issues
-
-Validated live against all three APIs on 2026-03-15. Two discrepancies found
-between the documented response schemas and actual API behavior:
-
-### Lever: `urls` object does not exist — use top-level `hostedUrl` / `applyUrl`
-
-The documented response shows:
-```json
-{ "urls": { "apply": "https://jobs.lever.co/acme/abc-123/apply" } }
-```
-
-The actual API returns these as **top-level fields**, not nested under `urls`:
-```json
-{
-  "id": "f783a8c4-8ae2-4646-b4f3-a194940ff3b2",
-  "text": "Account Executive - Banking and Wealth",
-  "categories": { "commitment": "Full-time", "department": "Sales", "location": "San Francisco", "team": "Sales" },
-  "hostedUrl": "https://jobs.lever.co/plaid/f783a8c4-8ae2-4646-b4f3-a194940ff3b2",
-  "applyUrl": "https://jobs.lever.co/plaid/f783a8c4-8ae2-4646-b4f3-a194940ff3b2/apply"
-}
-```
-
-**Fix**: Read `hostedUrl` and `applyUrl` directly from the top-level response object.
-The `categories` object is accurate — it contains `team` and `location` as documented.
-
-**Also noted**: The Lever API returns 404 for many company slugs even when those
-companies appear to use Lever. This may indicate some companies use private/authenticated
-boards. The `lever` company's own board (`/v0/postings/lever`) returns an empty array `[]`
-rather than 404, which is valid. Confirmed working with `plaid`.
-
-### Ashby: Field names are `location` and `team`, not `locationName` and `teamName`
-
-The documented response shows `locationName` and `teamName` fields. The actual API
-returns these fields as `location` and `team`. Additional fields present in live
-responses that are not in the docs: `department`, `employmentType`, `secondaryLocations`,
-`publishedAt`, `isListed`, `isRemote`, `workplaceType`, `address`, `applyUrl`,
-`descriptionHtml`, `descriptionPlain`.
-
-**Fix**: Read `location` and `team` (not `locationName` / `teamName`).
-The `title`, `id`, and `jobUrl` fields are accurate as documented.
-
-**Also noted**: The Ashby endpoint does not accept POST requests via WebFetch — it
-responds with 404 when called as a POST. Use a **GET** request instead. Confirmed
-working with GET against `https://api.ashbyhq.com/posting-api/job-board/linear`.
