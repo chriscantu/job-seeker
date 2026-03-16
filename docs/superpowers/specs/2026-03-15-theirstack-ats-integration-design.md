@@ -125,19 +125,60 @@ Same pattern as `integrations/adapters/apple-notes.md`.
 
 **API call**:
 
+All query parameters are derived from `config/search.md` at runtime. The skill
+reads Target Role Titles, Location Constraints, Remote Preference, and Company
+Types — never hardcodes them. The example below shows what the constructed
+request looks like given the current search.md values:
+
 ```
 POST https://api.theirstack.com/v1/jobs/search
 Headers:
   Authorization: Bearer {api_key}
   Content-Type: application/json
 Body:
-  job_title_pattern: "Senior Director.*Engineering|VP.*Engineering|Head.*Engineering|SVP.*Engineering"
-  company_size: ["51-500", "501-1000"]
-  location: "Austin, TX"
-  remote: true
+  job_title_pattern: "{regex built from Target Role Titles in search.md}"
+  company_size: ["{mapped from Company Types in search.md — see size mapping below}"]
+  location: "{see location mapping below}"
+  remote: {see location mapping below}
   posted_after: "{yesterday's date, YYYY-MM-DD}"
   limit: 10
 ```
+
+**Company size mapping** (derived from "Company Types" field in search.md):
+
+The search.md field "Company Types: Mission-driven, growth-stage, midsize"
+maps to TheirStack's company_size filter as follows:
+
+| search.md term | TheirStack company_size | Rationale |
+|---------------|------------------------|-----------|
+| growth-stage | "51-500" | Series A-C companies scaling engineering |
+| midsize | "501-1000" | Established but not enterprise-scale |
+| mission-driven | (not filterable) | Qualitative attribute — not a TheirStack filter. Mission alignment is assessed during Phase 3 compose, where the skill evaluates company mission for the digest's "Why this fits" and star rating fields. |
+
+These ranges target companies large enough to need VP-level engineering
+leadership but small enough that the role shapes culture rather than
+maintaining it (per search.md Notes). If the user's Company Types preference
+changes, update this mapping accordingly.
+
+**Location and remote mapping** (derived from Location Constraints in search.md):
+
+search.md has a multi-part Location Constraints structure. The skill maps it
+to TheirStack query parameters as follows:
+
+| search.md field | Value | TheirStack parameter | Mapped value |
+|----------------|-------|---------------------|-------------|
+| Remote Preference | "Remote or Hybrid" | `remote` | `true` |
+| Remote | Yes | (covered by remote=true) | — |
+| Hybrid (Austin TX area) | Yes | `location` | `"Austin, TX"` |
+| Relocation required | No | (no filter needed) | — |
+| 100% in-office | No | (no filter needed) | — |
+
+The skill sets `remote: true` to include remote roles regardless of location,
+AND sets `location: "Austin, TX"` to also capture hybrid roles in the Austin
+area. This combination ensures both remote-anywhere and Austin-hybrid postings
+appear in results. Roles requiring relocation or 100% in-office are filtered
+out during Phase 3 compose (not at the API level, since TheirStack cannot
+express negative location constraints).
 
 **Field mapping to digest format**:
 
@@ -177,7 +218,7 @@ and Ashby public APIs.
 | `boards.greenhouse.io/{company}/jobs/{id}` | `GET https://boards-api.greenhouse.io/v1/boards/{company}/jobs/{id}` |
 | `job-boards.greenhouse.io/{company}/jobs/{id}` | Same as above (extract company + id) |
 | `jobs.lever.co/{company}/{id}` | `GET https://api.lever.co/v0/postings/{company}/{id}` |
-| `jobs.ashbyhq.com/{company}` | Ashby public job board API |
+| `jobs.ashbyhq.com/{company}` | `POST https://api.ashbyhq.com/posting-api/job-board/{company}` (returns all open postings; match by title to verify) |
 | Everything else | WebFetch (current behavior) |
 
 **Verification logic**:
@@ -196,7 +237,7 @@ New section appended after each TheirStack call:
 
 ```
 ### TheirStack Credits
-- 2026-03-15: 7 credits used (running total: 87/200)
+- 2026-03-15: credits_used=7, month_total=87, month_limit=200
 ```
 
 **Budget check logic** (runs at start of Phase 1):
@@ -306,7 +347,9 @@ GET/POST to API endpoints). No new tools needed.
 |------|--------|
 | `skills/daily-digest/SKILL.md` | Add TheirStack Phase 1a, ATS routing in Phase 2, budget check in setup |
 | `config/search.md` | No change needed (skill reads existing fields) |
-| `.gitignore` | Add `integrations/config/theirstack-config.md` if not already covered |
+
+Note: `.gitignore` already covers `integrations/config/*.md` via an existing
+glob pattern — no change needed.
 
 ---
 
@@ -336,7 +379,11 @@ is unavailable.
    correctly in preferences.md
 4. **Fallback behavior**: Temporarily set daily_credit_budget to 0, verify
    WebSearch fallback activates
-5. **End-to-end**: Run full daily-digest with TheirStack enabled, verify digest
+5. **Ashby title matching**: Verify that Ashby verification correctly matches
+   target titles from a full board listing (Ashby returns all open postings,
+   unlike Greenhouse/Lever which return by ID). Test with a board that has
+   many postings to confirm partial-match accuracy.
+6. **End-to-end**: Run full daily-digest with TheirStack enabled, verify digest
    output matches expected format and quality
 
 ---
