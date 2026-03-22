@@ -45,7 +45,7 @@ Headers:
   Content-Type: application/json
 Body:
   job_title_or: ["{title1}", "{title2}", ...]
-  posted_at_gte: "{YYYY-MM-DD of yesterday}"
+  posted_at_gte: "{search_since — see daily-digest step 5a}"
   limit: 10
 ```
 
