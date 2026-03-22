@@ -62,6 +62,14 @@ values, and error handling reference.
    (no previously seen postings).
 5. Glob `output/*-preferences.md`, sort descending, read the most recent file.
    Use interest signals to weight searches. If no file exists, treat as no preferences.
+   Also parse the most recent `## YYYY-MM-DD` section header in the file to get
+   `last_run_date`. If no preferences file exists, set `last_run_date` to null.
+5a. Compute `search_since`: if `last_run_date` is not null, set
+   `search_since = max(last_run_date, today - 7 days)`. If `last_run_date` is
+   null (no preferences file), set `search_since = yesterday`. The 7-day cap
+   prevents excessive noise after long gaps. This value is used as the
+   `posted_at_gte` parameter in Phase 1a and to scope WebSearch queries in
+   Phase 1c.
 6. (Optional — Apple Notes only) If `integrations/config/notes-config.md` exists,
    read it to get `plugin_root` and `default_folder` for Apple Notes writes.
    Skip this step if the file does not exist.
@@ -114,7 +122,7 @@ request format, field mapping, and error handling.
 
 Build the request body at runtime from search.md:
 - `job_title_or`: array of titles from Target Role Titles (e.g. `["VP of Engineering", "Senior Director of Engineering", "Head of Engineering"]`)
-- `posted_at_gte`: yesterday's date in `YYYY-MM-DD` format
+- `posted_at_gte`: `search_since` date in `YYYY-MM-DD` format (computed in step 5a)
 - `limit`: `10`
 
 Note: company size, location, and remote filtering are not supported as API
@@ -153,15 +161,16 @@ Wait for all results before merging with Phase 1a results.
 #### Phase 1c — WebSearch fallback (only when `use_theirstack` is false)
 
 If `use_theirstack` is false (config missing, budget exhausted, or API error), issue ALL search queries
-simultaneously (same as original Phase 1):
+simultaneously (same as original Phase 1). When `search_since` is older than
+yesterday, add a date qualifier (e.g. `after:YYYY-MM-DD`) to reduce stale results:
 
 ```
-[WebSearch: Ashby VP Engineering remote]
-[WebSearch: Greenhouse VP Engineering remote]
-[WebSearch: Lever healthcare VP Engineering]
-[WebSearch: EdTech VP Engineering remote]
-[WebSearch: Lever climate/sustainability VP Engineering]
-[WebSearch: Mission-driven VP Engineering remote]
+[WebSearch: Ashby VP Engineering remote after:{search_since}]
+[WebSearch: Greenhouse VP Engineering remote after:{search_since}]
+[WebSearch: Lever healthcare VP Engineering after:{search_since}]
+[WebSearch: EdTech VP Engineering remote after:{search_since}]
+[WebSearch: Lever climate/sustainability VP Engineering after:{search_since}]
+[WebSearch: Mission-driven VP Engineering remote after:{search_since}]
 ```
 
 Wait for all results before proceeding.
