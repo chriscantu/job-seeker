@@ -16,6 +16,7 @@ When adding a new file, find the right directory here first.
 | `CONNECTORS.md` | Runtime declaration — Claude Code on macOS, Bash/osascript, no MCP servers |
 | `.gitignore` | Excludes output/, memory/, personal config, OS files |
 | `.claude-plugin/plugin.json` | Plugin metadata (name, version, author, keywords, skills) |
+| `.claude-plugin/marketplace.json` | Marketplace catalog for plugin installation |
 
 ---
 
@@ -25,7 +26,8 @@ When adding a new file, find the right directory here first.
 job-seeker/
 │
 ├── .claude-plugin/
-│   └── plugin.json          ← Plugin metadata (no mcpServers — direct scripts only)
+│   ├── plugin.json          ← Plugin metadata (no mcpServers — direct scripts only)
+│   └── marketplace.json     ← Marketplace catalog for plugin installation
 │
 ├── skills/                  ← One subdirectory per skill
 │   ├── daily-digest/
