@@ -379,7 +379,25 @@ is the intended delivery channel — everything else is a workaround.
 
 After the digest note is written:
 
-### Primary state — output/ files
+### Primary state — Apple Notes (default)
+
+If `integrations/config/notes-config.md` exists, write state to Apple Notes.
+
+Read `integrations/config/notes-config.md` to get `plugin_root`, `default_folder`,
+and `Apple Notes Prefix` (from `config/search.md`, default: `Job Search`).
+
+Construct note names using the prefix:
+- `{prefix} - Seen Postings`
+- `{prefix} - Preferences`
+
+Run `apple_notes_update.applescript` for each note as before. Check return values;
+if either starts with `error:`, log to `output/error-{date}.log` and warn the user,
+then write to the fallback state files below.
+
+### Fallback state — output/ files
+
+Always write to `output/` files as a backup, regardless of whether Apple Notes
+succeeded. If Apple Notes is not configured, these files are the only state layer.
 
 1. Glob `output/*-seen-postings.md`, sort descending. If a file exists, append
    new role entries to it. If no file exists, create `output/YYYY-MM-DD-seen-postings.md`
@@ -401,19 +419,3 @@ After the digest note is written:
    ### Source Effectiveness
    - {Source}: {N} relevant roles found
    ```
-
-### Secondary state — Apple Notes (optional, Chris's personal integration)
-
-If `integrations/config/notes-config.md` exists, also run the Apple Notes
-state updates below. Skip this block entirely if the file does not exist.
-
-Read `integrations/config/notes-config.md` to get `plugin_root`, `default_folder`,
-and `Apple Notes Prefix` (from `config/search.md`, default: `Job Search`).
-
-Construct note names using the prefix:
-- `{prefix} - Seen Postings`
-- `{prefix} - Preferences`
-
-Run `apple_notes_update.applescript` for each note as before. Check return values;
-if either starts with `error:`, log to `output/error-{date}.log` and warn the user
-but do NOT fail the digest — primary state already succeeded.

@@ -49,14 +49,16 @@ output/
 
 ## State Continuity
 
-`output/` markdown files are the source of truth for state that persists across
-sessions (seen postings, preferences, applications). Apple Notes is an optional
-personal integration — `daily-digest` writes there as a secondary layer when
-configured, but it is not required for the plugin to function.
+**Apple Notes** is the default source of truth for state that persists across
+sessions (seen postings, preferences, applications). Skills read and write state
+via `osascript` when `integrations/config/notes-config.md` is configured.
 
-State files live at the `output/` root (e.g., `output/2026-03-14-seen-postings.md`).
-Per-company artifacts (cover letters, resumes) continue to live in
-`output/{company-slug}/`. Both patterns coexist in `output/` with no conflict.
+If Apple Notes is not configured, skills fall back to markdown files in `output/`
+(e.g., `output/2026-03-14-seen-postings.md`). These files use the same format
+and dedup logic — Apple Notes is preferred, not required.
+
+State files live at the `output/` root. Per-company artifacts (cover letters,
+resumes) live in `output/{company-slug}/`. Both patterns coexist with no conflict.
 
 Skills glob for the most recent `output/*-{state-type}.md` file before acting
 and append to it after completing. If no file exists, create one with today's
