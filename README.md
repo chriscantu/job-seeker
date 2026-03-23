@@ -2,7 +2,7 @@
 
 A Claude Code plugin that automates the executive job search lifecycle. Built
 for a specific candidate (me), but designed so anyone can fork it, drop in their
-resume, and configure it for their own search. Runs in Claude Code CLI on macOS.
+resume, and configure it for their own search. Runs in Claude Code CLI.
 
 ## What It Does
 
@@ -14,7 +14,7 @@ Nine skills that cover the full arc of a senior engineering leadership job searc
 | `daily-digest` | Active | Searches executive job boards (TheirStack API + web search fallback) and writes a deduplicated digest to Apple Notes |
 | `why-this-company` | Active | Generates a "Why did you apply?" response for a specific company, grounded in real career history |
 | `cover-letter` | Active | Produces a tailored cover letter that maps accomplishments to role requirements |
-| `resume-tailor` | Planned | Reorders and emphasizes resume bullets for a specific posting |
+| `resume-tailor` | Active | Reorders and emphasizes resume bullets for a specific posting |
 | `company-research` | Planned | Deep dive on a target company before applying or interviewing |
 | `interview-prep` | Planned | Behavioral and technical interview prep with STAR story mapping |
 | `application-tracker` | Planned | Pipeline management across all opportunities |
@@ -22,9 +22,8 @@ Nine skills that cover the full arc of a senior engineering leadership job searc
 
 ## Prerequisites
 
-- **macOS** — Apple Notes integration requires `osascript`
 - **Claude Code CLI v1.0.33+** — this is a Claude Code plugin, not a standalone app
-- **Apple Notes** (optional but default) — digest delivery and state persistence
+- **macOS** (optional) — required only for Apple Notes integration via `osascript`
 
 ## Installation
 
