@@ -8,7 +8,7 @@
       "name": "job-seeker",
       "source": "./",
       "description": "Executive job search lifecycle — daily digest, cover letters, why-this-company responses, interview prep, and application tracking",
-      "version": "0.2.2",
+      "version": "0.4.0",
       "keywords": ["job-search", "cover-letter", "interview", "resume", "networking", "career"]
     }
   ]
