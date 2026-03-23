@@ -67,3 +67,4 @@ is the source of truth for detailed accomplishments.
 | `interview-prep` | "prep me for interview", "interview questions", "practice interview" |
 | `application-tracker` | "track application", "update pipeline", "where am I with" |
 | `networking-outreach` | "draft outreach", "reach out to", "networking message" |
+| `setup` | "setup", "configure job seeker", "check my setup", "get started", "what's missing" |

@@ -14,6 +14,7 @@
     { "file": "skills/company-research/SKILL.md" },
     { "file": "skills/interview-prep/SKILL.md" },
     { "file": "skills/application-tracker/SKILL.md" },
-    { "file": "skills/networking-outreach/SKILL.md" }
+    { "file": "skills/networking-outreach/SKILL.md" },
+    { "file": "skills/setup/SKILL.md" }
   ]
 }
