@@ -1,7 +1,7 @@
 # Specification: Candidate-Agnostic Configuration
 
 **Date**: 2026-03-14
-**Status**: Approved — pending implementation
+**Status**: Implemented — shipped in feature/candidate-agnostic-config branch
 **Roadmap item**: v0.4 Item 5
 
 ---
