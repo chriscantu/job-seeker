@@ -69,3 +69,19 @@ is the source of truth for detailed accomplishments.
 | `networking-outreach` | "draft outreach", "reach out to", "networking message" |
 | `setup` | "setup", "configure job seeker", "check my setup", "get started", "what's missing" |
 | `linkedin-article` | "write a LinkedIn post", "LinkedIn article", "create LinkedIn content", "draft a post about", "LinkedIn thought leadership" |
+
+## Commands
+
+| Command | Purpose |
+|---------|---------|
+| `/pipeline` | Quick view of all active applications — stages, staleness, next actions |
+| `/is-open <url>` | Check if a single job posting URL is still accepting applications |
+| `/stats` | Search effectiveness — source performance, TheirStack credits, digest history |
+
+## Hooks
+
+| Event | Behavior |
+|-------|----------|
+| Session Start | Shows one-line pipeline summary (last digest date, active apps, stale alerts) |
+| Pre Write/Edit | PII guard — blocks writes containing phone numbers or addresses to non-gitignored files |
+| Stop | Checks if skill state was persisted; warns if state files may be stale |
