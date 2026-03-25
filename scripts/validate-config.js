@@ -33,7 +33,7 @@ function checkGitignore() {
   const required = [
     'config/candidate.md',
     'config/search.md',
-    'references/writing-samples/',
+    '/references/',
   ];
   for (const entry of required) {
     if (!content.includes(entry)) {
