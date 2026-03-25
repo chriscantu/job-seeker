@@ -2,12 +2,14 @@
 // scripts/validate-config.js
 // Validates config files exist and contain required fields.
 // Run: node scripts/validate-config.js
+// Run: node scripts/validate-config.js --ci  (skip personal config checks for CI)
 // Exit 0 = valid. Exit 1 = issues found (messages printed to stdout).
 
 const fs = require('fs');
 const path = require('path');
 
 const root = path.resolve(__dirname, '..');
+const ciMode = process.argv.includes('--ci');
 const issues = [];
 
 function checkFile(filePath, requiredFields, examplePath) {
@@ -33,7 +35,7 @@ function checkGitignore() {
   const required = [
     'config/candidate.md',
     'config/search.md',
-    'references/writing-samples/',
+    '/references/',
   ];
   for (const entry of required) {
     if (!content.includes(entry)) {
@@ -65,8 +67,11 @@ const CANDIDATE_FIELDS = [
 ];
 const SEARCH_FIELDS = ['Remote Preference', 'Comp Floor', 'Company Types'];
 
-checkFile('config/candidate.md', CANDIDATE_FIELDS, 'config/candidate.md.example');
-checkFile('config/search.md', SEARCH_FIELDS, 'config/search.md.example');
+// In CI mode, skip personal config checks (those files are gitignored)
+if (!ciMode) {
+  checkFile('config/candidate.md', CANDIDATE_FIELDS, 'config/candidate.md.example');
+  checkFile('config/search.md', SEARCH_FIELDS, 'config/search.md.example');
+}
 checkGitignore();
 checkStateFiles();
 
