@@ -2,18 +2,19 @@
 name: daily-digest
 description: >
   Search executive job boards for Senior Director/VP Engineering roles
-  and deliver a filtered, deduplicated digest via Apple Notes. Trigger with
-  "run my job digest", "check for new roles", "any new jobs today", or
-  "job search update". Runs in Claude Code on macOS — osascript is called
-  directly via Bash to read and write Apple Notes natively.
-  State is persisted in Apple Notes.
+  and deliver a filtered, deduplicated digest. Trigger with "run my job
+  digest", "check for new roles", "any new jobs today", or "job search
+  update". State is persisted in output/ markdown files. When Apple Notes
+  is configured, the digest is also written there for a native reading
+  experience.
 allowed-tools: Read, Write, Edit, Bash, WebSearch, WebFetch
 ---
 
 # Daily Job Digest
 
-Searches executive job boards, filters against Chris's criteria, deduplicates
-against previously seen postings, and writes a formatted Apple Note.
+Searches executive job boards, filters against the candidate's criteria,
+deduplicates against previously seen postings, and writes the digest to
+`output/` (plus Apple Notes when configured).
 
 ## How Apple Notes Access Works
 
@@ -287,7 +288,7 @@ LinkedIn ToS restricts automated access — keep searches light and human-paced
 
 ---
 
-## Output — Write to Apple Notes
+## Output — Write Digest
 
 Construct the HTML body using the template below, then run:
 
@@ -319,7 +320,7 @@ from `config/candidate.md` before constructing the HTML body.
 <div><b><span style="font-size: 11px">💰 Comp:</span></b><span style="font-size: 11px"> {Comp range or estimate}</span></div>
 <div><b><span style="font-size: 11px">⭐ Fit:</span></b><span style="font-size: 11px"> {⭐⭐⭐⭐⭐ / ⭐⭐⭐⭐ / ⭐⭐⭐} — {one-word reason}</span></div>
 <div><b><span style="font-size: 11px">🔗 Link:</span></b><span style="font-size: 11px"> </span><a href="{DIRECT_COMPANY_URL}"><u><span style="font-size: 11px">View Posting</span></u></a></div>
-<div><b><span style="font-size: 11px">Why this fits:</span></b><span style="font-size: 11px"> {1-2 sentences tied to Chris's specific background}</span></div>
+<div><b><span style="font-size: 11px">Why this fits:</span></b><span style="font-size: 11px"> {1-2 sentences tied to the candidate's specific background}</span></div>
 <div><span style="font-size: 11px"><br></span></div>
 <!-- Repeat role block above for each role -->
 
@@ -358,46 +359,39 @@ from `config/candidate.md` before constructing the HTML body.
 - ⭐⭐⭐⭐ = Strong match (one dimension is a stretch but worth pursuing)
 - ⭐⭐⭐ = Worth considering (interesting company but notable gaps)
 
+### Write Order
+
+1. **Always** write the digest HTML to `output/digest-{date}.html` first
+2. **If** `integrations/config/notes-config.md` exists, also write to Apple Notes
+   using the create script. Verify the return value starts with `success:`.
+   If it starts with `error:`, follow the error handling procedure below.
+3. If Apple Notes is not configured, skip step 2 — the HTML file is the
+   deliverable.
+
 ---
 
-## Fallback — If Apple Notes Write Fails
+## Error Handling — Apple Notes Write Failure
 
 If `apple_notes_create.applescript` returns a value starting with `error:`:
 
 1. Write the exact error message to `output/error-{date}.log` so it persists after the session ends
 2. Save the digest as `output/digest-{date}.html`
-3. Tell Chris:
+3. Tell the user:
    > "Apple Notes write failed — saved HTML fallback at `output/digest-{date}.html`. Error: {exact error message}"
 4. **Never silently fall back to HTML without surfacing the failure**
 
-The HTML fallback exists so Chris can review results in a browser. Apple Notes
-is the intended delivery channel — everything else is a workaround.
+The HTML fallback exists so the user can review results in a browser when
+Apple Notes is not configured or the write fails.
 
 ---
 
 ## State Updates
 
-After the digest note is written:
+After the digest is written:
 
-### Primary state — Apple Notes (default)
+### Primary state — output/ files
 
-If `integrations/config/notes-config.md` exists, write state to Apple Notes.
-
-Read `integrations/config/notes-config.md` to get `plugin_root`, `default_folder`,
-and `Apple Notes Prefix` (from `config/search.md`, default: `Job Search`).
-
-Construct note names using the prefix:
-- `{prefix} - Seen Postings`
-- `{prefix} - Preferences`
-
-Run `apple_notes_update.applescript` for each note as before. Check return values;
-if either starts with `error:`, log to `output/error-{date}.log` and warn the user,
-then write to the fallback state files below.
-
-### Fallback state — output/ files
-
-Always write to `output/` files as a backup, regardless of whether Apple Notes
-succeeded. If Apple Notes is not configured, these files are the only state layer.
+Always write to `output/` files. This is the primary state layer.
 
 1. Glob `output/*-seen-postings.md`, sort descending. If a file exists, append
    new role entries to it. If no file exists, create `output/YYYY-MM-DD-seen-postings.md`
@@ -419,3 +413,20 @@ succeeded. If Apple Notes is not configured, these files are the only state laye
    ### Source Effectiveness
    - {Source}: {N} relevant roles found
    ```
+
+### Optional — Apple Notes (secondary)
+
+If `integrations/config/notes-config.md` exists, also write state to Apple Notes
+as a secondary layer for native reading on macOS/iOS.
+
+Read `plugin_root`, `default_folder`, and `Apple Notes Prefix` (from
+`config/search.md`, default: `Job Search`).
+
+Construct note names using the prefix:
+- `{prefix} - Seen Postings`
+- `{prefix} - Preferences`
+
+Run `apple_notes_update.applescript` for each note. Check return values;
+if either starts with `error:`, log to `output/error-{date}.log` and warn
+the user. Apple Notes sync errors are **non-blocking** — the output/ files
+are already written and are the source of truth.
