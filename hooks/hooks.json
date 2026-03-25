@@ -1,0 +1,34 @@
+{
+  "SessionStart": [
+    {
+      "hooks": [
+        {
+          "type": "prompt",
+          "prompt": "At the start of this session, silently check the job search pipeline state. Do NOT print anything unless there is useful information to show.\n\n1. Glob `output/*-applications.md` — if a file exists, read it and count active applications. For each, calculate days since last activity. Flag any with 14+ days as stale.\n2. Glob `output/*-preferences.md` — if a file exists, find the most recent `## YYYY-MM-DD` header to determine the last digest run date.\n3. If either file exists, print a single-line status bar:\n   `📋 Last digest: {date} | Active applications: {N} | Stale (2+ weeks): {N} ({company names})`\n4. If no state files exist, print nothing — don't clutter the session."
+        }
+      ]
+    }
+  ],
+  "PreToolUse": [
+    {
+      "matcher": "Write|Edit",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "node ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/pii-guard.js",
+          "timeout": 5
+        }
+      ]
+    }
+  ],
+  "Stop": [
+    {
+      "hooks": [
+        {
+          "type": "prompt",
+          "prompt": "Before finishing, check if any job-seeker skill was used during this session that writes to state files in output/ (seen-postings, preferences, or applications). If a skill produced results that should have updated state but no Write or Edit was made to output/*-seen-postings.md, output/*-preferences.md, or output/*-applications.md, warn: 'State may not have been persisted — check output/ files or Apple Notes.'"
+        }
+      ]
+    }
+  ]
+}
