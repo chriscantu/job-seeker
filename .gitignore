@@ -12,8 +12,8 @@ integrations/config/*.md
 config/candidate.md
 config/search.md
 
-# Writing samples (personal voice calibration — gitignored)
-references/writing-samples/
+# Personal references (resume, blog PDFs, voice guide, LinkedIn — PII)
+/references/
 
 # Outdated files
 job-search-system.md
@@ -23,6 +23,9 @@ node_modules/
 
 # Claude Code local session data
 .claude/
+
+# Build/coverage artifacts
+default.profraw
 
 # OS files
 .DS_Store
