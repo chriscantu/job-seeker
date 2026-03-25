@@ -24,7 +24,7 @@ This skill is stubbed for future development.
 
 1. Research company mission, products, recent news, funding, leadership
 2. Identify engineering culture signals (blog posts, tech talks, open source)
-3. Map company challenges to Chris's strengths
+3. Map company challenges to the candidate's strengths
 4. Surface any red flags or concerns
 5. Output a structured research brief saved to `output/{company-slug}/company-research.md`
 

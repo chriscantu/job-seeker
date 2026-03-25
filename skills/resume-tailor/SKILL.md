@@ -7,7 +7,7 @@ description: >
 
 # Resume Tailor
 
-Customizes Chris's resume for a specific job posting by reordering bullets,
+Customizes the candidate's resume for a specific job posting by reordering bullets,
 adjusting emphasis, and surfacing the most relevant accomplishments.
 
 ## Status: Planned
@@ -29,9 +29,10 @@ This skill is stubbed for future development.
 4. Generate a .docx using:
    ```
    node scripts/generate_resume_docx.js \
-     output/{company-slug}/Christopher_Cantu_Resume_{Company}.md \
-     output/{company-slug}/Christopher_Cantu_Resume_{Company}.docx
+     output/{company-slug}/{Name}_Resume_{Company}.md \
+     output/{company-slug}/{Name}_Resume_{Company}.docx
    ```
+   Where `{Name}` is from `config/candidate.md` with spaces replaced by underscores.
 
 All files saved to `output/{company-slug}/` — same directory as the cover letter.
 

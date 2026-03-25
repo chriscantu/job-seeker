@@ -25,7 +25,7 @@ This skill is stubbed for future development.
 
 1. Accept target person/company and context (warm intro, cold outreach, recruiter)
 2. Research the contact and company
-3. Draft a concise, authentic message in Chris's voice
+3. Draft a concise, authentic message in the candidate's voice
 4. Tailor tone: peer-to-peer for VPs, respectful for recruiters, warm for referrals
 5. Output message ready to send via LinkedIn or email
 
