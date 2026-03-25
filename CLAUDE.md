@@ -83,5 +83,5 @@ is the source of truth for detailed accomplishments.
 | Event | Behavior |
 |-------|----------|
 | Session Start | Shows one-line pipeline summary (last digest date, active apps, stale alerts) |
-| Pre Write/Edit | PII guard — blocks writes containing phone numbers or addresses to non-gitignored files |
+| Pre Write/Edit | PII guard — blocks writes containing phone numbers, personal emails, SSNs, or street addresses to non-allowlisted paths (files outside output/, references/, config/, .claude/, /tmp/) |
 | Stop | Checks if skill state was persisted; warns if state files may be stale |

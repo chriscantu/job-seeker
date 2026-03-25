@@ -4,7 +4,7 @@ description: >
   Show a summary of all active job applications with stages, staleness
   warnings, and next actions. Triggers: /pipeline, "show pipeline",
   "where am I", "application status"
-allowed-tools: Read, Glob, Bash
+allowed-tools: Read, Glob
 ---
 
 # Pipeline Summary

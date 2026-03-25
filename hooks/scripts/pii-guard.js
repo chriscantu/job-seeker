@@ -2,24 +2,35 @@
 // hooks/scripts/pii-guard.js
 // PreToolUse hook — blocks Write/Edit calls that would put PII into committed files.
 // Reads the tool call JSON from stdin. Exit 0 = allow, exit 2 = block.
-// No external dependencies — stdlib only.
+// Fails CLOSED — if input is unparseable, the write is blocked as a precaution.
+// No external dependencies — stdlib only. Requires Node >= 10 (async iteration on stdin).
 
+const path = require('path');
+
+// Paths where PII is expected and allowed. These are either gitignored
+// (output/, references/, config personal files, .claude/) or ephemeral (/tmp/).
+// Checked against the resolved (normalized) file path to prevent traversal bypass.
 const ALLOWED_PATH_PATTERNS = [
-  /\/output\//,           // gitignored — generated materials, expected to contain PII
-  /\/references\//,       // gitignored — resume, writing samples, voice guide
+  /\/output\//,              // gitignored — generated materials, expected to contain PII
+  /\/references\//,          // gitignored — resume, writing samples, voice guide
   /\/config\/candidate\.md/, // gitignored — personal profile
   /\/config\/search\.md/,    // gitignored — search preferences
-  /\/\.claude\//,         // gitignored — Claude session/memory data
-  /^\/tmp\//,             // ephemeral
-  /^\/private\/tmp\//,    // macOS /tmp symlink target
+  /\/\.claude\//,            // gitignored — Claude session/memory data
+  /^\/tmp\//,                // ephemeral — system temp
+  /^\/private\/tmp\//,       // macOS /tmp symlink target
 ];
 
 // Each pattern has a label for the warning message and a regex.
 // Patterns are designed to minimize false positives:
-//   - Phone: requires separator or space boundary, excludes port-like numbers
-//   - Email: requires @ with valid domain structure
-//   - SSN: requires dashes in XXX-XX-XXXX format specifically
-//   - Address: requires house number + street type keyword
+//   - Phone: requires separator and valid area code prefix, excludes port-like numbers
+//   - Email: requires @ with known personal email domain
+//   - SSN: requires dashes, constrained to valid SSA ranges (not 000, 666, 9xx)
+//   - Address: requires house number + recognized street type keyword
+//
+// Known limitations (acceptable trade-offs for a pre-commit guard):
+//   - Phone: contiguous 10-digit numbers (5125551234) are not caught
+//   - SSN: space-separated (078 05 1120) or no-separator formats not caught
+//   - Address: PO Boxes and international formats not caught
 const PII_PATTERNS = [
   {
     label: 'phone number',
@@ -35,9 +46,10 @@ const PII_PATTERNS = [
   },
   {
     label: 'SSN',
-    // Matches: 123-45-6789 (strict format with dashes)
-    // Requires word boundaries to avoid matching inside longer numbers
-    pattern: /\b\d{3}-\d{2}-\d{4}\b/,
+    // Matches: 123-45-6789 (strict dashed format with valid SSA ranges)
+    // Area: 001-899 excluding 666. Group: 01-99. Serial: 0001-9999.
+    // Avoids: 000-xx-xxxx, 666-xx-xxxx, 9xx-xx-xxxx, xxx-00-xxxx, xxx-xx-0000
+    pattern: /\b(?!000|666|9\d{2})\d{3}-(?!00)\d{2}-(?!0000)\d{4}\b/,
   },
   {
     label: 'street address',
@@ -57,21 +69,31 @@ async function main() {
   let input;
   try {
     input = JSON.parse(Buffer.concat(chunks).toString());
-  } catch {
-    // Can't parse input — fail open (allow the write)
-    process.exit(0);
+  } catch (err) {
+    // Fail CLOSED — if we can't parse the input, block the write as a precaution.
+    // A false positive here is a 5-second annoyance. A false negative leaks PII
+    // into git history and requires git filter-repo to fix.
+    process.stderr.write(
+      `⚠️  PII guard: could not parse tool input from stdin — blocking write as a precaution.\n` +
+        `   Error: ${err.message}\n` +
+        `   If this is a false alarm, move the file to output/ or references/.\n`
+    );
+    process.exit(2);
   }
 
   const toolInput = input.tool_input || {};
   const filePath = toolInput.file_path || '';
 
-  // No file path — allow
+  // No file path — allow (not a Write/Edit we can check)
   if (!filePath) {
     process.exit(0);
   }
 
-  // Allow writes to gitignored / ephemeral paths
-  if (ALLOWED_PATH_PATTERNS.some((p) => p.test(filePath))) {
+  // Normalize the path to prevent traversal bypasses like output/../secret.md
+  const normalizedPath = path.resolve(filePath);
+
+  // Allow writes to allowlisted paths (gitignored or ephemeral)
+  if (ALLOWED_PATH_PATTERNS.some((p) => p.test(normalizedPath))) {
     process.exit(0);
   }
 
@@ -95,8 +117,8 @@ async function main() {
     const types = violations.join(', ');
     process.stderr.write(
       `⚠️  PII guard: content appears to contain ${types}.\n` +
-      `   File: ${filePath}\n` +
-      `   This file is not gitignored. Move PII to output/ or references/ instead.\n`
+        `   File: ${normalizedPath}\n` +
+        `   This file is not allowlisted. Move PII to output/ or references/ instead.\n`
     );
     process.exit(2);
   }
@@ -105,4 +127,10 @@ async function main() {
   process.exit(0);
 }
 
-main();
+main().catch((err) => {
+  process.stderr.write(
+    `⚠️  PII guard: unexpected error — blocking write as a precaution.\n` +
+      `   Error: ${err.message}\n`
+  );
+  process.exit(2);
+});
