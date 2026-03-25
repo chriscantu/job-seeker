@@ -14,7 +14,7 @@ When adding a new file, find the right directory here first.
 | `STRUCTURE.md` | This file — canonical directory structure |
 | `ROADMAP.md` | Near-term, long-term, deferred, and won't-do planning |
 | `CONNECTORS.md` | Runtime declaration — Claude Code on macOS, Bash/osascript, no MCP servers |
-| `.gitignore` | Excludes output/, memory/, personal config, OS files |
+| `.gitignore` | Excludes output/, personal config, OS files |
 | `.claude-plugin/plugin.json` | Plugin metadata (name, version, author, keywords, skills) |
 | `.claude-plugin/marketplace.json` | Marketplace catalog for plugin installation |
 
@@ -67,16 +67,14 @@ job-seeker/
 │
 ├── tests/                   ← Test suites and manual test protocols
 │
-├── output/                  ← Generated per-company materials (gitignored)
-│   └── {company-name}/
-│       ├── why-this-company.md
-│       ├── cover-letter-{date}.md
-│       └── ...
-│
-└── memory/                  ← Runtime state mirrors (gitignored)
-    └── job-search/          ← Source of truth is Apple Notes
-        ├── seen-postings.md
-        └── preferences.md
+└── output/                  ← Generated materials + state files (gitignored)
+    ├── YYYY-MM-DD-seen-postings.md    ← Dedup log (state)
+    ├── YYYY-MM-DD-preferences.md      ← Source effectiveness (state)
+    ├── YYYY-MM-DD-applications.md     ← Pipeline tracker (state)
+    └── {company-name}/
+        ├── why-this-company.md
+        ├── cover-letter-{date}.md
+        └── ...
 ```
 
 ---
@@ -147,7 +145,7 @@ Test suites and manual test protocols.
 6. **Is it an implementation note or ADR?** → `integrations/docs/`
 7. **Is it permanent reference material shared across skills?** → `references/`
 8. **Is it generated output for a specific company?** → `output/{company-name}/`
-9. **Is it runtime state?** → `memory/` (and mirrored in Apple Notes)
+9. **Is it runtime state?** → `output/` as a date-prefixed markdown file
 10. **None of the above?** → Ask before creating. Do not default to repo root.
 
 ---
@@ -167,7 +165,7 @@ Test suites and manual test protocols.
 | references/ (resume, voice guide, blogs) | Yes | Permanent reference material |
 | tests/ | Yes | Regression tests |
 | output/ (cover letters, digests) | No | Generated per-application |
-| memory/ (seen postings, preferences) | No | Runtime state |
+| output/ state files (seen-postings, preferences, applications) | No | Runtime state, gitignored with output/ |
 
 ---
 
