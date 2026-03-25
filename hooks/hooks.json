@@ -15,7 +15,7 @@
       "hooks": [
         {
           "type": "command",
-          "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/pii-guard.sh",
+          "command": "node ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/pii-guard.js",
           "timeout": 5
         }
       ]
