@@ -60,7 +60,7 @@ is the source of truth for detailed accomplishments.
 
 | Skill | Trigger Phrases |
 |-------|----------------|
-| `daily-digest` | "run my job digest", "check for new roles", "job search" *(interactive only — requires macOS/osascript for Apple Notes)* |
+| `daily-digest` | "run my job digest", "check for new roles", "job search" *(Apple Notes optional — requires macOS/osascript when enabled)* |
 | `why-this-company` | "why this company", "why am I applying to", "application response" |
 | `cover-letter` | "cover letter", "write a cover letter for" |
 | `resume-tailor` | "tailor my resume", "customize resume for" |
