@@ -167,6 +167,21 @@ Issue all verification calls as a single parallel batch:
 - WebFetch returns 404 or "no longer accepting" text → mark CLOSED, exclude
 - WebFetch fallback also fails (error or uninterpretable content) → exclude role, add URL to digest footer: "Could not verify: {URL} — check manually"
 
+**Extracting the posted date:**
+
+During verification, extract the original posting date from each source:
+
+| Source | Field | Notes |
+|--------|-------|-------|
+| TheirStack | `date_posted` | Structured, reliable |
+| Greenhouse API | `updated_at` in job JSON | May reflect edits — use as best estimate |
+| Lever API | `createdAt` (epoch ms) | Reliable original post date |
+| Ashby API | Not exposed in public posting API | Use TheirStack `date_posted` if available, otherwise omit |
+| WebFetch (page scrape) | Look for "Posted on" or date metadata | Best-effort — not always present |
+
+Store the posted date as `posted:YYYY-MM-DD` in each seen-postings entry (see State
+Updates below). If the posted date cannot be determined, omit the field.
+
 Wait for all results before composing the digest.
 
 ### Phase 3 — Compose and Write
@@ -276,6 +291,7 @@ from `config/candidate.md` before constructing the HTML body.
 <div><b><span style="font-size: 11px">🎯 Mission:</span></b><span style="font-size: 11px"> {1-sentence company mission}</span></div>
 <div><b><span style="font-size: 11px">💰 Comp:</span></b><span style="font-size: 11px"> {Comp range or estimate}</span></div>
 <div><b><span style="font-size: 11px">⭐ Fit:</span></b><span style="font-size: 11px"> {⭐⭐⭐⭐⭐ / ⭐⭐⭐⭐ / ⭐⭐⭐} — {one-word reason}</span></div>
+<div><b><span style="font-size: 11px">📅 Posted:</span></b><span style="font-size: 11px"> {date posted, e.g. "March 20" or "3 days ago"} {omit line if date unknown}</span></div>
 <div><b><span style="font-size: 11px">🔗 Link:</span></b><span style="font-size: 11px"> </span><a href="{DIRECT_COMPANY_URL}"><u><span style="font-size: 11px">View Posting</span></u></a></div>
 <div><b><span style="font-size: 11px">Why this fits:</span></b><span style="font-size: 11px"> {1-2 sentences tied to the candidate's specific background}</span></div>
 <div><span style="font-size: 11px"><br></span></div>
@@ -364,8 +380,16 @@ Always write to `output/` files. This is the primary state layer.
    Entry format:
    ```
    ## YYYY-MM-DD
-   - {Company} | {Title} | {URL}
+   - {Company} | {Title} | {URL} | posted:YYYY-MM-DD
    ```
+   The `posted:` field records when the company originally published the role
+   (extracted during Phase 2 verification). If the posted date could not be
+   determined, use the discovery date instead:
+   ```
+   - {Company} | {Title} | {URL} | discovered:YYYY-MM-DD
+   ```
+   Every entry MUST have either `posted:` or `discovered:` so all roles can
+   be aged.
 
 2. Glob `output/*-preferences.md`, sort descending. If a file exists, append
    updated source effectiveness counts. If no file exists, create

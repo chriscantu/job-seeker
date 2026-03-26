@@ -255,11 +255,13 @@ Files written:
 ```
 
 **If the company is NOT in seen-postings** (URL came from outside the digest),
-add a new entry under today's date section:
+add a new entry under today's date section. Include `posted:YYYY-MM-DD` if the posting date is visible on the job page.
+If unknown, use `discovered:YYYY-MM-DD` (today's date) instead — every entry
+must have one or the other so all roles can be aged:
 
 ```
 ## {YYYY-MM-DD}
-- {Company} | {Title} | {URL} | RESUME TAILORED
+- {Company} | {Title} | {URL} | posted:YYYY-MM-DD | RESUME TAILORED
 ```
 
 If no seen-postings file exists at all, create

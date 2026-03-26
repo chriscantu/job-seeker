@@ -60,7 +60,7 @@ priority order:
 |-------|--------|---------|
 | `application-tracker` | **Shipped** | Pipeline tracking in structured markdown — replaced manual Apple Notes tracking |
 | `company-research` | **Shipped** | Force multiplier — research briefs feed into cover-letter, why-this-company, interview-prep, and resume-tailor |
-| `resume-tailor` | Planned | Cover letters are live; resume customization is the natural next step |
+| `resume-tailor` | **Shipped** | Cover letters are live; resume customization is the natural next step |
 | `interview-prep` | Planned | Needed before any screens begin |
 | `networking-outreach` | Planned | Lower priority until applications are flowing |
 

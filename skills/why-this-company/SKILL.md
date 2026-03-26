@@ -106,9 +106,11 @@ After generating, ask the candidate if they want to apply. If yes:
 
 1. Glob `output/*-seen-postings.md`, sort descending.
 2. Append to the most recent file (or create `output/YYYY-MM-DD-seen-postings.md`
-   if none exists):
+   if none exists). Include `posted:YYYY-MM-DD` if the posting date is visible
+   on the job page. If unknown, use `discovered:YYYY-MM-DD` (today's date)
+   instead — every entry must have one or the other so all roles can be aged:
    ```
-   - {Company} | {Title} | APPLYING | {date}
+   - {Company} | {Title} | APPLYING | {date} | posted:YYYY-MM-DD
    ```
 
 Note: Applications pipeline tracking is deferred to the `application-tracker` skill.
