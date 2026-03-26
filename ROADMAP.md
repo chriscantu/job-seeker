@@ -136,6 +136,33 @@ a draft — it doesn't track whether it was sent or what happened next.
 
 **Trigger**: Active networking effort with 10+ contacts in flight.
 
+### Email Scanning — Apple Mail Integration
+
+Scan Apple Mail inbox for job alerts, recruiter outreach, and application
+responses using osascript (read-only). Adapted from the
+[claude-eisenhower scan-email command](https://github.com/chriscantu/claude-eisenhower/blob/main/commands/scan-email.md)
+pattern: batch metadata retrieval (10 messages at a time), individual body
+fetches only for matched candidates, dedup against seen-postings.
+
+**Sources to scan**: Indeed alerts, LinkedIn notifications, Glassdoor,
+RemoteHunter, Wellfound, recruiter cold emails, application status updates
+from Greenhouse/Lever/Ashby.
+
+**Output**: New roles feed into the daily-digest pipeline (verify URL → add
+to seen-postings). Application status updates feed into application-tracker.
+
+**Why Apple Mail over Gmail**: Chris's primary job search email is iCloud
+(`chris.m.cantu@icloud.com` per `config/candidate.md`), which routes through
+Apple Mail on macOS. Gmail (`christopher.cantu@gmail.com`) receives Indeed/
+Glassdoor alerts as a secondary source and is already accessible via Gmail
+MCP server.
+
+**Reference**: `claude-eisenhower/commands/scan-email.md` — osascript batch
+pattern, email-config.md, 10-message batch size, ASCII-safe body previews.
+
+**Dependency**: macOS with Apple Mail configured (same runtime constraint as
+Apple Notes integration).
+
 ### Offer Comparison Tool
 
 When multiple offers arrive, a structured comparison across comp (base, bonus,
