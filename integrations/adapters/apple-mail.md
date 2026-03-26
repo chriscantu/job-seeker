@@ -97,7 +97,7 @@ osascript {plugin_root}/scripts/apple_mail_read.applescript "{account_name}" "{i
 | Outcome | Script returns | Skill action |
 |---------|---------------|--------------|
 | Messages found | Newline-delimited `subject\|\|\|sender\|\|\|date\|\|\|index` records | Parse and classify each record |
-| Individual message unreadable | Record with `(unreadable)` subject | Skip, continue scanning |
+| Individual message unreadable | Record with `(unreadable: {reason})` subject | Skip, continue scanning |
 | Fewer messages than start_index | `NO_MESSAGES` | Stop scanning (all messages processed) |
 | Account not found | `ACCOUNT_NOT_FOUND` | Stop: show config guidance |
 | Mailbox not found | `MAILBOX_NOT_FOUND` | Stop: show config guidance |
@@ -126,7 +126,7 @@ without a valid mail source).
 | Error class | Blocking? | Action |
 |-------------|-----------|--------|
 | Account/mailbox not found | Yes — fatal | Stop skill, show config guidance |
-| Apple Mail not running | Warning | Ask user to proceed (auto-launch) or stop |
+| Apple Mail not running | Warning | Detected by skill orchestration (Phase 1 Step 1a via System Events), not by the scripts. Scripts assume Mail.app is already running — `tell application "Mail"` will auto-launch it if not. |
 | Individual message read failure | No | Skip message, continue |
 | Body fetch failure | No | Classify on metadata only |
 | osascript timeout | No | Reduce batch size for remaining batches |

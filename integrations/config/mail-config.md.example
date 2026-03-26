@@ -15,12 +15,17 @@ inbox_name: INBOX
 
 ## How It's Used
 
-The `account_name` value locates the mail account in Apple Mail using
-substring matching:
+The `account_name` value locates the mail account in Apple Mail. The script
+iterates accounts using `contains` matching (not an exact match):
 
 ```applescript
 tell application "Mail"
-  set targetAccount to first account whose name contains "{account_name}"
+  repeat with acct in accounts
+    if name of acct contains "{account_name}" then
+      set targetAccount to acct
+      exit repeat
+    end if
+  end repeat
   set targetMailbox to mailbox "{inbox_name}" of targetAccount
 end tell
 ```

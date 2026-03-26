@@ -70,7 +70,9 @@ ATS API routing from `integrations/adapters/ats-apis.md`.
   reasonable
 - **macOS-only**: Requires Apple Mail configured with the target account
 - **ASCII-safe output**: AppleScript strips non-printable and non-ASCII
-  characters (codepoints 32-126) to prevent JSON serialization errors
+  characters to prevent JSON serialization errors. Scan script keeps
+  codepoints 32-126 only; read script also preserves tab/CR/LF (9, 10, 13)
+  for HTML parsing
 - **User confirmation required**: Results presented in a table; state is
   only written after user approves
 
