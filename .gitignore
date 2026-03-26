@@ -12,8 +12,9 @@ integrations/config/*.md
 config/candidate.md
 config/search.md
 
-# Personal references (resume, blog PDFs, voice guide, LinkedIn — PII)
-/references/
+# Personal references — PII (deny by default, allowlist shared files)
+/references/*
+!/references/email-patterns.md
 
 # Outdated files
 job-search-system.md

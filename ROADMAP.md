@@ -61,6 +61,7 @@ priority order:
 | `application-tracker` | **Shipped** | Pipeline tracking in structured markdown — replaced manual Apple Notes tracking |
 | `company-research` | **Shipped** | Force multiplier — research briefs feed into cover-letter, why-this-company, interview-prep, and resume-tailor |
 | `resume-tailor` | **Shipped** | Cover letters are live; resume customization is the natural next step |
+| `scan-email` | **Shipped** | Surfaces job alerts from Apple Mail that board searches miss — adapted from eisenhower scan-email pattern |
 | `interview-prep` | Planned | Needed before any screens begin |
 | `networking-outreach` | Planned | Lower priority until applications are flowing |
 
@@ -136,32 +137,27 @@ a draft — it doesn't track whether it was sent or what happened next.
 
 **Trigger**: Active networking effort with 10+ contacts in flight.
 
-### Email Scanning — Apple Mail Integration
+### Email Scanning — Apple Mail Integration *(Shipped)*
 
-Scan Apple Mail inbox for job alerts, recruiter outreach, and application
-responses using osascript (read-only). Adapted from the
-[claude-eisenhower scan-email command](https://github.com/chriscantu/claude-eisenhower/blob/main/commands/scan-email.md)
-pattern: batch metadata retrieval (10 messages at a time), individual body
-fetches only for matched candidates, dedup against seen-postings.
+**Status**: Shipped (2026-03-26)
 
-**Sources to scan**: Indeed alerts, LinkedIn notifications, Glassdoor,
-RemoteHunter, Wellfound, recruiter cold emails, application status updates
-from Greenhouse/Lever/Ashby.
+Scans Apple Mail inbox for job alert emails using osascript (read-only).
+Adapted from the eisenhower `scan-email` pattern with architectural
+improvements: external AppleScript files (testable, reusable), HTML source
+extraction for reliable URL parsing, classification patterns in a reference
+file (DRY/Open-Closed), and Apple Mail availability check.
 
-**Output**: New roles feed into the daily-digest pipeline (verify URL → add
-to seen-postings). Application status updates feed into application-tracker.
+**v1 scope**: Job alert extraction only (Indeed, LinkedIn, Glassdoor,
+RemoteHunter, Wellfound, Google Alerts, Otta, ZipRecruiter, Built In, Hired).
+Application status tracking and recruiter outreach detection documented as
+v2 enhancements.
 
-**Why Apple Mail over Gmail**: Chris's primary job search email is iCloud
-(`chris.m.cantu@icloud.com` per `config/candidate.md`), which routes through
-Apple Mail on macOS. Gmail (`christopher.cantu@gmail.com`) receives Indeed/
-Glassdoor alerts as a secondary source and is already accessible via Gmail
-MCP server.
+**Files**: `skills/scan-email/SKILL.md`, `scripts/apple_mail_scan.applescript`,
+`scripts/apple_mail_read.applescript`, `references/email-patterns.md`,
+`integrations/adapters/apple-mail.md`, `integrations/config/mail-config.md.example`,
+`integrations/specs/apple-mail-scan-spec.md`.
 
-**Reference**: `claude-eisenhower/commands/scan-email.md` — osascript batch
-pattern, email-config.md, 10-message batch size, ASCII-safe body previews.
-
-**Dependency**: macOS with Apple Mail configured (same runtime constraint as
-Apple Notes integration).
+**Spec**: `integrations/specs/apple-mail-scan-spec.md`
 
 ### Offer Comparison Tool
 
@@ -207,7 +203,7 @@ job search, not on building general-purpose tooling.
 |----------|-----------|------|
 | Apple Notes vs. local files as source of truth | `output/` markdown files are primary; Apple Notes is optional secondary | 2026-03-25 |
 | State note schema | Date-prefixed markdown in `output/` with section headers per day | 2026-03-25 |
-| Skill activation order | application-tracker → company-research → resume-tailor (all shipped) | 2026-03-26 |
+| Skill activation order | application-tracker → company-research → resume-tailor → scan-email (all shipped) | 2026-03-26 |
 
 ---
 
