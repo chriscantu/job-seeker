@@ -1,6 +1,6 @@
 # Apple Mail Scan — Feature Spec
 
-**Status**: In Progress
+**Status**: Shipped
 **Author**: Cantu
 **Date**: 2026-03-26
 

@@ -4,7 +4,7 @@
 **Access method**: AppleScript via osascript
 **Auth required**: None — local app, iCloud sync built-in
 **Direction**: Read-only
-**Status**: Active (v0.5)
+**Status**: Active (v1)
 
 ---
 
@@ -46,8 +46,8 @@ so "iCloud" matches "iCloud (chris.m.cantu@icloud.com)".
 | Argument | Mail field | Notes |
 |----------|-----------|-------|
 | `account_name` | Account name | Substring match |
-| `inbox_name` | Mailbox name | Exact match (case-insensitive fallback) |
-| `start_index` | Message position | 1-based, most recent = 1 |
+| `inbox_name` | Mailbox name | Case-sensitive lookup, case-insensitive fallback |
+| `start_index` | Message position | 1-based, default mailbox sort order |
 | `end_index` | Message position | Capped at message count |
 
 | Output field | Mail property | Notes |
@@ -62,7 +62,7 @@ so "iCloud" matches "iCloud (chris.m.cantu@icloud.com)".
 | Argument | Mail field | Notes |
 |----------|-----------|-------|
 | `account_name` | Account name | Substring match |
-| `inbox_name` | Mailbox name | Exact match (case-insensitive fallback) |
+| `inbox_name` | Mailbox name | Case-sensitive lookup, case-insensitive fallback |
 | `message_index` | Message position | From scan output |
 
 | Output | Mail property | Notes |

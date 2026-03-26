@@ -19,25 +19,26 @@ adding to seen-postings.
 
 1. Run `node scripts/validate-config.js` — if it exits non-zero, stop and
    show the error
-2. Read `config/candidate.md` — candidate name
-3. Read `config/search.md` — target role titles, comp floor, location
+2. Read `PRINCIPLES.md` — quality standards and privacy constraints
+3. Read `config/candidate.md` — candidate name
+4. Read `config/search.md` — target role titles, comp floor, location
    constraints, companies to skip, title exclusions, staffing/aggregator
    exclusions
-4. Read `references/email-patterns.md` — sender domains, title keywords,
+5. Read `references/email-patterns.md` — sender domains, title keywords,
    skip rules, URL extraction patterns
-5. Check `integrations/config/mail-config.md` exists. If not, stop:
+6. Check `integrations/config/mail-config.md` exists. If not, stop:
    > "Apple Mail is not configured. Copy `integrations/config/mail-config.md.example`
    > to `mail-config.md` and update the account name and inbox. See the setup
    > skill for guidance."
-6. Read `integrations/config/mail-config.md` to get `account_name` and
+7. Read `integrations/config/mail-config.md` to get `account_name` and
    `inbox_name`
-7. Determine `plugin_root`: if `integrations/config/notes-config.md` exists,
+8. Determine `plugin_root`: if `integrations/config/notes-config.md` exists,
    read `plugin_root` from it. Otherwise use the current working directory.
-8. Glob `output/*-seen-postings.md`, sort descending, read the most recent
+9. Glob `output/*-seen-postings.md`, sort descending, read the most recent
    file. Build a dedup set of all known URLs and (company_name_lowercase,
    role_title_lowercase) pairs. If no file exists, treat as empty.
-9. Glob `output/*-preferences.md`, sort descending, read the most recent
-   file (if exists) for source effectiveness context.
+10. Glob `output/*-preferences.md`, sort descending, read the most recent
+    file (if exists) for source effectiveness context.
 
 ---
 
@@ -103,7 +104,9 @@ message_index):
 
 **Step 2a: Sender match** — Check if the sender's email domain matches any
 job alert sender pattern from `references/email-patterns.md` → Job Alert
-Senders table. If no match, skip.
+Senders table. If no match, skip. **Note**: `@google.com` is a conditional
+match — only classify as a job alert if the subject also contains "Google
+Alert" (otherwise it's a regular Google notification).
 
 **Step 2b: Subject pre-filter** — Check if the subject contains at least
 one title keyword from `references/email-patterns.md` → Title Keywords
@@ -154,6 +157,20 @@ osascript {plugin_root}/scripts/apple_mail_read.applescript "{account_name}" "{i
 **If response starts with `BODY_UNAVAILABLE:`** — classification failed
 for this message. Add it to the results table with a note: "body unavailable
 — classified on subject/sender only".
+
+**If response is `ACCOUNT_NOT_FOUND` or `MAILBOX_NOT_FOUND`** — the mail
+account became unavailable mid-scan. Stop all remaining body fetches and
+report the error to the user.
+
+**If response is `MESSAGE_NOT_FOUND`** — the message was deleted or moved
+between the scan and body fetch phases. Skip this message and note
+"message moved/deleted since scan" in the results.
+
+**If response starts with `error:`** — an unexpected error occurred. Log
+the error, skip this message, and continue with remaining fetches.
+
+If some calls in the batch fail while others succeed, process successful
+results normally and handle failures per the rules above.
 
 ### URL extraction
 
@@ -320,7 +337,9 @@ source of truth.
 | Apple Mail not running | Warn, ask to proceed (auto-launch) or stop |
 | Account not found | Stop: "Could not find account '{account_name}'" |
 | Mailbox not found | Stop: "Could not find mailbox '{inbox_name}'" |
-| Individual body fetch fails | Classify on subject/sender only, note in results |
+| Individual body fetch fails (`BODY_UNAVAILABLE`) | Classify on subject/sender only, note in results |
+| Message moved/deleted since scan (`MESSAGE_NOT_FOUND`) | Skip message, note "message moved/deleted since scan" in results |
+| Account/mailbox lost mid-scan | Stop remaining fetches, report error |
 | ATS verification fails | WebFetch fallback per standard adapter |
 | Tracking redirect resolution fails | Use original URL, note "unresolved redirect" |
 | osascript timeout on batch | Reduce remaining batches to 5 messages, note slowdown |
