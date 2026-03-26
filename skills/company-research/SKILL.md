@@ -19,7 +19,7 @@ brief that other skills (cover-letter, why-this-company, interview-prep) can ref
 2. Read `PRINCIPLES.md` — quality standards and voice guidelines that govern all output
 3. Read `config/candidate.md` — candidate name, core strengths, accomplishments
 4. Read `config/search.md` — company types of interest, to contextualize fit
-4. Accept the job posting URL from the user
+5. Accept the job posting URL from the user
 
 ---
 
@@ -107,7 +107,9 @@ culture signals are limited to Glassdoor reviews"}
 
 ### Positioning Quality Rules
 
-The Positioning section is the core value of this brief. Requirements:
+The Positioning section is the core value of this brief. Use `config/candidate.md`
+accomplishments — the resume (`references/resume.pdf`) is not needed here; downstream
+skills (cover-letter, interview-prep) read it for full detail. Requirements:
 
 - Each bullet MUST reference a specific accomplishment or strength from `config/candidate.md`
 - Each bullet MUST connect that accomplishment to something specific about this company

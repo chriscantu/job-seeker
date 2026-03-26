@@ -1,7 +1,7 @@
 # Specification: Company Research
 
 **Date**: 2026-03-25
-**Status**: Implemented
+**Status**: Implemented — pending live validation
 **Roadmap item**: v0.4 Item 3 (Activate Planned Skills)
 
 ---
@@ -173,9 +173,10 @@ pipeline event.
 
 1. Run `node scripts/validate-config.js` — if it exits non-zero, stop and show
    the error to the user
-2. Read `config/candidate.md` — candidate name, core strengths, accomplishments
-3. Read `config/search.md` — company types, to contextualize fit
-4. Accept the job posting URL from the user
+2. Read `PRINCIPLES.md` — quality standards and voice guidelines that govern all output
+3. Read `config/candidate.md` — candidate name, core strengths, accomplishments
+4. Read `config/search.md` — company types, to contextualize fit
+5. Accept the job posting URL from the user
 
 ---
 
