@@ -19,15 +19,24 @@ const {
   AlignmentType, BorderStyle, WidthType, ShadingType, LevelFormat,
 } = require('docx');
 
-// ── Palette ──────────────────────────────────────────────────────────────────
+// ── Palette (matched to canonical resume.pdf) ───────────────────────────────
 const COLORS = {
+  darkBlue:  "1F4E79",   // name, section headings, card accent borders
+  midBlue:   "2E75B6",   // job titles, Core Expertise label, tagline
+  lightBg:   "D6E4F0",   // accomplishment card background
+  cellBorder:"C5D8EC",   // thin card borders (unused — cards use accent-only)
+  black:     "333333",   // body text
+  gray:      "555555",   // metadata, contact line
+  footerGray:"666666",
+  // Legacy aliases (match old names for backward compat)
   blue:      "1F4E79",
   lightBlue: "D6E4F0",
-  cellBorder:"C5D8EC",
   darkGray:  "333333",
   midGray:   "555555",
-  footerGray:"666666",
 };
+
+// Font — Calibri matches the canonical resume.pdf
+const FONT = "Calibri";
 
 // ── Page geometry ─────────────────────────────────────────────────────────────
 const PAGE = {
@@ -102,7 +111,7 @@ function sectionHeading(text) {
       bold: true,
       size: 24,
       color: COLORS.blue,
-      font: "Arial",
+      font: FONT,
       allCaps: true,
     })],
   });
@@ -112,8 +121,8 @@ function jobTitle(title, company) {
   return new Paragraph({
     spacing: { before: 160, after: 0 },
     children: [
-      new TextRun({ text: title + " | ", bold: true, size: 22, color: COLORS.blue,     font: "Arial" }),
-      new TextRun({ text: company,        bold: true, size: 22, color: COLORS.darkGray, font: "Arial" }),
+      new TextRun({ text: title + " | ", bold: true, size: 22, color: COLORS.blue,     font: FONT }),
+      new TextRun({ text: company,        bold: true, size: 22, color: COLORS.darkGray, font: FONT }),
     ],
   });
 }
@@ -121,7 +130,7 @@ function jobTitle(title, company) {
 function jobMeta(text) {
   return new Paragraph({
     spacing: { before: 0, after: 60 },
-    children: [new TextRun({ text, italics: true, size: 19, color: COLORS.midGray, font: "Arial" })],
+    children: [new TextRun({ text, italics: true, size: 19, color: COLORS.midGray, font: FONT })],
   });
 }
 
@@ -129,8 +138,8 @@ function labelParagraph(label, body) {
   return new Paragraph({
     spacing: { before: 60, after: 30 },
     children: [
-      new TextRun({ text: label + " ", bold: true, size: 20, font: "Arial", color: COLORS.darkGray }),
-      new TextRun({ text: body,                     size: 20, font: "Arial", color: COLORS.darkGray }),
+      new TextRun({ text: label + " ", bold: true, size: 20, font: FONT, color: COLORS.darkGray }),
+      new TextRun({ text: body,                     size: 20, font: FONT, color: COLORS.darkGray }),
     ],
   });
 }
@@ -148,7 +157,7 @@ function bullet(parts, level = 0) {
       text: p.text,
       bold: !!p.bold,
       size: 20,
-      font: "Arial",
+      font: FONT,
       color: COLORS.darkGray,
     })),
   });
@@ -158,7 +167,7 @@ function subLabel(text) {
   return new Paragraph({
     spacing: { before: 80, after: 30 },
     children: [new TextRun({
-      text, bold: true, italics: true, size: 20, font: "Arial", color: COLORS.midGray,
+      text, bold: true, italics: true, size: 20, font: FONT, color: COLORS.midGray,
     })],
   });
 }
@@ -166,7 +175,7 @@ function subLabel(text) {
 function resultsLabel() {
   return new Paragraph({
     spacing: { before: 60, after: 20 },
-    children: [new TextRun({ text: "Results:", bold: true, size: 20, font: "Arial", color: COLORS.darkGray })],
+    children: [new TextRun({ text: "Results:", bold: true, size: 20, font: FONT, color: COLORS.darkGray })],
   });
 }
 
@@ -183,10 +192,10 @@ function accomplishmentCell(label, body, cellWidth) {
     children: [
       new Paragraph({
         spacing: { before: 0, after: 20 },
-        children: [new TextRun({ text: label, bold: true, size: 19, font: "Arial", color: COLORS.blue })],
+        children: [new TextRun({ text: label, bold: true, size: 19, font: FONT, color: COLORS.blue })],
       }),
       new Paragraph({
-        children: [new TextRun({ text: body, size: 18, font: "Arial", color: COLORS.darkGray })],
+        children: [new TextRun({ text: body, size: 18, font: FONT, color: COLORS.darkGray })],
       }),
     ],
   });
@@ -215,6 +224,7 @@ function accomplishmentsTable(rows, contentWidth) {
 
 module.exports = {
   COLORS,
+  FONT,
   PAGE,
   CONTENT_WIDTH,
   NUMBERING_CONFIG,

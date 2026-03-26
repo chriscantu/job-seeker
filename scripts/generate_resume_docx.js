@@ -11,6 +11,7 @@
 const fs   = require("fs");
 const {
   Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
+  ExternalHyperlink,
   AlignmentType, BorderStyle, WidthType, ShadingType, LevelFormat,
 } = require("docx");
 
@@ -20,13 +21,17 @@ const MARGIN_H  = 1080;
 const CONTENT_W = PAGE_W - 2 * MARGIN_H;  // 10,080
 const COL_HALF  = Math.floor(CONTENT_W / 2);
 
-// Colors (hex without #)
-const DARK_BLUE = "1F3864";
-const MID_BLUE  = "2E5FA3";
-const LIGHT_BG  = "EBF2FB";
+// Colors (hex without #) — matched to canonical resume.pdf
+const DARK_BLUE = "1F4E79";
+const MID_BLUE  = "2E75B6";
+const LIGHT_BG  = "D6E4F0";
+const CELL_BORDER = "C5D8EC";
 const WHITE     = "FFFFFF";
-const BLACK     = "111111";
-const GRAY      = "666666";
+const BLACK     = "333333";
+const GRAY      = "555555";
+
+// Font — Calibri matches the canonical resume.pdf
+const FONT = "Calibri";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -71,18 +76,14 @@ function hrPara(color, size) {
 
 function sectionHeading(text) {
   return new Paragraph({
-    children: [new TextRun({ text, bold: true, color: DARK_BLUE, size: 20, font: "Arial" })],
-    spacing: { before: 160, after: 60 },
-    border: { bottom: { style: BorderStyle.SINGLE, size: 8, color: DARK_BLUE, space: 2 } },
+    children: [new TextRun({ text, bold: true, color: DARK_BLUE, size: 24, font: FONT })],
+    spacing: { before: 240, after: 100 },
+    border: { bottom: { style: BorderStyle.SINGLE, size: 8, color: MID_BLUE, space: 4 } },
   });
 }
 
-const NO_BORDER = {
-  top:    { style: BorderStyle.NONE, size: 0 },
-  bottom: { style: BorderStyle.NONE, size: 0 },
-  left:   { style: BorderStyle.NONE, size: 0 },
-  right:  { style: BorderStyle.NONE, size: 0 },
-};
+// CELL_BORDER_STYLE removed — accomplishment cards use LEFT-only accent
+// border so table insideH/V white gaps render correctly.
 
 // ── Markdown parser ───────────────────────────────────────────────────────────
 function parseResume(md) {
@@ -185,13 +186,17 @@ function parseResume(md) {
 
     if (section === "education") {
       if (!stripped || stripped === "---") { i++; continue; }
-      const dM = stripped.match(/^\*\*(.+?)\*\*/);
-      if (dM) {
-        result.education.degree = dM[1];
-      } else if (stripped.includes("Core Expertise")) {
+      // Check Core Expertise FIRST — its **bold** prefix would otherwise
+      // match the degree regex and overwrite the real degree.
+      if (stripped.includes("Core Expertise")) {
         result.education.expertise = clean(stripped.replace(/\*\*Core Expertise:\*\*\s*/, ""));
-      } else if (!result.education.school) {
-        result.education.school = clean(stripped);
+      } else {
+        const dM = stripped.match(/^\*\*(.+?)\*\*/);
+        if (dM) {
+          result.education.degree = dM[1];
+        } else if (!result.education.school) {
+          result.education.school = clean(stripped);
+        }
       }
     }
 
@@ -202,144 +207,208 @@ function parseResume(md) {
 }
 
 // ── Document builder ──────────────────────────────────────────────────────────
+// Matched element-by-element to canonical resume.pdf.
 function buildDoc(parsed) {
   const children = [];
-  const bodyFont = { size: 19, font: "Arial", color: BLACK };
+  const bodyFont = { size: 20, font: FONT, color: BLACK };
 
-  // Header
+  // ── Header block ──
+  // PDF: Name centered, large, bold, dark blue
   children.push(new Paragraph({
-    children: [new TextRun({ text: parsed.name, bold: true, color: DARK_BLUE, size: 44, font: "Arial" })],
+    children: [new TextRun({ text: parsed.name, bold: true, color: DARK_BLUE, size: 44, font: FONT })],
     alignment: AlignmentType.CENTER,
     spacing: { after: 40 },
   }));
+  // PDF: Tagline centered, italic, smaller, dark blue
   if (parsed.tagline) {
     children.push(new Paragraph({
-      children: [new TextRun({ text: parsed.tagline, bold: true, color: MID_BLUE, size: 20, font: "Arial" })],
+      children: [new TextRun({ text: parsed.tagline, italics: true, color: DARK_BLUE, size: 22, font: FONT })],
       alignment: AlignmentType.CENTER,
-      spacing: { after: 40 },
+      spacing: { after: 30 },
     }));
   }
+  // PDF: Contact centered, normal weight, body color. LinkedIn URL is clickable.
   if (parsed.contact) {
+    const contactParts = parsed.contact.split(/\s*\|\s*/);
+    const contactChildren = [];
+    contactParts.forEach((part, idx) => {
+      if (idx > 0) contactChildren.push(new TextRun({ text: " | ", ...bodyFont }));
+      const trimmed = part.trim();
+      if (trimmed.includes("linkedin.com")) {
+        const url = trimmed.startsWith("http") ? trimmed : "https://" + trimmed;
+        contactChildren.push(new ExternalHyperlink({
+          link: url,
+          children: [new TextRun({ text: trimmed, color: MID_BLUE, underline: {}, ...bodyFont })],
+        }));
+      } else {
+        contactChildren.push(new TextRun({ text: trimmed, ...bodyFont }));
+      }
+    });
     children.push(new Paragraph({
-      children: [new TextRun({ text: parsed.contact, ...bodyFont })],
+      children: contactChildren,
       alignment: AlignmentType.CENTER,
       spacing: { after: 60 },
     }));
   }
+
+  // PDF: Thick blue horizontal rule separating header from summary
   children.push(new Paragraph({
     border: { bottom: { style: BorderStyle.SINGLE, size: 12, color: DARK_BLUE, space: 1 } },
-    spacing: { after: 80 },
+    spacing: { after: 120 },
   }));
 
-  // Summary
+  // ── Summary ──
+  // PDF: Body text paragraph, left-aligned, comfortable line spacing
   if (parsed.summary) {
     children.push(new Paragraph({
       children: richRuns(parsed.summary, bodyFont),
-      spacing: { after: 80, line: 276 },
+      spacing: { after: 60, line: 276 },
     }));
+    // PDF: Thin blue rule between summary and accomplishments
     children.push(hrPara(MID_BLUE, 4));
   }
 
-  // Key Accomplishments
+  // ── Key Accomplishments ──
+  // PDF: Section heading — uppercase, bold, dark blue, blue underline
   children.push(sectionHeading("KEY ACCOMPLISHMENTS"));
 
-  const accomRows = parsed.accomplishments
-    .filter(r => r.left || r.right)
-    .map(r => {
-      const makeCell = (text) => {
-        const m = text.match(/^\*\*(.+?)\*\*\s*[—–-]\s*(.*)/);
-        const runs = m
-          ? [
-              new TextRun({ text: m[1], bold: true, size: 18, font: "Arial" }),
-              new TextRun({ text: " \u2014 " + m[2], size: 18, font: "Arial" }),
-            ]
-          : [new TextRun({ text: clean(text), size: 18, font: "Arial" })];
-        return new TableCell({
-          children: [new Paragraph({ children: runs, spacing: { after: 40, line: 264 } })],
-          width: { size: COL_HALF, type: WidthType.DXA },
-          shading: { fill: LIGHT_BG, type: ShadingType.CLEAR },
-          margins: { top: 80, bottom: 80, left: 100, right: 100 },
-          borders: NO_BORDER,
-        });
-      };
-      return new TableRow({ children: [makeCell(r.left), makeCell(r.right)] });
-    });
+  // Accomplishment cards — each ROW is its own table so paragraph spacing
+  // between tables creates guaranteed visible whitespace. A narrow empty
+  // middle column creates the column gap. Each content cell has a thick
+  // left navy accent border and light blue background.
+  const NONE_BORDER = { style: BorderStyle.NONE, size: 0 };
+  const NO_BORDERS = { top: NONE_BORDER, bottom: NONE_BORDER, left: NONE_BORDER, right: NONE_BORDER };
+  const GAP_W = 160; // white gap between columns (DXA)
+  const CARD_W = Math.floor((CONTENT_W - GAP_W) / 2);
 
-  if (accomRows.length) {
+  const makeAccomCell = (text) => {
+    const m = text.match(/^\*\*(.+?)\*\*\s*[—–-]\s*(.*)/);
+    const cellChildren = [];
+    if (m) {
+      cellChildren.push(new Paragraph({
+        children: [new TextRun({ text: m[1], bold: true, size: 20, font: FONT, color: DARK_BLUE })],
+        spacing: { after: 30 },
+      }));
+      cellChildren.push(new Paragraph({
+        children: [new TextRun({ text: m[2], size: 19, font: FONT, color: BLACK })],
+        spacing: { after: 0, line: 260 },
+      }));
+    } else {
+      cellChildren.push(new Paragraph({
+        children: [new TextRun({ text: clean(text), size: 19, font: FONT, color: BLACK })],
+      }));
+    }
+    return new TableCell({
+      children: cellChildren,
+      width: { size: CARD_W, type: WidthType.DXA },
+      shading: { fill: LIGHT_BG, type: ShadingType.CLEAR },
+      margins: { top: 100, bottom: 100, left: 160, right: 120 },
+      borders: {
+        left:   { style: BorderStyle.SINGLE, size: 12, color: DARK_BLUE },
+        top:    NONE_BORDER,
+        bottom: NONE_BORDER,
+        right:  NONE_BORDER,
+      },
+    });
+  };
+
+  // Empty spacer cell between the two cards in each row
+  const spacerCell = () => new TableCell({
+    children: [new Paragraph({ children: [] })],
+    width: { size: GAP_W, type: WidthType.DXA },
+    borders: NO_BORDERS,
+  });
+
+  const accomData = parsed.accomplishments.filter(r => r.left || r.right);
+  accomData.forEach((r, idx) => {
     children.push(new Table({
       width: { size: CONTENT_W, type: WidthType.DXA },
-      columnWidths: [COL_HALF, COL_HALF],
-      rows: accomRows,
-      borders: {
-        top:     { style: BorderStyle.NONE },
-        bottom:  { style: BorderStyle.NONE },
-        left:    { style: BorderStyle.NONE },
-        right:   { style: BorderStyle.NONE },
-        insideH: { style: BorderStyle.SINGLE, size: 4, color: WHITE },
-        insideV: { style: BorderStyle.SINGLE, size: 4, color: WHITE },
-      },
+      columnWidths: [CARD_W, GAP_W, CARD_W],
+      rows: [new TableRow({
+        children: [makeAccomCell(r.left), spacerCell(), makeAccomCell(r.right)],
+      })],
+      borders: NO_BORDERS,
     }));
-  }
+    // White gap between rows (skip after last row)
+    if (idx < accomData.length - 1) {
+      children.push(new Paragraph({ spacing: { before: 0, after: 80 } }));
+    }
+  });
 
+  // PDF: Thin blue rule between accomplishments and experience
   children.push(hrPara(MID_BLUE, 4));
 
-  // Professional Experience
+  // ── Professional Experience ──
   children.push(sectionHeading("PROFESSIONAL EXPERIENCE"));
 
   for (const job of parsed.experience) {
-    const titleText = job.company ? `${job.title} | ${job.company}` : job.title;
+    // PDF: "Director of Engineering | Procore Technologies"
+    //   Title part in blue bold, pipe in blue, company in dark gray bold
+    const titleRuns = job.company
+      ? [
+          new TextRun({ text: job.title + " | ", bold: true, color: MID_BLUE, size: 22, font: FONT }),
+          new TextRun({ text: job.company,        bold: true, color: BLACK,    size: 22, font: FONT }),
+        ]
+      : [new TextRun({ text: job.title, bold: true, color: MID_BLUE, size: 22, font: FONT })];
     children.push(new Paragraph({
-      children: [new TextRun({ text: titleText, bold: true, color: DARK_BLUE, size: 21, font: "Arial" })],
-      spacing: { before: 120, after: 20 },
+      children: titleRuns,
+      spacing: { before: 160, after: 20 },
     }));
+
+    // PDF: Italic metadata line in gray
     if (job.meta) {
       children.push(new Paragraph({
-        children: [new TextRun({ text: job.meta, italics: true, size: 18, font: "Arial", color: GRAY })],
+        children: [new TextRun({ text: job.meta, italics: true, size: 19, font: FONT, color: GRAY })],
         spacing: { after: 60 },
       }));
     }
+
+    // PDF: Challenge/Action/Results paragraphs then bullets
     for (const item of job.items) {
       if (item.type === "bullet") {
         children.push(new Paragraph({
           children: richRuns(item.text, bodyFont),
           numbering: { reference: "bullets", level: 0 },
-          spacing: { after: 40, line: 264 },
+          spacing: { after: 50, line: 276 },
         }));
-      } else {
+      } else if (item.type === "label") {
+        // Sub-labels: "As Director of Engineering (July 2020 – February 2021):"
         children.push(new Paragraph({
           children: richRuns(item.text, bodyFont),
-          spacing: { after: 40, line: 264 },
+          spacing: { before: 80, after: 40, line: 276 },
+        }));
+      } else {
+        // Challenge:/Action:/Results: paragraphs
+        children.push(new Paragraph({
+          children: richRuns(item.text, bodyFont),
+          spacing: { after: 50, line: 276 },
         }));
       }
     }
-    children.push(new Paragraph({
-      border: { bottom: { style: BorderStyle.SINGLE, size: 2, color: "DDDDDD", space: 1 } },
-      spacing: { before: 60, after: 40 },
-    }));
   }
 
-  // Education
+  // ── Education & Expertise ──
   children.push(sectionHeading("EDUCATION & EXPERTISE"));
   const edu = parsed.education;
   if (edu.degree) {
     children.push(new Paragraph({
       children: [new TextRun({ text: edu.degree, bold: true, ...bodyFont })],
-      spacing: { after: 40 },
+      spacing: { after: 30 },
     }));
   }
   if (edu.school) {
     children.push(new Paragraph({
       children: [new TextRun({ text: edu.school, ...bodyFont })],
-      spacing: { after: 40 },
+      spacing: { after: 60 },
     }));
   }
   if (edu.expertise) {
     children.push(new Paragraph({
       children: [
-        new TextRun({ text: "Core Expertise: ", bold: true, ...bodyFont }),
+        new TextRun({ text: "Core Expertise: ", bold: true, color: MID_BLUE, size: 20, font: FONT }),
         new TextRun({ text: edu.expertise, ...bodyFont }),
       ],
-      spacing: { after: 60 },
+      spacing: { after: 60, line: 276 },
     }));
   }
 
@@ -352,13 +421,13 @@ function buildDoc(parsed) {
           format: LevelFormat.BULLET,
           text: "\u2022",
           alignment: AlignmentType.LEFT,
-          style: { paragraph: { indent: { left: 360, hanging: 180 } } },
+          style: { paragraph: { indent: { left: 720, hanging: 360 } } },
         }],
       }],
     },
     styles: {
       default: {
-        document: { run: { font: "Arial", size: 19, color: BLACK } },
+        document: { run: { font: FONT, size: 20, color: BLACK } },
       },
     },
     sections: [{

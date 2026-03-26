@@ -188,12 +188,18 @@ Reordering these lines will silently corrupt the .docx.
 
 **Rules for the markdown:**
 - All section headings, table format, and bullet syntax must match exactly
-- The accomplishments table is 2 columns with `|` separators
+- The accomplishments table is 2 columns with `|` separators. Each cell
+  uses `**Bold Label** — description` format. The generator renders these
+  as cards: light blue background, thick left navy accent border, label in
+  dark blue bold on its own line, description in dark gray below. Each row
+  is a separate table with whitespace between rows.
 - Each `### Title | Company` entry needs a `*metadata*` line (italics)
 - Bullets are `- ` prefixed (dash space)
 - The `*Tailored for {Company} — {Role}*` footer line is stripped by the
   parser, so you can include it for human reference but it won't appear in
   the .docx
+- The contact line should include a LinkedIn URL — the generator makes it
+  a clickable hyperlink in the .docx
 
 **Content rules:**
 - Accomplishments table: the 4 best-fit items from Phase 2. Each cell uses
