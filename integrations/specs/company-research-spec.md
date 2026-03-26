@@ -228,14 +228,15 @@ Other skills should check for a research brief before doing their own research:
 
 | Skill | How it uses the brief |
 |-------|----------------------|
+| `application-tracker` | Already reads `output/{company-slug}/company-research.md` to enrich pipeline context |
 | `cover-letter` | Read `output/{company-slug}/company-research.md` if it exists; use Positioning section to ground the letter |
 | `why-this-company` | Read the brief for Mission & Products and Positioning; skip redundant web searches |
 | `interview-prep` | Read the brief as a starting point; expand with deeper research as needed |
 
-These downstream changes are **not part of this spec**. They are noted here so
-that when those skills are activated, they know to look for the brief. The
-`RESEARCHED` flag in seen-postings provides a quick check before globbing for
-the file.
+`application-tracker` already integrates. The remaining downstream changes are
+**not part of this spec**. They are noted here so that when those skills are
+activated, they know to look for the brief. The `RESEARCHED` flag in
+seen-postings provides a quick check before globbing for the file.
 
 ---
 
