@@ -16,43 +16,6 @@ Searches executive job boards, filters against the candidate's criteria,
 deduplicates against previously seen postings, and writes the digest to
 `output/` (plus Apple Notes when configured).
 
-## How Apple Notes Access Works
-
-This skill runs in **Claude Code on macOS**. AppleScript files in `scripts/`
-are called directly via the Bash tool using `osascript`. No MCP server, no
-background daemon.
-
-Read `integrations/config/notes-config.md` to get `plugin_root` before any call.
-
-### Invocation Pattern
-
-Replace `{plugin_root}` with the value from `notes-config.md`.
-
-**Read a note:**
-```bash
-osascript {plugin_root}/scripts/apple_notes_read.applescript "noteTitle" "folderName"
-```
-
-**Create the digest note** (replaces if exists):
-```bash
-osascript {plugin_root}/scripts/apple_notes_create.applescript "noteTitle" "htmlBody" "folderName"
-```
-
-**Update a state note** (upsert — preserves note identity):
-```bash
-osascript {plugin_root}/scripts/apple_notes_update.applescript "noteTitle" "htmlBody" "folderName"
-```
-
-**List notes in a folder:**
-```bash
-osascript {plugin_root}/scripts/apple_notes_list.applescript "folderName"
-```
-
-See `integrations/adapters/apple-notes.md` for full field mapping, return
-values, and error handling reference.
-
----
-
 ## Before You Start
 
 1. Read `config/candidate.md` — candidate name and profile
@@ -290,22 +253,16 @@ LinkedIn ToS restricts automated access — keep searches light and human-paced
 
 ## Output — Write Digest
 
-Construct the HTML body using the template below, then run:
+Construct the HTML body using the template below and save it to
+`output/digest-{date}.html`. This is the primary deliverable.
 
-```
-osascript {plugin_root}/scripts/apple_notes_create.applescript \
-  "Executive Job Digest — {Month Day, Year}" \
-  "{html_body}" \
-  "{default_folder}"
-```
-
-Verify the return value starts with `success:`. If it starts with `error:`,
-follow the fallback procedure below.
+If `integrations/config/notes-config.md` is configured, also write the digest
+to Apple Notes using the create script (see Apple Notes Reference below).
 
 ### HTML Template
 
-The `html_body` passed to the create script must follow Apple Notes' HTML
-rules exactly — every line wrapped in `<div>` tags or the note will collapse.
+The `html_body` uses Apple Notes-compatible HTML so the same content works in
+both `output/` and Apple Notes — every line wrapped in `<div>` tags.
 
 Substitute `{Name from config/candidate.md}` with the `Name` field value read
 from `config/candidate.md` before constructing the HTML body.
@@ -361,10 +318,17 @@ from `config/candidate.md` before constructing the HTML body.
 
 ### Write Order
 
-1. **Always** write the digest HTML to `output/digest-{date}.html` first
-2. **If** `integrations/config/notes-config.md` exists, also write to Apple Notes
-   using the create script. Verify the return value starts with `success:`.
-   If it starts with `error:`, follow the error handling procedure below.
+1. **Always** write the digest HTML to `output/digest-{date}.html`
+2. **If** `integrations/config/notes-config.md` exists, also write to Apple Notes:
+   ```
+   osascript {plugin_root}/scripts/apple_notes_create.applescript \
+     "Executive Job Digest — {Month Day, Year}" \
+     "{html_body}" \
+     "{default_folder}"
+   ```
+   Replace `{plugin_root}` and `{default_folder}` with values from
+   `integrations/config/notes-config.md`. Verify the return value starts with
+   `success:`. If it starts with `error:`, follow the error handling procedure below.
 3. If Apple Notes is not configured, skip step 2 — the HTML file is the
    deliverable.
 
@@ -430,3 +394,43 @@ Run `apple_notes_update.applescript` for each note. Check return values;
 if either starts with `error:`, log to `output/error-{date}.log` and warn
 the user. Apple Notes sync errors are **non-blocking** — the output/ files
 are already written and are the source of truth.
+
+---
+
+## Apple Notes Reference (optional)
+
+> **Skip this section** if `integrations/config/notes-config.md` is not configured.
+> Apple Notes is not required for this skill to function.
+
+This skill runs in **Claude Code on macOS**. AppleScript files in `scripts/`
+are called directly via the Bash tool using `osascript`. No MCP server, no
+background daemon.
+
+Read `integrations/config/notes-config.md` to get `plugin_root` before any call.
+
+### Invocation Pattern
+
+Replace `{plugin_root}` with the value from `notes-config.md`.
+
+**Read a note:**
+```bash
+osascript {plugin_root}/scripts/apple_notes_read.applescript "noteTitle" "folderName"
+```
+
+**Create the digest note** (replaces if exists):
+```bash
+osascript {plugin_root}/scripts/apple_notes_create.applescript "noteTitle" "htmlBody" "folderName"
+```
+
+**Update a state note** (upsert — preserves note identity):
+```bash
+osascript {plugin_root}/scripts/apple_notes_update.applescript "noteTitle" "htmlBody" "folderName"
+```
+
+**List notes in a folder:**
+```bash
+osascript {plugin_root}/scripts/apple_notes_list.applescript "folderName"
+```
+
+See `integrations/adapters/apple-notes.md` for full field mapping, return
+values, and error handling reference.
