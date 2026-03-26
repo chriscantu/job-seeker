@@ -1,7 +1,7 @@
 # job-seeker — Product Roadmap
 
 **Format**: Near-Term / Long-Term / Won't Do / Open Questions / Deferred
-**Last updated**: 2026-03-25
+**Last updated**: 2026-03-26
 **Owner**: Cantu
 
 For a full history of what has shipped, see [CHANGELOG.md](CHANGELOG.md).
@@ -180,7 +180,7 @@ job search, not on building general-purpose tooling.
 |----------|-----------|------|
 | Apple Notes vs. local files as source of truth | `output/` markdown files are primary; Apple Notes is optional secondary | 2026-03-25 |
 | State note schema | Date-prefixed markdown in `output/` with section headers per day | 2026-03-25 |
-| Skill activation order | application-tracker first (shipped), then company-research | 2026-03-25 |
+| Skill activation order | application-tracker → company-research → resume-tailor (all shipped) | 2026-03-26 |
 
 ---
 
@@ -196,6 +196,18 @@ job search, not on building general-purpose tooling.
 ## Technical Debt
 
 Items identified during code review and development. None block functionality.
+
+### Posting Date Tracking *(Shipped)*
+
+**Status**: Shipped (2026-03-26)
+
+All 5 skills that write to `output/*-seen-postings.md` now include a date
+field on every entry: `posted:YYYY-MM-DD` (original ATS posting date) or
+`discovered:YYYY-MM-DD` (fallback when posting date is unavailable). This
+enables tracking discovery lag — how old a posting is when we first find it.
+
+Sources: TheirStack `date_posted`, Greenhouse `updated_at`, Lever `createdAt`.
+Ashby public API does not expose posting dates; entries use `discovered:` fallback.
 
 ### Hardcoded search queries in daily-digest (surfaced in v0.4)
 
