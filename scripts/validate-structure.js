@@ -62,7 +62,8 @@ for (const line of lines) {
 
 // --- Check 1: Documented top-level directories exist ---
 
-const optionalDirs = new Set(['output', 'config']);
+// Directories that may not exist in CI (gitignored or empty)
+const optionalDirs = new Set(['output', 'config', 'references', 'tests']);
 
 for (const dir of documentedDirs) {
   if (optionalDirs.has(dir)) continue;
