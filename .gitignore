@@ -12,8 +12,10 @@ integrations/config/*.md
 config/candidate.md
 config/search.md
 
-# Personal references (resume, blog PDFs, voice guide, LinkedIn — PII)
-/references/
+# Personal references — PII (resume, blog PDFs, voice guide, writing samples)
+/references/*.pdf
+/references/voice-guide.md
+/references/writing-samples/
 
 # Outdated files
 job-search-system.md

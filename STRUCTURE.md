@@ -48,7 +48,9 @@ job-seeker/
 │   │   └── SKILL.md
 │   ├── setup/
 │   │   └── SKILL.md
-│   └── linkedin-article/
+│   ├── linkedin-article/
+│   │   └── SKILL.md
+│   └── scan-email/
 │       └── SKILL.md
 │
 ├── commands/                ← Slash command definitions (one .md per command)
@@ -65,7 +67,9 @@ job-seeker/
 │   ├── apple_notes_create.applescript
 │   ├── apple_notes_read.applescript
 │   ├── apple_notes_update.applescript
-│   └── apple_notes_list.applescript
+│   ├── apple_notes_list.applescript
+│   ├── apple_mail_scan.applescript
+│   └── apple_mail_read.applescript
 │
 ├── integrations/            ← Everything related to external system connections
 │   ├── config/              ← Per-integration config files (gitignored) + .example templates
@@ -76,6 +80,7 @@ job-seeker/
 ├── references/              ← Shared permanent reference material (committed)
 │   ├── resume.pdf           ← Canonical resume (source of truth)
 │   ├── voice-guide.md       ← Writing voice calibration
+│   ├── email-patterns.md    ← Job alert email classification patterns
 │   ├── blog-88-deployments.pdf
 │   └── blog-team-building.pdf
 │

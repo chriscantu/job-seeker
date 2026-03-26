@@ -70,6 +70,7 @@ is the source of truth for detailed accomplishments.
 | `networking-outreach` | "draft outreach", "reach out to", "networking message" |
 | `setup` | "setup", "configure job seeker", "check my setup", "get started", "what's missing" |
 | `linkedin-article` | "write a LinkedIn post", "LinkedIn article", "create LinkedIn content", "draft a post about", "LinkedIn thought leadership" |
+| `scan-email` | "scan my email", "check mail for jobs", "any job emails", "scan inbox" *(requires macOS/Apple Mail + mail-config.md)* |
 
 ## Commands
 
