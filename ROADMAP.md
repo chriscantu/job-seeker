@@ -1,7 +1,7 @@
 # job-seeker — Product Roadmap
 
 **Format**: Near-Term / Long-Term / Won't Do / Open Questions / Deferred
-**Last updated**: 2026-03-13
+**Last updated**: 2026-03-25
 **Owner**: Cantu
 
 For a full history of what has shipped, see [CHANGELOG.md](CHANGELOG.md).
@@ -49,75 +49,58 @@ matching the eisenhower pattern. Version history currently lives only in git log
 
 ---
 
-## Near-Term — v0.4 (Queued)
+## Near-Term — v0.4 (In Progress)
 
 ### 3. Activate Planned Skills
 
-Four skills are stubbed in `plugin.json` but have empty or placeholder SKILL.md
-files. Activate in priority order:
+Skills stubbed in `plugin.json` with placeholder SKILL.md files. Activate in
+priority order:
 
-| Skill | Why Now |
-|-------|---------|
-| `application-tracker` | Pipeline is growing — tracking applications in Apple Notes manually is breaking down |
-| `resume-tailor` | Cover letters are live; resume customization is the natural next step |
-| `company-research` | Pre-application research improves cover letter and why-this-company quality |
-| `interview-prep` | Needed before any screens begin |
-| `networking-outreach` | Lower priority until applications are flowing |
+| Skill | Status | Why Now |
+|-------|--------|---------|
+| `application-tracker` | **Shipped** | Pipeline tracking in structured markdown — replaced manual Apple Notes tracking |
+| `company-research` | **In progress** | Force multiplier — research briefs feed into cover-letter, why-this-company, interview-prep, and resume-tailor |
+| `resume-tailor` | Planned | Cover letters are live; resume customization is the natural next step |
+| `interview-prep` | Planned | Needed before any screens begin |
+| `networking-outreach` | Planned | Lower priority until applications are flowing |
 
 Each skill requires a spec in `integrations/specs/` before implementation.
 
-### 4. Apple Notes State Layer
+### 4. State Layer — output/ as Primary *(Shipped)*
 
-Formalize the three Apple Notes state notes as a proper read/write layer:
+**Status**: Shipped (PR #9, 2026-03-25)
 
-| Note | Purpose |
-|------|---------|
-| `Job Search - Seen Postings` | Deduplication log — every role ever surfaced |
-| `Job Search - Preferences` | Source effectiveness, liked/passed signals |
-| `Job Search - Applications` | Application pipeline tracker |
+State persists in date-prefixed markdown files in `output/` (gitignored):
 
-Define a schema for each note (fields, format, update rules) so all skills
-read and write consistently. Spec required before implementation.
+| File pattern | Purpose |
+|-------------|---------|
+| `output/*-seen-postings.md` | Deduplication log — every role ever surfaced |
+| `output/*-preferences.md` | Interest signals, liked/passed roles, source effectiveness |
+| `output/*-applications.md` | Application pipeline tracker |
 
-### 5. Candidate-Agnostic Configuration
+Apple Notes is an optional secondary layer — `daily-digest` writes there when
+`integrations/config/notes-config.md` is present. It is not required for the
+plugin to function.
 
-**Goal**: Any job seeker should be able to clone this repo, drop in their resume
-and a couple of writing samples, fill out one config file, and have every skill
-work for them — without touching CLAUDE.md or hardcoded profile strings.
+### 5. Candidate-Agnostic Configuration *(Shipped)*
 
-**Problem today**: The candidate profile (name, current role, target roles, comp
-floor, accomplishments, location) is hardcoded in `CLAUDE.md` and duplicated
-across skill files. Swapping this plugin to a new user requires a find-and-replace
-across the whole repo.
+**Status**: Shipped (PR #9, 2026-03-25)
 
-**Approach**:
+Any job seeker can clone this repo, drop in their resume and writing samples,
+fill out `config/candidate.md` and `config/search.md`, and have every skill
+work — without touching CLAUDE.md or hardcoded profile strings.
 
-1. **`config/candidate.md`** — Single file the user fills in. All fields currently
-   in the CLAUDE.md "Candidate Profile" table move here. Skills read this file
-   instead of relying on CLAUDE.md context.
+**Shipped**:
+- `config/candidate.md.example` + `config/search.md.example` — config templates
+- `scripts/validate-config.js` — validates config presence and required fields
+- `scripts/validate-structure.js` — three-way cross-reference: STRUCTURE.md ↔ filesystem ↔ plugin.json
+- All 10 skills updated: config reads in "Before You Start", candidate-agnostic language
+- CLAUDE.md, PRINCIPLES.md, STRUCTURE.md — thinned to point at config files
+- State layer flipped: `output/` primary, Apple Notes optional secondary
+- `memory/job-search/` directory removed (superseded by `output/` state files)
+- CI: both validators run in `.github/workflows/ci.yml`
 
-2. **`references/` as a drop-in convention** — Document clearly:
-   - `references/resume.pdf` — canonical resume (replace to use as a new user)
-   - `references/writing-samples/` — 2–3 cover letters or writing samples that
-     establish the candidate's voice; skills use these to calibrate tone
-
-3. **`config/search.md`** — Job search preferences separate from the candidate
-   profile: target roles, location constraints, comp floor, sources to search,
-   companies to skip.
-
-4. **Thin CLAUDE.md** — After migration, CLAUDE.md points to config files rather
-   than duplicating data. The plugin becomes a framework; the config files make
-   it personal.
-
-5. **State note naming** — Apple Notes state keys (`Job Search - Seen Postings`,
-   etc.) should be configurable so two users on the same machine don't share
-   state.
-
-**Spec required before implementation.** This is a breaking change to how skills
-read context — all skills need to be updated together.
-
-**Not in scope**: Running the plugin for multiple users simultaneously. One active
-job search per instance. This is about *portability*, not *concurrency*.
+**Spec**: `integrations/specs/candidate-agnostic-config-spec.md`
 
 ---
 
@@ -128,20 +111,20 @@ more structure.
 
 ### Application Pipeline as a First-Class Object
 
-Today, application state lives in an Apple Note. As the pipeline grows past
-10 active applications, a structured format (YAML front matter in the note,
-or a dedicated `memory/applications/` file per company) will be needed to
-support queries like "what's in phone screen?", "where am I with Maven Clinic?",
-and "what follow-ups are due this week?".
+Today, application state lives in `output/*-applications.md`. As the pipeline
+grows past 10 active applications, a structured format (YAML front matter or
+a dedicated file per company) will be needed to support queries like "what's
+in phone screen?", "where am I with Maven Clinic?", and "what follow-ups are
+due this week?".
 
 **Trigger**: More than 8 active applications being tracked simultaneously.
 
 ### Interview Prep Memory
 
 When interview prep is active for a role, store the STAR stories, behavioral
-question answers, and company research in a per-company memory file
-(`memory/applications/{company}/`). This allows continuity across sessions —
-Claude doesn't start from scratch every time.
+question answers, and company research in a per-company output file
+(`output/{company-slug}/interview-prep.md`). This allows continuity across
+sessions — Claude doesn't start from scratch every time.
 
 **Dependency**: Application tracker must be live and schema-stable first.
 
@@ -165,15 +148,15 @@ decision-quality summary, not a recommendation.
 
 ## Won't Do (Explicit Cuts)
 
-Considered and deliberately excluded to keep the plugin focused on Chris's job
-search, not on building general-purpose tooling.
+Considered and deliberately excluded to keep the plugin focused on the active
+job search, not on building general-purpose tooling.
 
 | Item | Reason |
 |------|--------|
 | Auto-apply to jobs | Applications require human judgment and personalization — never automate the submission |
 | LinkedIn automation | ToS violation risk; manual LinkedIn search is the right boundary |
 | Recruiter email auto-reply | Responses to recruiters require tone judgment — always draft, never send |
-| Concurrent multi-user support | Running the plugin for multiple active job seekers simultaneously is out of scope. One instance = one candidate. Portability (clone → configure → use) is v0.4 item #5 above. |
+| Concurrent multi-user support | Running the plugin for multiple active job seekers simultaneously is out of scope. One instance = one candidate. Portability (clone → configure → use) is v0.4 item #5. |
 | Job board scraping / crawling | Brittle, against ToS on most boards; WebSearch + WebFetch on direct URLs is sufficient |
 | Salary negotiation scripting | Too high-stakes to automate — provide frameworks, not scripts |
 | Cowork support | Cowork's Linux VM has no path to osascript. Claude Code on macOS is the only supported runtime. |
@@ -182,28 +165,22 @@ search, not on building general-purpose tooling.
 
 ## Open Questions
 
-1. **Apple Notes vs. local files as source of truth**: The current design treats
-   Apple Notes as the source of truth with `memory/` as a local mirror. Is this
-   the right call? If Notes sync is slow or unavailable, the skill degrades.
-   Alternative: local `memory/` as primary, Notes as a read-friendly view.
+1. **Daily digest scheduling**: Claude Code supports scheduled tasks on macOS
+   where osascript is available. Once manual flow is confirmed stable, automated
+   morning delivery is achievable.
 
-2. **Daily digest scheduling**: Claude Code supports scheduled tasks on macOS
-   where osascript is available. Once v0.3 is validated interactively, automated
-   morning delivery is achievable. Deferred until manual flow is confirmed stable.
+2. **When does this plugin get retired?**: The plugin exists to support an
+   active job search. When the candidate lands a role, most skills become
+   irrelevant. Plan for a clean wind-down — archiving applications, exporting
+   the pipeline summary, clearing seen-postings state.
 
-3. **Skill activation order**: Should `application-tracker` or `resume-tailor`
-   come first? Tracking applications provides immediate value; resume tailoring
-   compounds as applications increase.
+### Resolved
 
-4. **State note schema**: Should the three Apple Notes state notes use plain
-   text (current), structured HTML sections (queryable by title), or a separate
-   memory file format (`.md` with YAML front matter)? Decision affects all
-   skills that read/write state.
-
-5. **When does this plugin get retired?**: The plugin exists to support an
-   active job search. When Chris lands a role, most skills become irrelevant.
-   Plan for a clean wind-down — archiving applications, exporting the
-   pipeline summary, clearing seen-postings state.
+| Question | Resolution | Date |
+|----------|-----------|------|
+| Apple Notes vs. local files as source of truth | `output/` markdown files are primary; Apple Notes is optional secondary | 2026-03-25 |
+| State note schema | Date-prefixed markdown in `output/` with section headers per day | 2026-03-25 |
+| Skill activation order | application-tracker first (shipped), then company-research | 2026-03-25 |
 
 ---
 
@@ -216,9 +193,26 @@ search, not on building general-purpose tooling.
 
 ---
 
-## Technical Debt (surfaced in v0.3 code review)
+## Technical Debt
 
-Low-priority cleanup items identified during PR review. None block functionality.
+Items identified during code review and development. None block functionality.
+
+### Hardcoded search queries in daily-digest (surfaced in v0.4)
+
+`daily-digest/SKILL.md` reads filter criteria from `config/search.md` but the
+actual search queries (Phases 1b, 1c, LinkedIn automation, weekly reminder
+sites) have hardcoded "VP Engineering" / "Senior Director Engineering" titles
+and exec-level board URLs. A user targeting different role levels or industries
+would get searches that find the wrong roles.
+
+**Fix**: Templatize search queries to use `Target Role Titles` from
+`config/search.md`. Make niche board URLs and weekly reminder sites
+configurable (or at least documented as "edit these for your search").
+
+**Priority**: Medium — daily-digest works for the current search but isn't
+truly portable without this fix.
+
+### v0.3 code review items
 
 | Item | File | Description |
 |------|------|-------------|

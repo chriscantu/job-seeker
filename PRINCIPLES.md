@@ -40,7 +40,8 @@ output/
     why-this-company-natera.md
 ```
 
-- Company slug = lowercase, no spaces (e.g., `natera`, `gitlab`)
+- Company slug = lowercase, spaces replaced with hyphens, special characters
+  removed (e.g., `natera`, `gitlab`, `maven-clinic`, `oreilly-media`)
 - All artifacts for one company go in one directory — no splitting by type
 - Filename convention: `{Name}_{ArtifactType}_{Company}.{ext}` — where `{Name}` is
   the candidate's name from `config/candidate.md` with spaces replaced by underscores
