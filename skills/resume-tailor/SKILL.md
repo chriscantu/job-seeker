@@ -155,6 +155,12 @@ Summary paragraph — 2-3 sentences, rewritten for this role per Phase 3.
 
 *Location | Date range | Team size context*
 
+**Challenge:** (verbatim from canonical resume — do NOT remove)
+
+**Action:** (verbatim from canonical resume — do NOT remove)
+
+**Results:**
+
 - Bullet point (most relevant to this role first)
 - Bullet point
 - Bullet point
@@ -198,7 +204,9 @@ Reordering these lines will silently corrupt the .docx.
   or echoing a posting keyword that's synonymous with existing text. No new
   claims, no new technologies, no inflated scope.
 - Summary: the rewritten version from Phase 3
-- Education: copied verbatim from the canonical resume — no changes
+- Education: copied verbatim from the canonical resume — no changes.
+  This includes ALL degrees, the school name, AND the full Core Expertise
+  list. Do not remove or shorten any expertise items.
 - All other content (name, tagline, contact, job titles, dates, metadata):
   copied verbatim from the canonical resume
 
@@ -289,11 +297,19 @@ is not a pipeline event.
 
 - **Never fabricate experience** — only reorder, re-emphasize, and rewrite
   the summary using existing content from `references/resume.pdf`
-- **Never remove sections or bullets** — all resume sections and bullets remain;
-  only their order changes
+- **Never remove sections, bullets, or narrative blocks** — all resume sections,
+  bullets, AND Challenge/Action/Results paragraphs remain. The narrative blocks
+  under each job entry are core resume content, not optional context. Stripping
+  them produces a skeletal resume that looks unprofessional. Only bullet ORDER
+  changes; nothing is deleted.
 - **Bullet facts are sacred** — numbers, scope, outcomes verbatim from
   the canonical resume. Light phrasing edits allowed: reordering clauses,
   leading with the most relevant phrase, echoing synonymous posting keywords.
   No new claims, no new technologies, no inflated scope.
+- **Education and Core Expertise are verbatim** — copy the entire Education
+  section exactly from the canonical resume. Do not trim, reorder, or omit
+  any degrees, school names, or Core Expertise items. The expertise list is
+  the candidate's full skill inventory — removing items makes the resume
+  look thinner for no benefit.
 - **Flag gaps honestly** — if the posting requires something the candidate
   doesn't have, say so in the decisions summary
