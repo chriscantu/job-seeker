@@ -1,7 +1,7 @@
 # Generated application materials (per-company outputs)
 output/
 
-# State mirrors (source of truth is Apple Notes)
+# Legacy state directory (deprecated — state lives in output/)
 memory/
 
 # Personal config files (only .example templates are committed)

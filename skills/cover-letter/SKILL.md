@@ -2,19 +2,17 @@
 name: cover-letter
 description: >
   Generate a tailored cover letter for a specific company and role.
-  Use this skill when Chris asks for a "cover letter", "write a cover
-  letter for [company]", "application letter", or any request to create
-  a formal letter accompanying a job application. Also use when Chris
-  says "apply to [company]" and a cover letter is part of the process.
-  This skill produces a professional .docx cover letter (plus a .md source)
-  that maps Chris's specific accomplishments to the role requirements.
+  Triggers: "cover letter", "write a cover letter for [company]",
+  "application letter", "apply to [company]". Produces a professional
+  .docx cover letter (plus .md source) that maps the candidate's specific
+  accomplishments to the role requirements.
 ---
 
 # Cover Letter Generator
 
-Creates a tailored, executive-level cover letter that maps Chris's specific
+Creates a tailored, executive-level cover letter that maps the candidate's specific
 accomplishments to a role's requirements. Every letter should feel like it
-could only have been written by Chris for this specific role.
+could only have been written for this specific role.
 
 ## Before You Start
 
@@ -33,7 +31,7 @@ Ask the user for what you don't already have:
 - **Company name** (required)
 - **Role title** (required)
 - **Job posting URL** (strongly recommended — fetch and read to extract requirements)
-- **Specific points to emphasize** (optional — Chris may want to highlight certain experience)
+- **Specific points to emphasize** (optional — the candidate may want to highlight certain experience)
 - **Format preference** (optional — default is .docx + .md source)
 
 ## Research Phase
@@ -44,7 +42,7 @@ that research. Otherwise:
 1. Fetch and read the job posting if a URL was provided
 2. WebSearch the company for mission, stage, recent news, engineering culture
 3. Identify the 3-4 key requirements from the posting that most closely
-   match Chris's experience
+   match the candidate's experience
 
 ## Writing the Cover Letter
 
@@ -65,8 +63,8 @@ it unlocked $12M in revenue across European and Asian markets within the first
 year. I see [Company] facing a similar inflection point with [specific challenge],
 and that's exactly the kind of problem I've spent the last decade solving."
 
-**Body paragraphs (2)** — Map Chris's experience to role requirements.
-Each paragraph should follow: [Role requirement] → [Chris's specific
+**Body paragraphs (2)** — Map the candidate's experience to role requirements.
+Each paragraph should follow: [Role requirement] → [the candidate's specific
 accomplishment with numbers] → [How this translates to value for this company]
 
 Pull from the `## Accomplishments` section of `config/candidate.md`. Map each
@@ -74,7 +72,7 @@ listed accomplishment to the most relevant requirement area from the job posting
 Prefer accomplishments with specific numbers — any bullet without a number is
 weak evidence.
 
-**Closing paragraph** — Forward-looking. What Chris will bring to this specific
+**Closing paragraph** — Forward-looking. What the candidate will bring to this specific
 company and role. End with a clear call to action.
 
 ### What to Avoid
@@ -89,11 +87,12 @@ All files go in `output/{company-slug}/` (e.g., `output/natera/`).
 
 1. Write the cover letter source:
    ```
-   output/{company-slug}/Christopher_Cantu_CoverLetter_{Company}.md
+   output/{company-slug}/{Name}_CoverLetter_{Company}.md
    ```
+   Where `{Name}` is from `config/candidate.md` with spaces replaced by underscores.
 2. Generate a .docx by invoking the `anthropic-skills:docx` skill, saving to:
    ```
-   output/{company-slug}/Christopher_Cantu_CoverLetter_{Company}.docx
+   output/{company-slug}/{Name}_CoverLetter_{Company}.docx
    ```
 3. The `output/` directory is gitignored — generated materials stay local
 
@@ -104,7 +103,7 @@ Before presenting:
 - Is the opening sentence compelling enough to keep reading?
 - Does it address the top 3 requirements from the job posting?
 - Is it under 400 words? (Executives don't read long cover letters)
-- Would Chris be comfortable sending this as-is?
+- Would the candidate be comfortable sending this as-is?
 
 ## State Update
 

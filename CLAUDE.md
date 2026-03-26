@@ -2,10 +2,11 @@
 
 ## Purpose
 
-This plugin is a job search platform for Chris Cantu, an Engineering Director
-seeking Senior Director / VP of Engineering roles at mission-driven, growth-stage
-or midsize companies. It automates and assists with every phase of the executive
-job search lifecycle.
+This plugin automates and assists with every phase of an executive job search
+lifecycle — from role discovery through offer negotiation. It is designed for
+engineering leaders seeking Senior Director / VP of Engineering roles at
+mission-driven, growth-stage or midsize companies. See `config/candidate.md`
+for the current candidate's profile.
 
 ## Principles (Read First)
 
@@ -40,9 +41,9 @@ State persists in date-prefixed markdown files in `output/` (gitignored):
 Skills glob for the most recent file of each type. If none exists, create one
 with today's date: `output/YYYY-MM-DD-{type}.md`.
 
-Apple Notes integration is Chris's personal layer — `daily-digest` also writes
-there when `integrations/config/notes-config.md` is present. See
-`integrations/adapters/apple-notes.md` to enable it as a new user.
+Apple Notes is an optional personal integration — `daily-digest` also writes
+there when `integrations/config/notes-config.md` is present. It is not required
+for the plugin to function. See `integrations/adapters/apple-notes.md` to enable it.
 
 ---
 
@@ -59,7 +60,7 @@ is the source of truth for detailed accomplishments.
 
 | Skill | Trigger Phrases |
 |-------|----------------|
-| `daily-digest` | "run my job digest", "check for new roles", "job search" *(interactive only — requires macOS/osascript for Apple Notes)* |
+| `daily-digest` | "run my job digest", "check for new roles", "job search" *(Apple Notes optional — requires macOS/osascript when enabled)* |
 | `why-this-company` | "why this company", "why am I applying to", "application response" |
 | `cover-letter` | "cover letter", "write a cover letter for" |
 | `resume-tailor` | "tailor my resume", "customize resume for" |

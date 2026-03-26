@@ -7,7 +7,7 @@ description: >
 
 # Interview Prep
 
-Prepares Chris for behavioral and technical interviews by mapping his
+Prepares the candidate for behavioral and technical interviews by mapping their
 experience to likely questions using the STAR framework.
 
 ## Status: Planned
@@ -25,7 +25,7 @@ This skill is stubbed for future development.
 
 1. Accept company name and role details
 2. Generate likely behavioral questions for VP/Senior Director level
-3. Map each question to Chris's strongest STAR stories
+3. Map each question to the candidate's strongest STAR stories
 4. Cover: leadership philosophy, delivery transformation, scaling teams,
    conflict resolution, cross-functional influence, technical strategy
 5. Include company-specific questions based on research brief

@@ -33,36 +33,36 @@ All generated deliverables go in `output/` under a **per-company subdirectory**.
 ```
 output/
   natera/
-    Christopher_Cantu_Resume_Natera.md
-    Christopher_Cantu_Resume_Natera.docx
-    Christopher_Cantu_CoverLetter_Natera.md
-    Christopher_Cantu_CoverLetter_Natera.docx
+    {Name}_Resume_Natera.md
+    {Name}_Resume_Natera.docx
+    {Name}_CoverLetter_Natera.md
+    {Name}_CoverLetter_Natera.docx
     why-this-company-natera.md
 ```
 
 - Company slug = lowercase, no spaces (e.g., `natera`, `gitlab`)
 - All artifacts for one company go in one directory — no splitting by type
-- Filename convention: `Christopher_Cantu_{ArtifactType}_{Company}.{ext}`
+- Filename convention: `{Name}_{ArtifactType}_{Company}.{ext}` — where `{Name}` is
+  the candidate's name from `config/candidate.md` with spaces replaced by underscores
 - Default format is `.docx` (+ `.md` source) — no PDF exports
 
 ---
 
 ## State Continuity
 
-**Apple Notes** is the default source of truth for state that persists across
-sessions (seen postings, preferences, applications). Skills read and write state
-via `osascript` when `integrations/config/notes-config.md` is configured.
+`output/` markdown files are the source of truth for state that persists across
+sessions (seen postings, preferences, applications). Skills read the most recent
+`output/*-{state-type}.md` file via glob before acting and append to it after
+completing. If no file exists, create one with today's date prefix:
+`output/YYYY-MM-DD-{state-type}.md`.
 
-If Apple Notes is not configured, skills fall back to markdown files in `output/`
-(e.g., `output/2026-03-14-seen-postings.md`). These files use the same format
-and dedup logic — Apple Notes is preferred, not required.
+Apple Notes is an optional personal integration — `daily-digest` writes there
+as a secondary layer when `integrations/config/notes-config.md` is configured,
+but it is not required for the plugin to function. New users: see
+`integrations/adapters/apple-notes.md` to enable it.
 
 State files live at the `output/` root. Per-company artifacts (cover letters,
 resumes) live in `output/{company-slug}/`. Both patterns coexist with no conflict.
-
-Skills glob for the most recent `output/*-{state-type}.md` file before acting
-and append to it after completing. If no file exists, create one with today's
-date prefix: `output/YYYY-MM-DD-{state-type}.md`.
 
 Every skill reads relevant state before acting and writes state after completing.
 Never show a role that's already been seen. Never ask for information that's

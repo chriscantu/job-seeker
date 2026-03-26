@@ -69,9 +69,9 @@ Interview (2+) → Final Round → Offer → Decision → Closed
 ### Close Reasons
 
 - `accepted` — Offer accepted
-- `declined` — Chris declined the offer
+- `declined` — Candidate declined the offer
 - `rejected` — Company rejected at any stage
-- `withdrawn` — Chris withdrew the application
+- `withdrawn` — Candidate withdrew the application
 - `ghosted` — No response after 3+ weeks in any active stage
 - `closed` — Role was filled or removed
 
@@ -248,7 +248,7 @@ Convert the markdown state file to Apple Notes HTML following the rules in
 `integrations/adapters/apple-notes.md` (use `<div>` wrapping, no `<h1>`/`<h2>`,
 styled `<span>` for headings).
 
-Apple Notes sync errors are **non-blocking** — surface the error to Chris, then
+Apple Notes sync errors are **non-blocking** — surface the error to the user, then
 continue. The markdown state file is the source of truth.
 
 ---
