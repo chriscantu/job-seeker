@@ -1,4 +1,8 @@
 -- apple_mail_scan.applescript
+-- NOTE: Account/mailbox lookup and toLower helper are duplicated in
+-- apple_mail_read.applescript. AppleScript has no cross-file imports —
+-- keep both files in sync if the lookup strategy changes.
+--
 -- Batch metadata extraction from an Apple Mail inbox.
 -- Returns subject, sender, date received, and message index for a range of messages.
 -- Designed for 10-message batches to avoid osascript timeouts.
@@ -84,8 +88,8 @@ on run argv
             repeat with i from startIdx to endIdx
                 try
                     set msg to message i of targetMailbox
-                    set msgSubject to my sanitize(subject of msg)
-                    set msgSender to my sanitize(sender of msg)
+                    set msgSubject to my sanitizeFlat(subject of msg)
+                    set msgSender to my sanitizeFlat(sender of msg)
                     set msgDate to (date received of msg) as string
                     set msgIndex to i as string
                     set end of results to msgSubject & "|||" & msgSender & "|||" & msgDate & "|||" & msgIndex
@@ -111,7 +115,7 @@ end run
 -- to prevent serialization errors in the tool response pipeline.
 -- Note: newlines and tabs are intentionally stripped from metadata fields
 -- (unlike the read script) because they would break ||| delimiters.
-on sanitize(str)
+on sanitizeFlat(str)
     set safeText to ""
     set charLimit to length of str
     if charLimit > 500 then set charLimit to 500
@@ -123,7 +127,7 @@ on sanitize(str)
         end if
     end repeat
     return safeText
-end sanitize
+end sanitizeFlat
 
 -- Helper: lowercase a string for case-insensitive comparison.
 on toLower(str)

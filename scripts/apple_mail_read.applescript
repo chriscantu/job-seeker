@@ -1,4 +1,8 @@
 -- apple_mail_read.applescript
+-- NOTE: Account/mailbox lookup and toLower helper are duplicated in
+-- apple_mail_scan.applescript. AppleScript has no cross-file imports —
+-- keep both files in sync if the lookup strategy changes.
+--
 -- Fetches the body of a single email message by index from an Apple Mail inbox.
 -- Returns up to 4000 ASCII-safe characters of the message source (RFC 2822
 -- format, including MIME headers and body) for URL extraction from href

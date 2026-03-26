@@ -135,7 +135,10 @@ remaining batches.
 **Issue ALL body fetch calls in a single message** (batching protocol —
 never one at a time).
 
-For each candidate from Phase 2:
+For each candidate from Phase 2, use the `message_index` captured during
+the metadata scan. **Do NOT re-derive the index** — always use the stored
+value from Phase 2. Message indices can shift if new mail arrives between
+phases.
 
 ```bash
 osascript {plugin_root}/scripts/apple_mail_read.applescript "{account_name}" "{inbox_name}" {message_index}
