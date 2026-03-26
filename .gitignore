@@ -27,5 +27,8 @@ node_modules/
 # Build/coverage artifacts
 default.profraw
 
+# Git worktrees
+.worktrees/
+
 # OS files
 .DS_Store

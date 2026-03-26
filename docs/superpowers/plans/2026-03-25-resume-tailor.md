@@ -1,3 +1,41 @@
+# Resume Tailor Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** Replace the resume-tailor stub with a full skill that takes a job posting, analyzes requirements, and produces a role-optimized resume (.md + .docx) with rewritten summary, reordered bullets, and reconfigured Key Accomplishments table.
+
+**Architecture:** Single SKILL.md rewrite — no new scripts. The skill instructs Claude to fetch the posting, score accomplishments against requirements, rewrite the summary, reorder bullets, promote best-fit items to the accomplishments table, generate both .md and .docx via existing `generate_resume_docx.js`, and present a tailoring decisions summary. Follows the company-research and cover-letter patterns.
+
+**Tech Stack:** Markdown skill definition only. Tools used at runtime: Read, Write, Edit, Bash, WebSearch, WebFetch, Glob. Existing script: `scripts/generate_resume_docx.js`.
+
+---
+
+## File Structure
+
+| File | Action | Responsibility |
+|------|--------|----------------|
+| `skills/resume-tailor/SKILL.md` | Rewrite | Full skill definition — the only file that changes |
+
+No new scripts, no new config. The existing `generate_resume_docx.js` and `docx-styles.js` are used as-is.
+
+---
+
+### Task 1: Write the SKILL.md frontmatter and introduction
+
+**Files:**
+- Modify: `skills/resume-tailor/SKILL.md:1-60` (replace entire file — will be built up across tasks)
+
+**Context for the implementer:**
+- Read `docs/superpowers/specs/2026-03-25-resume-tailor-skill.md` for the full spec
+- Read `skills/company-research/SKILL.md` for the established pattern (frontmatter, "Before You Start", output conventions)
+- Read `skills/cover-letter/SKILL.md` for the voice calibration and output path pattern
+- Read the current stub at `skills/resume-tailor/SKILL.md` to see what's being replaced
+
+- [ ] **Step 1: Replace the file with frontmatter and introduction**
+
+Write the entire file starting with frontmatter. The file will be extended in subsequent tasks.
+
+```yaml
 ---
 name: resume-tailor
 description: >
@@ -8,7 +46,11 @@ description: >
   Triggers: "tailor my resume", "customize resume for", "adjust resume for this role"
 allowed-tools: Read, Write, Edit, Bash, WebSearch, WebFetch, Glob
 ---
+```
 
+Then the introduction and Before You Start:
+
+```markdown
 # Resume Tailor
 
 Takes a job posting and produces a role-optimized resume with a rewritten summary,
@@ -22,10 +64,40 @@ both .md and .docx in one shot.
 3. Read `config/candidate.md` — candidate name, core strengths, accomplishments
 4. Read `config/search.md` — target roles, to contextualize fit
 5. Read `references/resume.pdf` — canonical resume (source of truth for all bullet text)
-6. Read `references/voice-guide.md` if it exists — the tailored summary must match
-   the candidate's voice. If missing, rely on the anti-patterns list in Phase 3 below.
+6. Read `references/voice-guide.md` — the tailored summary must match the candidate's voice
 7. Glob `references/writing-samples/*.md` — if any exist, read them to calibrate tone
+```
 
+- [ ] **Step 2: Verify frontmatter parses correctly**
+
+```bash
+head -12 skills/resume-tailor/SKILL.md
+```
+
+Expected: YAML frontmatter with `name`, `description`, `allowed-tools` fields between `---` delimiters.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add skills/resume-tailor/SKILL.md
+git commit -m "feat(resume-tailor): write frontmatter and introduction
+
+Replaces the stub with skill metadata, trigger phrases, and
+Before You Start prerequisites following the company-research pattern."
+```
+
+---
+
+### Task 2: Write the Required Inputs and Company Research Reuse sections
+
+**Files:**
+- Modify: `skills/resume-tailor/SKILL.md` (append after Before You Start)
+
+- [ ] **Step 1: Append the Required Inputs section**
+
+Add after the "Before You Start" section:
+
+```markdown
 ## Required Inputs
 
 Ask the user for what you don't already have:
@@ -36,8 +108,10 @@ Ask the user for what you don't already have:
 
 ## Company Research Reuse
 
-After extracting the company name and deriving `{company-slug}` (see Company
-Extraction below), check for `output/{company-slug}/company-research.md`:
+Derive `{company-slug}` from the company name: lowercase, spaces replaced with
+hyphens, special characters removed (e.g., "Maven Clinic" → `maven-clinic`).
+
+Check for `output/{company-slug}/company-research.md`:
 
 - **If exists**: Read it. Use the Positioning section and company context to
   inform accomplishment scoring. Note the brief's date in the decisions summary.
@@ -63,7 +137,37 @@ if it doesn't exist.
 
 **If the company name cannot be determined**, stop with:
 > "Could not identify the company from this page. Try providing the company name directly."
+```
 
+- [ ] **Step 2: Verify the sections are present**
+
+```bash
+grep -c "## Required Inputs\|## Company Research Reuse\|## Company Extraction" skills/resume-tailor/SKILL.md
+```
+
+Expected: `3`
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add skills/resume-tailor/SKILL.md
+git commit -m "feat(resume-tailor): add inputs, research reuse, and company extraction
+
+Defines required inputs (posting URL + optional emphasis points),
+opportunistic reuse of company-research briefs, and company
+extraction with slug derivation."
+```
+
+---
+
+### Task 3: Write the Analysis Phase section
+
+**Files:**
+- Modify: `skills/resume-tailor/SKILL.md` (append after Company Extraction)
+
+- [ ] **Step 1: Append the Analysis Phase section**
+
+```markdown
 ---
 
 ## Phase 1: Analyze the Posting
@@ -113,7 +217,41 @@ Draft a new 2-3 sentence summary that:
 - "I'm uniquely positioned to leverage my experience"
 - "I've been fortunate enough to lead..."
 - Anything that sounds like a LinkedIn influencer or career coach
+```
 
+- [ ] **Step 2: Verify the phases are present**
+
+```bash
+grep -c "## Phase 1\|## Phase 2\|## Phase 3" skills/resume-tailor/SKILL.md
+```
+
+Expected: `3`
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add skills/resume-tailor/SKILL.md
+git commit -m "feat(resume-tailor): add analysis, scoring, and summary rewrite phases
+
+Phase 1 extracts requirements from the posting. Phase 2 scores every
+resume bullet and selects the 4 best-fit accomplishments for the table.
+Phase 3 rewrites the summary in the candidate's voice."
+```
+
+---
+
+### Task 4: Write the Output Generation section
+
+**Files:**
+- Modify: `skills/resume-tailor/SKILL.md` (append after Phase 3)
+
+**Context for the implementer:**
+- Read `scripts/generate_resume_docx.js` lines 88-202 to understand the exact markdown structure the parser expects
+- The parser detects sections by: `# Name`, `**tagline**`, contact line with `@` or `|`, summary paragraph, `## Key Accomplishments` (table with `|` rows), `### Title | Company` (experience entries), `## Education`
+
+- [ ] **Step 1: Append the Output Generation section**
+
+```markdown
 ---
 
 ## Phase 4: Generate Output
@@ -123,9 +261,7 @@ In a single pass, produce both the .md and .docx files.
 ### Step 4a: Write the Tailored Markdown
 
 Write to `output/{company-slug}/{Name}_Resume_{Company}.md` where `{Name}`
-is from `config/candidate.md` with spaces replaced by underscores, and
-`{Company}` is the display name with spaces replaced by underscores and
-special characters removed (e.g., "Maven Clinic" → `Maven_Clinic`).
+is from `config/candidate.md` with spaces replaced by underscores.
 
 **Critical: the markdown MUST conform exactly to the structure that
 `scripts/generate_resume_docx.js` expects.** The parser is rigid — deviating
@@ -170,15 +306,10 @@ Summary paragraph — 2-3 sentences, rewritten for this role per Phase 3.
 
 ## Education
 
-**Degree**              ← must come first (parser captures as degree)
-University Name         ← must come second (parser captures as school)
-**Core Expertise:** Comma-separated skills  ← must come last
+**Degree**
+University Name
+**Core Expertise:** Comma-separated skills
 ```
-
-**Order matters in Education.** The `generate_resume_docx.js` parser reads
-lines sequentially — `**bold**` lines are captured as degree, then the next
-non-bold line becomes school, then `**Core Expertise:**` is handled specially.
-Reordering these lines will silently corrupt the .docx.
 
 **Rules for the markdown:**
 - All section headings, table format, and bullet syntax must match exactly
@@ -235,7 +366,37 @@ Files written:
   output/{company-slug}/{Name}_Resume_{Company}.md
   output/{company-slug}/{Name}_Resume_{Company}.docx
 ```
+```
 
+- [ ] **Step 2: Verify the output section is complete**
+
+```bash
+grep -c "Step 4a\|Step 4b\|Step 4c\|generate_resume_docx" skills/resume-tailor/SKILL.md
+```
+
+Expected: at least `4` (the three steps plus the script reference)
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add skills/resume-tailor/SKILL.md
+git commit -m "feat(resume-tailor): add output generation phase
+
+Defines the tailored markdown format (matching generate_resume_docx.js
+parser expectations), .docx generation command, and tailoring decisions
+summary presented to the user."
+```
+
+---
+
+### Task 5: Write the State Update and Error Handling sections
+
+**Files:**
+- Modify: `skills/resume-tailor/SKILL.md` (append after Phase 4)
+
+- [ ] **Step 1: Append the State Update section**
+
+```markdown
 ---
 
 ## Phase 5: State Update
@@ -267,7 +428,11 @@ If no seen-postings file exists at all, create
 
 **Do not** update `applications.md` or `preferences.md`. Resume tailoring
 is not a pipeline event.
+```
 
+- [ ] **Step 2: Append the Error Handling section**
+
+```markdown
 ---
 
 ## Error Handling
@@ -287,11 +452,129 @@ is not a pipeline event.
 
 - **Never fabricate experience** — only reorder, re-emphasize, and rewrite
   the summary using existing content from `references/resume.pdf`
-- **Never remove sections or bullets** — all resume sections and bullets remain;
-  only their order changes
+- **Never remove sections** — all resume sections remain
 - **Bullet facts are sacred** — numbers, scope, outcomes verbatim from
   the canonical resume. Light phrasing edits allowed: reordering clauses,
   leading with the most relevant phrase, echoing synonymous posting keywords.
   No new claims, no new technologies, no inflated scope.
 - **Flag gaps honestly** — if the posting requires something the candidate
   doesn't have, say so in the decisions summary
+```
+
+- [ ] **Step 3: Verify all major sections are present**
+
+```bash
+grep -c "## Before You Start\|## Required Inputs\|## Company Research Reuse\|## Company Extraction\|## Phase 1\|## Phase 2\|## Phase 3\|## Phase 4\|## Phase 5\|## Error Handling\|## Key Constraints" skills/resume-tailor/SKILL.md
+```
+
+Expected: `11`
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add skills/resume-tailor/SKILL.md
+git commit -m "feat(resume-tailor): add state update, error handling, and constraints
+
+Completes the SKILL.md with seen-postings state annotation (RESUME TAILORED
+flag), error handling table, and non-negotiable constraints on content
+integrity."
+```
+
+---
+
+### Task 6: Validate the complete skill
+
+**Files:**
+- Read: `skills/resume-tailor/SKILL.md` (full file review)
+
+- [ ] **Step 1: Check file length and structure**
+
+```bash
+wc -l skills/resume-tailor/SKILL.md
+```
+
+Expected: 180-250 lines (substantially more than the 60-line stub).
+
+- [ ] **Step 2: Verify all sections from the spec are covered**
+
+```bash
+grep "^## \|^### " skills/resume-tailor/SKILL.md
+```
+
+Verify the output shows all expected section headings in order:
+- Before You Start
+- Required Inputs
+- Company Research Reuse
+- Company Extraction
+- Phase 1: Analyze the Posting
+- Phase 2: Score and Map Accomplishments
+- Phase 3: Rewrite Summary
+- Phase 4: Generate Output (with Steps 4a, 4b, 4c)
+- Phase 5: State Update
+- Error Handling
+- Key Constraints
+
+- [ ] **Step 3: Verify references to config files**
+
+```bash
+grep -c "config/candidate.md\|config/search.md\|references/resume.pdf\|references/voice-guide.md" skills/resume-tailor/SKILL.md
+```
+
+Expected: at least `6` (each file referenced at least once in Before You Start + once in a phase).
+
+- [ ] **Step 4: Verify the markdown format example matches the parser**
+
+Manually confirm the markdown structure example in Step 4a matches what
+`scripts/generate_resume_docx.js:parseResume()` expects:
+
+- `# Name` (H1) — parser line 105: `lines[i].startsWith("# ")`
+- `**Tagline**` — parser line 109: `match(/^\*\*(.+)\*\*$/)`
+- Contact with `@` or `|` — parser line 111: `includes("@") || includes("|")`
+- Summary paragraph before any `#` — parser lines 121-126
+- `## Key Accomplishments` — parser line 140: `nm.includes("ACCOMPLISHMENT")`
+- Table rows with `|` — parser line 165: `stripped.startsWith("|")`
+- `### Title | Company` — parser line 152-155: `startsWith("### ")`, splits on ` | `
+- `*metadata*` line — parser line 158: `startsWith("*")`
+- `- bullet` — parser line 176: `startsWith("- ")`
+- `## Education` — parser line 145: `nm.includes("EDUCATION")`
+
+- [ ] **Step 5: Run existing validators**
+
+```bash
+node scripts/validate-config.js && node scripts/validate-structure.js
+```
+
+Expected: Both pass — we only changed the content of an existing SKILL.md, not the file structure or config.
+
+---
+
+### Task 7: Update the spec status and commit
+
+**Files:**
+- Modify: `docs/superpowers/specs/2026-03-25-resume-tailor-skill.md:3`
+
+- [ ] **Step 1: Update the spec status**
+
+Change line 3 from:
+```
+**Status**: Approved
+```
+To:
+```
+**Status**: Implemented
+```
+
+- [ ] **Step 2: Final commit**
+
+```bash
+git add docs/superpowers/specs/2026-03-25-resume-tailor-skill.md
+git commit -m "docs: mark resume-tailor spec as implemented"
+```
+
+- [ ] **Step 3: Verify clean working tree**
+
+```bash
+git status
+```
+
+Expected: nothing to commit, working tree clean (except `output/` and `config/` which are gitignored, and any untracked plan files).
