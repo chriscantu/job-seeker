@@ -1,7 +1,7 @@
 # Specification: Company Research
 
 **Date**: 2026-03-25
-**Status**: Approved — pending implementation
+**Status**: Implemented
 **Roadmap item**: v0.4 Item 3 (Activate Planned Skills)
 
 ---
