@@ -22,7 +22,8 @@ both .md and .docx in one shot.
 3. Read `config/candidate.md` — candidate name, core strengths, accomplishments
 4. Read `config/search.md` — target roles, to contextualize fit
 5. Read `references/resume.pdf` — canonical resume (source of truth for all bullet text)
-6. Read `references/voice-guide.md` — the tailored summary must match the candidate's voice
+6. Read `references/voice-guide.md` if it exists — the tailored summary must match
+   the candidate's voice. If missing, rely on the anti-patterns list in Phase 3 below.
 7. Glob `references/writing-samples/*.md` — if any exist, read them to calibrate tone
 
 ## Required Inputs
@@ -35,10 +36,8 @@ Ask the user for what you don't already have:
 
 ## Company Research Reuse
 
-Derive `{company-slug}` from the company name: lowercase, spaces replaced with
-hyphens, special characters removed (e.g., "Maven Clinic" → `maven-clinic`).
-
-Check for `output/{company-slug}/company-research.md`:
+After extracting the company name and deriving `{company-slug}` (see Company
+Extraction below), check for `output/{company-slug}/company-research.md`:
 
 - **If exists**: Read it. Use the Positioning section and company context to
   inform accomplishment scoring. Note the brief's date in the decisions summary.
@@ -124,7 +123,9 @@ In a single pass, produce both the .md and .docx files.
 ### Step 4a: Write the Tailored Markdown
 
 Write to `output/{company-slug}/{Name}_Resume_{Company}.md` where `{Name}`
-is from `config/candidate.md` with spaces replaced by underscores.
+is from `config/candidate.md` with spaces replaced by underscores, and
+`{Company}` is the display name with spaces replaced by underscores and
+special characters removed (e.g., "Maven Clinic" → `Maven_Clinic`).
 
 **Critical: the markdown MUST conform exactly to the structure that
 `scripts/generate_resume_docx.js` expects.** The parser is rigid — deviating
@@ -169,10 +170,15 @@ Summary paragraph — 2-3 sentences, rewritten for this role per Phase 3.
 
 ## Education
 
-**Degree**
-University Name
-**Core Expertise:** Comma-separated skills
+**Degree**              ← must come first (parser captures as degree)
+University Name         ← must come second (parser captures as school)
+**Core Expertise:** Comma-separated skills  ← must come last
 ```
+
+**Order matters in Education.** The `generate_resume_docx.js` parser reads
+lines sequentially — `**bold**` lines are captured as degree, then the next
+non-bold line becomes school, then `**Core Expertise:**` is handled specially.
+Reordering these lines will silently corrupt the .docx.
 
 **Rules for the markdown:**
 - All section headings, table format, and bullet syntax must match exactly
@@ -281,7 +287,8 @@ is not a pipeline event.
 
 - **Never fabricate experience** — only reorder, re-emphasize, and rewrite
   the summary using existing content from `references/resume.pdf`
-- **Never remove sections** — all resume sections remain
+- **Never remove sections or bullets** — all resume sections and bullets remain;
+  only their order changes
 - **Bullet facts are sacred** — numbers, scope, outcomes verbatim from
   the canonical resume. Light phrasing edits allowed: reordering clauses,
   leading with the most relevant phrase, echoing synonymous posting keywords.
