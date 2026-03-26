@@ -44,8 +44,22 @@ job-seeker/
 │   │   └── SKILL.md
 │   ├── application-tracker/
 │   │   └── SKILL.md
-│   └── networking-outreach/
+│   ├── networking-outreach/
+│   │   └── SKILL.md
+│   ├── setup/
+│   │   └── SKILL.md
+│   └── linkedin-article/
 │       └── SKILL.md
+│
+├── commands/                ← Slash command definitions (one .md per command)
+│   ├── pipeline.md
+│   ├── is-open.md
+│   └── stats.md
+│
+├── hooks/                   ← Event hooks (SessionStart, PreToolUse, Stop)
+│   ├── hooks.json           ← Hook definitions
+│   └── scripts/
+│       └── pii-guard.js     ← PII blocking script for Write/Edit
 │
 ├── scripts/                 ← Executable scripts only (AppleScript, Swift, shell)
 │   ├── apple_notes_create.applescript
