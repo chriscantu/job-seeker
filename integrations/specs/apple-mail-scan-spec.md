@@ -63,7 +63,8 @@ ATS API routing from `integrations/adapters/ats-apis.md`.
 
 ## Constraints
 
-- **Read-only**: Never marks emails as read, moves, deletes, or modifies
+- **Read + trash**: Processed job alert emails are moved to Trash after
+  user confirmation. Unmatched emails are never touched.
 - **10-message batches**: osascript times out on larger loops (proven in
   eisenhower production use)
 - **50-message cap**: Scans at most 50 messages per session to keep runtime

@@ -275,8 +275,9 @@ If no new roles found:
 > "No new job-related emails found in {account_name}/{inbox_name}."
 
 If roles were found, ask:
-> "Should I add these {N} roles to your seen-postings? Let me know if any
-> need adjusting."
+> "Should I add these {N} roles to your seen-postings? The {M} matched
+> job alert emails will be moved to Trash after confirmation. Let me know
+> if any need adjusting."
 
 ---
 
@@ -330,6 +331,33 @@ Where `{prefix}` is the Apple Notes Prefix from `config/search.md`.
 Apple Notes sync errors are non-blocking — the output/ files are the
 source of truth.
 
+### Trash Processed Alerts
+
+After state writes complete, move processed job alert emails to Trash.
+Only emails that matched a job alert sender pattern AND had their body
+fetched are trashed — skipped/unmatched emails remain in the inbox.
+
+**Issue all trash calls in a single message** (batching protocol). Use
+the stored `message_index` values from Phase 2/3. **Trash in descending
+index order** — higher indices first — to prevent index shifting from
+invalidating remaining indices.
+
+```bash
+osascript {plugin_root}/scripts/apple_mail_trash.applescript "{account_name}" "{inbox_name}" {index_highest}
+osascript {plugin_root}/scripts/apple_mail_trash.applescript "{account_name}" "{inbox_name}" {index_next}
+# ... one call per processed alert, descending index order
+```
+
+If a trash call returns `MESSAGE_NOT_FOUND`, the message was already
+moved or deleted — skip and continue. If it returns `TRASH_NOT_FOUND`,
+log the error and skip all remaining trash calls (the Trash mailbox
+is missing for the account).
+
+Report: "Moved {N} processed alert emails to Trash."
+
+If any trash calls fail, report: "Moved {N} of {M} alert emails to
+Trash. {K} could not be moved: {reason}."
+
 ---
 
 ## Error Handling
@@ -348,12 +376,17 @@ source of truth.
 | osascript timeout on batch | Reduce remaining batches to 5 messages, note slowdown |
 | No job-related emails found | Report: "No new job-related emails in {account}/{inbox}" |
 | Seen-postings file doesn't exist | Create `output/YYYY-MM-DD-seen-postings.md` |
+| Trash mailbox not found (`TRASH_NOT_FOUND`) | Log error, skip all remaining trash calls |
+| Individual trash call fails (`MESSAGE_NOT_FOUND`) | Skip, continue trashing remaining |
+| Trash call returns `error:` | Log error, skip that message, continue |
 
 ---
 
 ## Key Constraints
 
-- **Read-only** — never marks emails as read, moves, deletes, or modifies
+- **Read + trash only** — processed job alert emails are moved to Trash
+  after user confirmation. Unmatched emails are never touched. Emails are
+  never marked as read or moved to any mailbox other than Trash.
 - **10-message batches** — osascript times out on larger loops
 - **50-message cap** — at most 50 messages scanned per session
 - **User confirmation required** — state is only written after user approves

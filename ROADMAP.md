@@ -159,6 +159,18 @@ v2 enhancements.
 
 **Spec**: `integrations/specs/apple-mail-scan-spec.md`
 
+### Scan Email — Trash Processed Alerts (v1.1) *(Shipped)*
+
+**Status**: Shipped (2026-03-26)
+
+After Phase 6 state writes complete, processed job alert emails are moved
+to Trash. Only emails that matched a job alert sender AND had their body
+fetched are trashed — skipped/unmatched emails remain in inbox. Trashed
+in descending index order to prevent index shifting.
+
+**Files**: `scripts/apple_mail_trash.applescript`, updated SKILL.md Phase 6,
+adapter doc, spec, config example, STRUCTURE.md.
+
 ### Offer Comparison Tool
 
 When multiple offers arrive, a structured comparison across comp (base, bonus,

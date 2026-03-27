@@ -3,14 +3,14 @@
 **System**: Apple Mail (macOS)
 **Access method**: AppleScript via osascript
 **Auth required**: None — local app, iCloud sync built-in
-**Direction**: Read-only
+**Direction**: Read + trash (processed alerts only)
 **Status**: Active (v1)
 
 ---
 
 ## How It Works
 
-Two operations, each backed by a standalone AppleScript in `scripts/`:
+Three operations, each backed by a standalone AppleScript in `scripts/`:
 
 **Scan** — Called by `scan-email` to retrieve email metadata (subject, sender,
 date, message index) in batches of 10. Processes a configurable range of
@@ -20,8 +20,9 @@ messages from the inbox. Calls `scripts/apple_mail_scan.applescript`.
 email by its message index. Returns HTML source (preferred, for URL extraction)
 or plaintext content (fallback). Calls `scripts/apple_mail_read.applescript`.
 
-Both operations are strictly **read-only** — they never mark emails as read,
-move them, delete them, or modify them in any way.
+**Trash** — Called by `scan-email` Phase 6 to move processed job alert emails
+to the account's Trash mailbox. Only emails that matched a job alert sender
+AND had their body fetched are trashed. Calls `scripts/apple_mail_trash.applescript`.
 
 ---
 
@@ -88,6 +89,11 @@ osascript {plugin_root}/scripts/apple_mail_scan.applescript "{account_name}" "{i
 osascript {plugin_root}/scripts/apple_mail_read.applescript "{account_name}" "{inbox_name}" {index}
 ```
 
+**Trash** (move single message to Trash):
+```bash
+osascript {plugin_root}/scripts/apple_mail_trash.applescript "{account_name}" "{inbox_name}" {index}
+```
+
 ---
 
 ## Return Value Mapping
@@ -115,6 +121,17 @@ osascript {plugin_root}/scripts/apple_mail_read.applescript "{account_name}" "{i
 | Index out of range | `MESSAGE_NOT_FOUND` | Skip this message, note in results |
 | Any other error | `error: {message}` | Log error, skip message |
 
+### Trash
+
+| Outcome | Script returns | Skill action |
+|---------|---------------|--------------|
+| Message trashed | `trashed: {index}` | Log success |
+| Account not found | `ACCOUNT_NOT_FOUND` | Stop: show config guidance |
+| Mailbox not found | `MAILBOX_NOT_FOUND` | Stop: show config guidance |
+| Trash mailbox not found | `TRASH_NOT_FOUND` | Log error, skip all remaining trash calls |
+| Index out of range | `MESSAGE_NOT_FOUND` | Skip (already moved/deleted), continue |
+| Any other error | `error: {message}` | Log error, skip message, continue |
+
 ---
 
 ## Error Handling
@@ -129,6 +146,8 @@ without a valid mail source).
 | Apple Mail not running | Warning | Detected by skill orchestration (Phase 1 Step 1a via System Events), not by the scripts. Scripts assume Mail.app is already running — `tell application "Mail"` will auto-launch it if not. |
 | Individual message read failure | No | Skip message, continue |
 | Body fetch failure | No | Classify on metadata only |
+| Trash mailbox not found | No | Skip all trash calls, report error |
+| Individual trash failure | No | Skip message, continue trashing |
 | osascript timeout | No | Reduce batch size for remaining batches |
 
 Errors are surfaced to the user with the exact message. Never silently
@@ -138,9 +157,10 @@ swallowed.
 
 ## Scope Restriction
 
-- **Read-only**: Never marks emails as read, moves, deletes, or modifies
+- **Read + trash**: Processed job alert emails are moved to Trash after
+  user confirmation. Unmatched emails are never touched. Emails are never
+  marked as read or moved to any mailbox other than Trash.
 - **Single account/inbox**: Only the configured account and inbox are accessed
 - **No sent mail**: Only inbox messages are scanned
-- **No other folders**: Drafts, Archive, Trash, etc. are never touched
 - **10-message batch limit**: Prevents osascript timeouts
 - **50-message session cap**: Keeps runtime reasonable
