@@ -55,5 +55,7 @@ auto-detect it in Phase 1, or check Apple Mail → [Account] → inbox label.
 
 ## Scope Restriction
 
-Only the configured account and inbox are ever read. No other mailboxes,
-accounts, sent mail, or folders are accessed.
+Only the configured account and inbox are scanned. Processed job alert
+emails are moved to Trash after user confirmation. Unmatched emails are
+never touched. No other mailboxes, accounts, sent mail, or folders are
+accessed.
