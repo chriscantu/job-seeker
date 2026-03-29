@@ -70,7 +70,10 @@ job-seeker/
 │   ├── apple_notes_list.applescript
 │   ├── apple_mail_scan.applescript
 │   ├── apple_mail_read.applescript
-│   └── apple_mail_trash.applescript
+│   ├── apple_mail_trash.applescript
+│   ├── generate_resume_docx.js
+│   ├── generate_coverletter_docx.js
+│   └── docx-styles.js
 │
 ├── integrations/            ← Everything related to external system connections
 │   ├── config/              ← Per-integration config files (gitignored) + .example templates

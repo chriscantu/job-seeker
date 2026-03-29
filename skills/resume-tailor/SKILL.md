@@ -84,11 +84,11 @@ Read the canonical resume (`references/resume.pdf`). For every bullet and
 accomplishment in the resume:
 
 - Score relevance against the extracted requirements
-- Identify the **4 best-fit accomplishments** for the Key Accomplishments
-  table — these can come from ANYWHERE in the resume (existing table entries
-  OR bullets buried deeper in experience sections). The canonical resume's
-  table is optimized for the general case; tailoring optimizes for the
-  specific case.
+- **Keep all 6 accomplishment cards** — the canonical resume has 6 cards
+  (3 rows of 2). Reorder rows so the most relevant cards appear in row 1.
+  Individual card content can be swapped (e.g., replace "Global Leadership"
+  with a more relevant card from experience bullets) but the total count
+  stays at 6. Dropping cards makes the resume look thinner.
 - Determine bullet reordering within each job entry — most relevant to this
   role first, least relevant last. Do not remove any bullets.
 
@@ -142,8 +142,6 @@ Summary paragraph — 2-3 sentences, rewritten for this role per Phase 3.
 
 ## Key Accomplishments
 
-| Left column | Right column |
-|-------------|--------------|
 | **Label** — description | **Label** — description |
 | **Label** — description | **Label** — description |
 

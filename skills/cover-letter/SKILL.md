@@ -90,10 +90,14 @@ All files go in `output/{company-slug}/` (e.g., `output/natera/`).
    output/{company-slug}/{Name}_CoverLetter_{Company}.md
    ```
    Where `{Name}` is from `config/candidate.md` with spaces replaced by underscores.
-2. Generate a .docx by invoking the `anthropic-skills:docx` skill, saving to:
+2. Generate the .docx:
+   ```fish
+   set NODE_PATH /opt/homebrew/lib/node_modules
+   node scripts/generate_coverletter_docx.js \
+     output/{company-slug}/{Name}_CoverLetter_{Company}.md \
+     output/{company-slug}/{Name}_CoverLetter_{Company}.docx
    ```
-   output/{company-slug}/{Name}_CoverLetter_{Company}.docx
-   ```
+   If the script exits non-zero, show the error and leave the .md in place.
 3. The `output/` directory is gitignored — generated materials stay local
 
 ## Quality Checks
