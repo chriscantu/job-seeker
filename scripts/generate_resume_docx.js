@@ -353,6 +353,8 @@ function buildDoc(parsed) {
     children.push(new Paragraph({
       children: titleRuns,
       spacing: { before: 160, after: 20 },
+      keepNext: true,
+      keepLines: true,
     }));
 
     // PDF: Italic metadata line in gray
@@ -360,6 +362,7 @@ function buildDoc(parsed) {
       children.push(new Paragraph({
         children: [new TextRun({ text: job.meta, italics: true, size: 19, font: FONT, color: GRAY })],
         spacing: { after: 60 },
+        keepNext: true,
       }));
     }
 

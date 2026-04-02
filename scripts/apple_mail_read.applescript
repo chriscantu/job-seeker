@@ -14,8 +14,9 @@
 --   3. message_index  -- 1-based index of the message to read
 --
 -- Returns (stdout):
---   "HTML:" followed by up to 4000 ASCII-safe chars of MIME source
---   "TEXT:" followed by up to 4000 ASCII-safe chars of plaintext content
+--   "HTML:" followed by up to 12000 ASCII-safe chars of the MIME body
+--         (headers are skipped to maximize useful content for URL extraction)
+--   "TEXT:" followed by up to 12000 ASCII-safe chars of plaintext content
 --   "BODY_UNAVAILABLE: {reason}"  -- body could not be retrieved
 --   "ACCOUNT_NOT_FOUND"           -- no matching account
 --   "MAILBOX_NOT_FOUND"           -- inbox not found in account
@@ -80,16 +81,18 @@ on run argv
             set msg to message msgIdx of targetMailbox
 
             -- Step 4: Try source first (HTML/MIME -- needed for href URL extraction)
+            -- Skip past headers to the body (first blank line separator)
             set sourceError to ""
             try
                 set rawSource to source of msg
                 if rawSource is not "" and rawSource is not missing value then
-                    set safeText to my sanitize(rawSource, 4000)
+                    set bodyContent to my extractBody(rawSource)
+                    set safeText to my sanitize(bodyContent, 12000)
                     if length of safeText > 0 then
                         return "HTML:" & safeText
                     end if
                     -- Source existed but produced no ASCII-safe content
-                    set sourceError to "source contained no ASCII-safe characters"
+                    set sourceError to "source contained no ASCII-safe characters after header skip"
                 end if
             on error errMsg
                 set sourceError to errMsg
@@ -99,7 +102,7 @@ on run argv
             try
                 set plainContent to content of msg
                 if plainContent is not "" and plainContent is not missing value then
-                    set safeText to my sanitize(plainContent, 4000)
+                    set safeText to my sanitize(plainContent, 12000)
                     if length of safeText > 0 then
                         return "TEXT:" & safeText
                     end if
@@ -121,6 +124,51 @@ on run argv
         end try
     end tell
 end run
+
+-- Helper: extract body from RFC 2822 source by skipping past headers.
+-- Headers end at the first blank line (CRLF+CRLF or LF+LF).
+-- Returns the body portion, or the full source if no separator is found.
+on extractBody(src)
+    -- Try CRLF first (standard RFC 2822), then bare LF
+    set crlfSep to (ASCII character 13) & (ASCII character 10) & (ASCII character 13) & (ASCII character 10)
+    set lfSep to (ASCII character 10) & (ASCII character 10)
+
+    set bodyStart to 0
+    try
+        set AppleScript's text item delimiters to crlfSep
+        set parts to text items of src
+        set AppleScript's text item delimiters to ""
+        if (count of parts) > 1 then
+            -- Skip the first part (headers), rejoin the rest
+            set bodyParts to items 2 thru -1 of parts
+            set AppleScript's text item delimiters to crlfSep
+            set bodyText to bodyParts as text
+            set AppleScript's text item delimiters to ""
+            return bodyText
+        end if
+    on error
+        set AppleScript's text item delimiters to ""
+    end try
+
+    -- Try bare LF separator
+    try
+        set AppleScript's text item delimiters to lfSep
+        set parts to text items of src
+        set AppleScript's text item delimiters to ""
+        if (count of parts) > 1 then
+            set bodyParts to items 2 thru -1 of parts
+            set AppleScript's text item delimiters to lfSep
+            set bodyText to bodyParts as text
+            set AppleScript's text item delimiters to ""
+            return bodyText
+        end if
+    on error
+        set AppleScript's text item delimiters to ""
+    end try
+
+    -- No blank line found — return full source as fallback
+    return src
+end extractBody
 
 -- Helper: strip non-ASCII characters (keep codepoints 32-126 plus tab/CR/LF)
 -- and cap at charLimit characters. Prevents serialization errors from embedded

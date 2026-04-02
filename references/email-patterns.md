@@ -39,7 +39,7 @@ substring match):
 
 - "VP"
 - "Vice President"
-- "Senior Director"
+- "Senior Director" (also matches "Sr. Director", "Sr Director")
 - "Head of Engineering"
 - "SVP"
 - "Director of Engineering"
