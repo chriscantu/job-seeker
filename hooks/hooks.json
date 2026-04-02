@@ -26,7 +26,7 @@
       "hooks": [
         {
           "type": "prompt",
-          "prompt": "Before finishing, check if any job-seeker skill was used during this session that writes to state files in output/ (seen-postings, preferences, or applications). If a skill produced results that should have updated state but no Write or Edit was made to output/*-seen-postings.md, output/*-preferences.md, or output/*-applications.md, warn: 'State may not have been persisted — check output/ files or Apple Notes.'"
+          "prompt": "Check if any job-seeker skill was used this session that should write to output/ state files (seen-postings, preferences, applications). If state updates were missed, respond with: {\"decision\": \"block\", \"reason\": \"State may not have been persisted — check output/ files.\"}. Otherwise respond with: {\"decision\": \"allow\", \"reason\": \"State is up to date.\"}. You MUST respond with ONLY valid JSON, no other text."
         }
       ]
     }

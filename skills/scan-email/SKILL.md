@@ -110,8 +110,9 @@ Alert" (otherwise it's a regular Google notification).
 
 **Step 2b: Subject pre-filter** — Check if the subject contains at least
 one title keyword from `references/email-patterns.md` → Title Keywords
-section (cross-referenced with `config/search.md` Target Role Titles). If
-no title keyword, skip.
+section (cross-referenced with `config/search.md` Target Role Titles).
+Normalize common abbreviations before matching: "Sr." / "Sr " → "Senior".
+If no title keyword after normalization, skip.
 
 **Step 2c: Skip rules** — Apply each skip rule from `references/email-patterns.md`:
 - Newsletter/digest summaries (subject contains "weekly digest", etc.)
@@ -212,6 +213,7 @@ For each extracted role:
 ### Step 4c: Apply search filters
 
 For surviving roles, apply filters from `config/search.md`:
+- Normalize abbreviations before title matching: "Sr." / "Sr " → "Senior"
 - Title exclusions (VP of Reliability, Sales Engineering, etc.)
 - Location constraints (reject 100% in-office outside Austin, relocation)
 - Staffing/aggregator company exclusions
@@ -271,13 +273,17 @@ Below the table, show:
   K postings closed
 - **Errors**: Any messages that failed body fetch (classified on subject only)
 
-If no new roles found:
-> "No new job-related emails found in {account_name}/{inbox_name}."
+If no new roles found but job alert emails were body-fetched (all roles
+filtered out):
+> "No new roles found in {account_name}/{inbox_name} — {M} job alert
+> emails were scanned but all roles were already seen or excluded by
+> filters. Move these {M} processed alerts to Trash?"
 
 If roles were found, ask:
-> "Should I add these {N} roles to your seen-postings? The {M} matched
-> job alert emails will be moved to Trash after confirmation. Let me know
-> if any need adjusting."
+> "Should I add these {N} roles to your seen-postings? All {M} processed
+> job alert emails (including those where every role was filtered out)
+> will be moved to Trash after confirmation. Let me know if any need
+> adjusting."
 
 ---
 
@@ -334,8 +340,11 @@ source of truth.
 ### Trash Processed Alerts
 
 After state writes complete, move processed job alert emails to Trash.
-Only emails that matched a job alert sender pattern AND had their body
-fetched are trashed — skipped/unmatched emails remain in the inbox.
+All emails that matched a job alert sender pattern AND had their body
+fetched are trashed — regardless of whether any individual roles survived
+Phase 4 filtering. The email was processed; keeping it in the inbox adds
+clutter. Skipped/unmatched emails (those that never had their body fetched)
+remain in the inbox.
 
 **Issue all trash calls in a single message** (batching protocol). Use
 the stored `message_index` values from Phase 2/3. **Trash in descending
