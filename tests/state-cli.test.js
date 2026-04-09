@@ -5,18 +5,15 @@ const fs = require('fs');
 const path = require('path');
 
 const STATE_JS = path.join(__dirname, '..', 'scripts', 'state.js');
+const FIXTURES_DIR = path.join(__dirname, 'fixtures', 'multi');
 const TMP_DIR = path.join(__dirname, 'tmp-cli');
 
-// Override OUTPUT_DIR by running with a modified env — but state.js hardcodes ROOT.
-// Instead, we'll test against the real output/ directory for read operations
-// and use the unit-tested library functions for write operations.
-// CLI integration tests focus on arg parsing, JSON output, and exit codes.
-
-function run(args, expectError = false) {
+function run(args, { expectError = false, outputDir = FIXTURES_DIR } = {}) {
   try {
     const result = execSync(`bun ${STATE_JS} ${args}`, {
       encoding: 'utf8',
       timeout: 10000,
+      env: { ...process.env, OUTPUT_DIR: outputDir },
     });
     return { stdout: result, exitCode: 0 };
   } catch (err) {
@@ -28,6 +25,14 @@ function run(args, expectError = false) {
 }
 
 describe('state.js CLI', () => {
+  beforeEach(() => {
+    if (!fs.existsSync(TMP_DIR)) fs.mkdirSync(TMP_DIR, { recursive: true });
+  });
+
+  afterEach(() => {
+    if (fs.existsSync(TMP_DIR)) fs.rmSync(TMP_DIR, { recursive: true, force: true });
+  });
+
   describe('read', () => {
     it('returns valid JSON for seen-postings', () => {
       const { stdout } = run('read seen-postings');
@@ -95,17 +100,17 @@ describe('state.js CLI', () => {
 
   describe('flag', () => {
     it('exits non-zero for URL not found', () => {
-      const { exitCode } = run('flag seen-postings --url "https://example.com/nonexistent-job-99999" --add RESEARCHED', true);
+      const { exitCode } = run('flag seen-postings --url "https://example.com/nonexistent-job-99999" --add RESEARCHED', { expectError: true });
       assert.ok(exitCode !== 0);
     });
 
     it('exits non-zero for missing --url', () => {
-      const { exitCode } = run('flag seen-postings --add RESEARCHED', true);
+      const { exitCode } = run('flag seen-postings --add RESEARCHED', { expectError: true });
       assert.ok(exitCode !== 0);
     });
 
     it('exits non-zero for missing --add', () => {
-      const { exitCode } = run('flag seen-postings --url "https://example.com"', true);
+      const { exitCode } = run('flag seen-postings --url "https://example.com"', { expectError: true });
       assert.ok(exitCode !== 0);
     });
   });
@@ -118,27 +123,25 @@ describe('state.js CLI', () => {
       url: 'https://example.com/job/123',
     });
 
-    // Clean up any test file after each test
+    let appTmpDir;
+
+    beforeEach(() => {
+      appTmpDir = fs.mkdtempSync(path.join(TMP_DIR, 'apps-'));
+    });
+
     afterEach(() => {
-      const outputDir = path.join(__dirname, '..', 'output');
-      const files = fs.readdirSync(outputDir).filter(f => f.includes('-applications.md'));
-      for (const f of files) {
-        const content = fs.readFileSync(path.join(outputDir, f), 'utf8');
-        if (content.includes('TestCorp') || content.includes('TestCorp2')) {
-          fs.unlinkSync(path.join(outputDir, f));
-        }
-      }
+      fs.rmSync(appTmpDir, { recursive: true, force: true });
     });
 
     it('read returns valid JSON (empty when no file)', () => {
-      const { stdout } = run('read applications');
+      const { stdout } = run('read applications', { outputDir: appTmpDir });
       const data = JSON.parse(stdout);
       assert.ok(Array.isArray(data));
     });
 
     it('create + read round-trips', () => {
-      run(`create applications '${APP_ENTRY}'`);
-      const { stdout } = run('read applications');
+      run(`create applications '${APP_ENTRY}'`, { outputDir: appTmpDir });
+      const { stdout } = run('read applications', { outputDir: appTmpDir });
       const data = JSON.parse(stdout);
       const entry = data.find(e => e.company === 'TestCorp');
       assert.ok(entry);
@@ -146,69 +149,69 @@ describe('state.js CLI', () => {
     });
 
     it('update transitions stage', () => {
-      run(`create applications '${APP_ENTRY}'`);
-      run('update applications --company TestCorp --stage Screen --detail "Recruiter call"');
-      const { stdout } = run('read applications');
+      run(`create applications '${APP_ENTRY}'`, { outputDir: appTmpDir });
+      run('update applications --company TestCorp --stage Screen --detail "Recruiter call"', { outputDir: appTmpDir });
+      const { stdout } = run('read applications', { outputDir: appTmpDir });
       const data = JSON.parse(stdout);
       const entry = data.find(e => e.company === 'TestCorp');
       assert.equal(entry.stage, 'Screen');
     });
 
     it('add-note appends note', () => {
-      run(`create applications '${APP_ENTRY}'`);
-      run('add-note applications --company TestCorp --note "Cover letter generated"');
-      const { stdout } = run('read applications');
+      run(`create applications '${APP_ENTRY}'`, { outputDir: appTmpDir });
+      run('add-note applications --company TestCorp --note "Cover letter generated"', { outputDir: appTmpDir });
+      const { stdout } = run('read applications', { outputDir: appTmpDir });
       const data = JSON.parse(stdout);
       const entry = data.find(e => e.company === 'TestCorp');
       assert.ok(entry.notes.includes('Cover letter generated'));
     });
 
     it('exits non-zero for update with unknown stage', () => {
-      run(`create applications '${APP_ENTRY}'`);
-      const { exitCode } = run('update applications --company TestCorp --stage Vibing', true);
+      run(`create applications '${APP_ENTRY}'`, { outputDir: appTmpDir });
+      const { exitCode } = run('update applications --company TestCorp --stage Vibing', { expectError: true, outputDir: appTmpDir });
       assert.ok(exitCode !== 0);
     });
 
     it('exits non-zero for update with missing --company', () => {
-      const { exitCode } = run('update applications --stage Screen', true);
+      const { exitCode } = run('update applications --stage Screen', { expectError: true });
       assert.ok(exitCode !== 0);
     });
 
     it('exits non-zero for add-note with no matching company', () => {
-      const { exitCode } = run('add-note applications --company Nonexistent --note "test"', true);
+      const { exitCode } = run('add-note applications --company Nonexistent --note "test"', { expectError: true, outputDir: appTmpDir });
       assert.ok(exitCode !== 0);
     });
 
     it('exits non-zero for update on wrong type', () => {
-      const { exitCode } = run('update seen-postings --company Test --stage Screen', true);
+      const { exitCode } = run('update seen-postings --company Test --stage Screen', { expectError: true });
       assert.ok(exitCode !== 0);
     });
 
     it('exits non-zero for add-note on wrong type', () => {
-      const { exitCode } = run('add-note preferences --company Test --note "test"', true);
+      const { exitCode } = run('add-note preferences --company Test --note "test"', { expectError: true });
       assert.ok(exitCode !== 0);
     });
 
     it('exits non-zero for append applications (unsupported)', () => {
-      const { exitCode } = run(`append applications '${APP_ENTRY}'`, true);
+      const { exitCode } = run(`append applications '${APP_ENTRY}'`, { expectError: true });
       assert.ok(exitCode !== 0);
     });
 
     it('read --stage filters entries', () => {
-      run(`create applications '${APP_ENTRY}'`);
+      run(`create applications '${APP_ENTRY}'`, { outputDir: appTmpDir });
       const second = JSON.stringify({
         company: 'TestCorp2',
         title: 'Director',
         stage: 'Screen',
       });
-      run(`create applications '${second}'`);
+      run(`create applications '${second}'`, { outputDir: appTmpDir });
 
-      const { stdout: appliedOnly } = run('read applications --stage Applied');
+      const { stdout: appliedOnly } = run('read applications --stage Applied', { outputDir: appTmpDir });
       const applied = JSON.parse(appliedOnly);
       assert.equal(applied.length, 1);
       assert.equal(applied[0].company, 'TestCorp');
 
-      const { stdout: screenOnly } = run('read applications --stage Screen');
+      const { stdout: screenOnly } = run('read applications --stage Screen', { outputDir: appTmpDir });
       const screen = JSON.parse(screenOnly);
       assert.equal(screen.length, 1);
       assert.equal(screen[0].company, 'TestCorp2');
@@ -217,37 +220,37 @@ describe('state.js CLI', () => {
 
   describe('error handling', () => {
     it('exits non-zero for unknown type', () => {
-      const { exitCode } = run('read unknown-type', true);
+      const { exitCode } = run('read unknown-type', { expectError: true });
       assert.ok(exitCode !== 0);
     });
 
     it('exits non-zero for unknown command', () => {
-      const { exitCode } = run('bogus seen-postings', true);
+      const { exitCode } = run('bogus seen-postings', { expectError: true });
       assert.ok(exitCode !== 0);
     });
 
     it('exits non-zero for append with invalid JSON', () => {
-      const { exitCode } = run("append seen-postings 'not-json'", true);
+      const { exitCode } = run("append seen-postings 'not-json'", { expectError: true });
       assert.ok(exitCode !== 0);
     });
 
     it('exits non-zero for append with missing fields', () => {
-      const { exitCode } = run('append seen-postings \'{"company":""}\'', true);
+      const { exitCode } = run('append seen-postings \'{"company":""}\'', { expectError: true });
       assert.ok(exitCode !== 0);
     });
 
     it('exits non-zero for dedup-check with wrong type', () => {
-      const { exitCode } = run('dedup-check preferences --url "https://example.com"', true);
+      const { exitCode } = run('dedup-check preferences --url "https://example.com"', { expectError: true });
       assert.ok(exitCode !== 0);
     });
 
     it('exits non-zero for flag with wrong type', () => {
-      const { exitCode } = run('flag preferences --url "https://example.com" --add X', true);
+      const { exitCode } = run('flag preferences --url "https://example.com" --add X', { expectError: true });
       assert.ok(exitCode !== 0);
     });
 
     it('exits non-zero for query with wrong type', () => {
-      const { exitCode } = run('query preferences --company test', true);
+      const { exitCode } = run('query preferences --company test', { expectError: true });
       assert.ok(exitCode !== 0);
     });
   });
