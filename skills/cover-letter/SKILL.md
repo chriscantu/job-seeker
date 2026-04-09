@@ -14,16 +14,18 @@ Creates a tailored, executive-level cover letter that maps the candidate's speci
 accomplishments to a role's requirements. Every letter should feel like it
 could only have been written for this specific role.
 
-## Before You Start
+## Phase 0 — Preflight
 
-1. Read `PRINCIPLES.md` — especially "Quantify Everything" and "Respect the Level"
-2. Read `config/candidate.md` — candidate name, role, accomplishments
-3. Read `references/resume.pdf` for full detailed accomplishments
-4. Glob `references/writing-samples/*.md` — if any files exist, read them to
-   calibrate tone and voice before writing. Fall back to `references/voice-guide.md`
-   if the directory is empty or missing.
-5. Read the `why-this-company` skill's output if one exists for this company
-   (avoid duplicating the research)
+Read `skills/_shared/preflight.md` and execute.
+
+Then read these additional files:
+- `references/resume.pdf` — for full detailed accomplishments
+- Glob `references/writing-samples/*.md` — if any files exist, read them to
+  calibrate tone and voice before writing. Fall back to `references/voice-guide.md`
+  if the directory is empty or missing.
+
+Check if a `why-this-company` output already exists for this company
+(`output/{company-slug}/`). If so, read it to avoid duplicating research.
 
 ## Required Inputs
 
@@ -33,6 +35,12 @@ Ask the user for what you don't already have:
 - **Job posting URL** (strongly recommended — fetch and read to extract requirements)
 - **Specific points to emphasize** (optional — the candidate may want to highlight certain experience)
 - **Format preference** (optional — default is .docx + .md source)
+
+## Phase 1 — Company Extraction (URL cases)
+
+If a job posting URL was provided:
+
+Read `skills/_shared/company-extraction.md` and execute.
 
 ## Research Phase
 
@@ -111,15 +119,15 @@ Before presenting:
 
 ## State Update
 
-After generating, append to the seen-postings state file:
+Read `skills/_shared/state-io.md` and execute — append to `seen-postings`.
 
-1. Glob `output/*-seen-postings.md`, sort descending.
-2. Append to the most recent file (or create `output/YYYY-MM-DD-seen-postings.md`
-   if none exists). Include `posted:YYYY-MM-DD` if the posting date is visible
-   on the job page. If unknown, use `discovered:YYYY-MM-DD` (today's date)
-   instead — every entry must have one or the other so all roles can be aged:
-   ```
-   - {Company} | {Title} | cover letter generated | {date} | posted:YYYY-MM-DD
-   ```
+After generating, append to the seen-postings state file with
+`posted:YYYY-MM-DD` if the posting date is visible on the job page. If unknown,
+use `discovered:YYYY-MM-DD` (today's date) instead — every entry must have one
+or the other so all roles can be aged:
+
+```
+- {Company} | {Title} | cover letter generated | {date} | posted:YYYY-MM-DD
+```
 
 Note: Applications pipeline tracking is deferred to the `application-tracker` skill.
