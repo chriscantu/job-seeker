@@ -18,24 +18,29 @@
 const path = require('path');
 const seenPostings = require('./lib/seen-postings');
 const preferences = require('./lib/preferences');
+const applications = require('./lib/applications');
 const { resolveStateFile } = require('./lib/util');
 
 const ROOT = path.resolve(__dirname, '..');
 const OUTPUT_DIR = path.join(ROOT, 'output');
 
 const SEEN_POSTINGS_COMMANDS = ['query', 'dedup-check', 'flag'];
+const APPLICATIONS_COMMANDS = ['update', 'add-note', 'create'];
 
 function usage() {
   console.error(`Usage: bun scripts/state.js <command> <type> [args]
 
 Commands:
-  read <type>                      Read all entries as JSON
+  read <type> [--stage <stage>]    Read all entries as JSON (--stage filter for applications)
   append <type> '<json>'           Append a validated entry
   query seen-postings [filters]    Filtered read
   dedup-check seen-postings [opts] Check for duplicates
   flag seen-postings --url <url> --add <flag>  Mutate an entry's flags
+  create applications '<json>'     Create a new application entry
+  update applications --company <name> --stage <stage> [--detail <text>]  Update application stage
+  add-note applications --company <name> --note <text>  Append a note to an application
 
-Types: seen-postings, preferences
+Types: seen-postings, preferences, applications
 
 Query filters:
   --company <name>       Case-insensitive substring match
@@ -45,7 +50,14 @@ Query filters:
 Dedup-check options:
   --url <url>            Check for URL match
   --company <name>       Check for company+title match (requires --title)
-  --title <title>        Used with --company for fuzzy match`);
+  --title <title>        Used with --company for fuzzy match
+
+Examples:
+  bun scripts/state.js read applications
+  bun scripts/state.js read applications --stage Applied
+  bun scripts/state.js create applications '{"company":"Acme","title":"VP Eng","stage":"Applied"}'
+  bun scripts/state.js update applications --company acme --stage Interviewing
+  bun scripts/state.js add-note applications --company acme --note "Great call with CTO"`);
   process.exit(1);
 }
 
@@ -77,13 +89,18 @@ function main() {
   const command = args[0];
   const type = args[1];
 
-  if (!['seen-postings', 'preferences'].includes(type)) {
-    console.error(`Unknown type: ${type}. Must be "seen-postings" or "preferences".`);
+  if (!['seen-postings', 'preferences', 'applications'].includes(type)) {
+    console.error(`Unknown type: ${type}. Must be "seen-postings", "preferences", or "applications".`);
     process.exit(1);
   }
 
   if (SEEN_POSTINGS_COMMANDS.includes(command) && type !== 'seen-postings') {
     console.error(`${command} is only supported for seen-postings`);
+    process.exit(1);
+  }
+
+  if (APPLICATIONS_COMMANDS.includes(command) && type !== 'applications') {
+    console.error(`${command} is only supported for applications`);
     process.exit(1);
   }
 
@@ -103,6 +120,15 @@ function main() {
         break;
       case 'flag':
         handleFlag(args.slice(2));
+        break;
+      case 'update':
+        handleUpdate(args.slice(2));
+        break;
+      case 'add-note':
+        handleAddNote(args.slice(2));
+        break;
+      case 'create':
+        handleCreate(type, args[2]);
         break;
       default:
         console.error(`Unknown command: ${command}`);
@@ -126,6 +152,14 @@ function handleRead(type) {
     }
     const result = preferences.parsePreferencesFile(file);
     console.log(JSON.stringify(result, null, 2));
+  } else if (type === 'applications') {
+    const data = applications.parseApplications(OUTPUT_DIR);
+    const opts = parseArgs(process.argv.slice(4));
+    let entries = [...data.active, ...data.closed];
+    if (opts.stage) {
+      entries = entries.filter(e => e.stage === opts.stage);
+    }
+    console.log(JSON.stringify(entries, null, 2));
   }
 }
 
@@ -173,6 +207,57 @@ function handleDedupCheck(remainingArgs) {
     title: opts.title || null,
   });
   console.log(JSON.stringify(result, null, 2));
+}
+
+function handleUpdate(remainingArgs) {
+  const opts = parseArgs(remainingArgs);
+  if (!opts.company) {
+    console.error('update requires --company');
+    process.exit(1);
+  }
+  if (!opts.stage) {
+    console.error('update requires --stage');
+    process.exit(1);
+  }
+  applications.updateApplication(OUTPUT_DIR, {
+    company: opts.company,
+    stage: opts.stage,
+    detail: opts.detail || null,
+  });
+  console.log(JSON.stringify({ success: true }));
+}
+
+function handleAddNote(remainingArgs) {
+  const opts = parseArgs(remainingArgs);
+  if (!opts.company) {
+    console.error('add-note requires --company');
+    process.exit(1);
+  }
+  if (!opts.note) {
+    console.error('add-note requires --note');
+    process.exit(1);
+  }
+  applications.addNote(OUTPUT_DIR, {
+    company: opts.company,
+    note: opts.note,
+  });
+  console.log(JSON.stringify({ success: true }));
+}
+
+function handleCreate(type, jsonStr) {
+  if (!jsonStr) {
+    console.error('create requires a JSON argument');
+    process.exit(1);
+  }
+  let entry;
+  try {
+    entry = JSON.parse(jsonStr);
+  } catch (err) {
+    console.error(`Invalid JSON argument: ${err.message}`);
+    process.exit(1);
+  }
+  applications.createApplication(OUTPUT_DIR, entry);
+  console.log(JSON.stringify({ success: true }));
 }
 
 function handleFlag(remainingArgs) {
