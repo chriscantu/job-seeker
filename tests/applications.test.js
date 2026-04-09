@@ -232,6 +232,11 @@ describe('applications parser', () => {
     assert.ok(md.includes('- **Stage**: Closed (rejected)'));
     assert.ok(md.includes('- **Closed**: 2026-03-28'));
     assert.ok(md.includes('- **Summary**: No response'));
+    // Fix #9: active-only fields must be absent in closed entries
+    assert.ok(!md.includes('- **Last activity**:'));
+    assert.ok(!md.includes('- **Next action**:'));
+    assert.ok(!md.includes('- **URL**:'));
+    assert.ok(!md.includes('- **Notes**:'));
   });
 
   it('round-trips: parse → format → parse produces equivalent entries', () => {
@@ -247,6 +252,17 @@ describe('applications parser', () => {
       assert.equal(reparsed.active[i].stage, original.active[i].stage);
       assert.equal(reparsed.active[i].applied, original.active[i].applied);
       assert.equal(reparsed.active[i].history.length, original.active[i].history.length);
+      // Fix #8: deep history comparison
+      for (let j = 0; j < original.active[i].history.length; j++) {
+        assert.deepEqual(reparsed.active[i].history[j], original.active[i].history[j]);
+      }
+    }
+
+    for (let i = 0; i < original.closed.length; i++) {
+      assert.equal(reparsed.closed[i].company, original.closed[i].company);
+      assert.equal(reparsed.closed[i].stage, original.closed[i].stage);
+      assert.deepEqual(reparsed.closed[i].closed, original.closed[i].closed);
+      assert.equal(reparsed.closed[i].history.length, original.closed[i].history.length);
     }
   });
 });
@@ -335,6 +351,18 @@ describe('applications parser', () => {
       assert.throws(
         () => createApplication(tmpDir, { company: '', title: 'VP Engineering', stage: 'Applied' }),
         /Invalid application entry/
+      );
+    });
+
+    it('rejects duplicate company+title', () => {
+      createApplication(tmpDir, {
+        company: 'Acme',
+        title: 'VP Engineering',
+        stage: 'Applied',
+      });
+      assert.throws(
+        () => createApplication(tmpDir, { company: 'Acme', title: 'VP Engineering', stage: 'Screen' }),
+        /Application already exists/
       );
     });
   });
@@ -456,6 +484,20 @@ describe('applications parser', () => {
       assert.throws(
         () => addNote(tmpDir, { company: 'Nonexistent', note: 'A note' }),
         /No application found/
+      );
+    });
+
+    it('throws for empty note', () => {
+      assert.throws(
+        () => addNote(tmpDir, { company: 'Maven', note: '' }),
+        /note is required/
+      );
+    });
+
+    it('throws for whitespace-only note', () => {
+      assert.throws(
+        () => addNote(tmpDir, { company: 'Maven', note: '   ' }),
+        /note is required/
       );
     });
 

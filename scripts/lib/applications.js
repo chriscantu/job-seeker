@@ -254,6 +254,13 @@ function createApplication(dir, entry) {
 
   if (existing) {
     const data = parseApplicationsFile(existing);
+    const dupe = [...data.active, ...data.closed].find(
+      e => e.company.toLowerCase() === entry.company.toLowerCase()
+        && e.title.toLowerCase() === entry.title.toLowerCase()
+    );
+    if (dupe) {
+      throw new Error(`Application already exists: ${dupe.company} — ${dupe.title}`);
+    }
     data.active.push(newEntry);
     atomicWriteFileSync(existing, formatApplicationsFile(data));
   } else {
@@ -300,6 +307,10 @@ function updateApplication(dir, { company, stage, detail }) {
 }
 
 function addNote(dir, { company, note }) {
+  if (!note || typeof note !== 'string' || !note.trim()) {
+    throw new Error('note is required and must be a non-empty string');
+  }
+
   const filePath = resolveStateFile(dir, 'applications');
   if (!filePath) throw new Error('No applications file found');
 

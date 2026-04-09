@@ -56,7 +56,7 @@ Examples:
   bun scripts/state.js read applications
   bun scripts/state.js read applications --stage Applied
   bun scripts/state.js create applications '{"company":"Acme","title":"VP Eng","stage":"Applied"}'
-  bun scripts/state.js update applications --company acme --stage Interviewing
+  bun scripts/state.js update applications --company acme --stage Screen
   bun scripts/state.js add-note applications --company acme --note "Great call with CTO"`);
   process.exit(1);
 }
@@ -153,7 +153,13 @@ function handleRead(type) {
     const result = preferences.parsePreferencesFile(file);
     console.log(JSON.stringify(result, null, 2));
   } else if (type === 'applications') {
-    const data = applications.parseApplications(OUTPUT_DIR);
+    const file = resolveStateFile(OUTPUT_DIR, 'applications');
+    if (!file) {
+      console.error('No applications file found in output/');
+      console.log(JSON.stringify([], null, 2));
+      return;
+    }
+    const data = applications.parseApplicationsFile(file);
     const opts = parseArgs(process.argv.slice(4));
     let entries = [...data.active, ...data.closed];
     if (opts.stage) {
@@ -174,6 +180,11 @@ function handleAppend(type, jsonStr) {
     entry = JSON.parse(jsonStr);
   } catch (err) {
     console.error(`Invalid JSON argument: ${err.message}`);
+    process.exit(1);
+  }
+
+  if (type === 'applications') {
+    console.error('append is not supported for applications. Use "create" instead.');
     process.exit(1);
   }
 

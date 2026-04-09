@@ -124,7 +124,7 @@ describe('state.js CLI', () => {
       const files = fs.readdirSync(outputDir).filter(f => f.includes('-applications.md'));
       for (const f of files) {
         const content = fs.readFileSync(path.join(outputDir, f), 'utf8');
-        if (content.includes('TestCorp')) {
+        if (content.includes('TestCorp') || content.includes('TestCorp2')) {
           fs.unlinkSync(path.join(outputDir, f));
         }
       }
@@ -187,6 +187,31 @@ describe('state.js CLI', () => {
     it('exits non-zero for add-note on wrong type', () => {
       const { exitCode } = run('add-note preferences --company Test --note "test"', true);
       assert.ok(exitCode !== 0);
+    });
+
+    it('exits non-zero for append applications (unsupported)', () => {
+      const { exitCode } = run(`append applications '${APP_ENTRY}'`, true);
+      assert.ok(exitCode !== 0);
+    });
+
+    it('read --stage filters entries', () => {
+      run(`create applications '${APP_ENTRY}'`);
+      const second = JSON.stringify({
+        company: 'TestCorp2',
+        title: 'Director',
+        stage: 'Screen',
+      });
+      run(`create applications '${second}'`);
+
+      const { stdout: appliedOnly } = run('read applications --stage Applied');
+      const applied = JSON.parse(appliedOnly);
+      assert.equal(applied.length, 1);
+      assert.equal(applied[0].company, 'TestCorp');
+
+      const { stdout: screenOnly } = run('read applications --stage Screen');
+      const screen = JSON.parse(screenOnly);
+      assert.equal(screen.length, 1);
+      assert.equal(screen[0].company, 'TestCorp2');
     });
   });
 
