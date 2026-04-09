@@ -14,12 +14,12 @@ experience to likely questions using the STAR framework.
 
 This skill is stubbed for future development.
 
-## Before You Start
+## Phase 0 — Preflight
 
-1. Run `node scripts/validate-config.js` — if it exits non-zero, stop and show the error
-2. Read `config/candidate.md` — candidate name, experience, core strengths, accomplishments
-3. Read `config/search.md` — target roles
-4. Read `references/resume.pdf` — for STAR story material
+Read `skills/_shared/preflight.md` and execute.
+
+Then read this additional file:
+- `references/resume.pdf` — for STAR story material
 
 ## Intended Behavior
 
