@@ -106,8 +106,21 @@ add a new entry under today's date section with the `RESUME TAILORED` flag.
 Include `posted:YYYY-MM-DD` if visible on the job page, otherwise use
 `discovered:YYYY-MM-DD` (today's date).
 
-**Do not** update `applications.md` or `preferences.md`. Resume tailoring
-is not a pipeline event.
+### Applications Pipeline (if tracked)
+
+If the company has an entry in the applications pipeline, record the resume tailoring:
+
+```fish
+bun scripts/state.js add-note applications --company "{company}" --note "Resume tailored {YYYY-MM-DD}"
+```
+
+If the command exits non-zero (no matching application entry), this is expected
+for roles not yet in the pipeline. Log a note to the user:
+
+> "No application entry found for {company} — skipping pipeline update.
+> Run /application-tracker to add it."
+
+Do not fail the skill run.
 
 ## Error Handling
 
