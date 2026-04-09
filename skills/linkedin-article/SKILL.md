@@ -8,20 +8,18 @@ description: This skill should be used when the user wants to write LinkedIn con
 Write LinkedIn content (posts, articles, or both) grounded in the candidate's
 authentic voice, backed by data, and structured for maximum engagement.
 
-## Prerequisites
+## Phase 0 — Preflight
 
-Before starting, read these project-root files:
-- `PRINCIPLES.md` — quality standards and privacy constraints (required before any skill)
+Read `skills/_shared/preflight.md` and execute.
+
+Then read this additional file:
 - `references/voice-guide.md` — the candidate's writing voice rules
-- `config/candidate.md` — background, expertise, and accomplishments
 
 > **Path note:** Files prefixed with `references/` or `config/` above are at the
 > **project root**, not inside this skill's local `references/` directory. This
 > skill's own reference files are at `skills/linkedin-article/references/`.
 
-## Workflow
-
-### Phase 1: Pressure Test the Hypothesis
+## Phase 1: Pressure Test the Hypothesis
 
 When the user brings a topic or hypothesis:
 
@@ -36,7 +34,7 @@ When the user brings a topic or hypothesis:
 
 4. **Sharpen the thesis.** Refine the hypothesis into a single sentence that can anchor the entire piece. Confirm with the user before proceeding.
 
-### Phase 2: Research Supporting Data
+## Phase 2: Research Supporting Data
 
 Search for data that supports (or challenges) the thesis:
 
@@ -55,7 +53,7 @@ Search for data that supports (or challenges) the thesis:
 
 4. **Be honest about gaps.** If no data directly supports the thesis, say so. Identify where the argument relies on logical extension vs. hard evidence, and frame the article accordingly.
 
-### Phase 3: Determine Format
+## Phase 3: Determine Format
 
 Ask the user which output format to produce:
 - **Post only** — punchy, under 2,200 characters (platform max is 3,000, but brevity wins), optimized for feed visibility
@@ -64,7 +62,7 @@ Ask the user which output format to produce:
 
 Consult `references/linkedin-formats.md` for format constraints and structure guidance.
 
-### Phase 4: Draft in the Candidate's Voice
+## Phase 4: Draft in the Candidate's Voice
 
 1. **Read the voice guide.** Before writing, re-read `references/voice-guide.md`. Internalize the rules — especially "we" over "I", concrete before abstract, and no buzzwords.
 
@@ -74,13 +72,13 @@ Consult `references/linkedin-formats.md` for format constraints and structure gu
 
 4. **Iterate with the user.** Present the draft and audit together. Incorporate feedback. Re-audit after significant changes.
 
-### Phase 5: Add References
+## Phase 5: Add References
 
 1. **Inline links.** Every claim backed by external data must include a hyperlink at the point of reference.
 2. **Sources section.** Add a sources section at the bottom of articles with linked citations.
 3. **Verify links.** Use WebFetch to confirm linked URLs are accessible and point to the expected content.
 
-### Phase 6: Source and Embed Images
+## Phase 6: Source and Embed Images
 
 For articles (not posts), find and embed supporting visuals:
 
@@ -96,7 +94,7 @@ For articles (not posts), find and embed supporting visuals:
 
 4. **Handle gated content.** If the best visual is behind a paywall or login, add a blockquote with download instructions and attribution line for the user to complete manually.
 
-### Phase 7: Export
+## Phase 7: Export
 
 Save deliverables to `output/linkedin/`:
 
