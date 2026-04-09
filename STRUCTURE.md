@@ -30,20 +30,32 @@ job-seeker/
 │   └── marketplace.json     ← Marketplace catalog for plugin installation
 │
 ├── skills/                  ← One subdirectory per skill
+│   ├── _shared/             ← Shared modules referenced by multiple skills
+│   │   ├── preflight.md
+│   │   ├── state-io.md
+│   │   ├── ats-verification.md
+│   │   ├── url-quality.md
+│   │   ├── company-extraction.md
+│   │   ├── apple-notes.md
+│   │   └── batching.md
 │   ├── daily-digest/
-│   │   └── SKILL.md
+│   │   ├── SKILL.md
+│   │   ├── scoring-rules.md
+│   │   └── source-strategy.md
 │   ├── why-this-company/
 │   │   └── SKILL.md
 │   ├── cover-letter/
 │   │   └── SKILL.md
 │   ├── resume-tailor/
-│   │   └── SKILL.md
+│   │   ├── SKILL.md
+│   │   └── tailoring-rules.md
 │   ├── company-research/
 │   │   └── SKILL.md
 │   ├── interview-prep/
 │   │   └── SKILL.md
 │   ├── application-tracker/
-│   │   └── SKILL.md
+│   │   ├── SKILL.md
+│   │   └── pipeline-schema.md
 │   ├── networking-outreach/
 │   │   └── SKILL.md
 │   ├── setup/
@@ -51,7 +63,9 @@ job-seeker/
 │   ├── linkedin-article/
 │   │   └── SKILL.md
 │   └── scan-email/
-│       └── SKILL.md
+│       ├── SKILL.md
+│       ├── classification-rules.md
+│       └── body-extraction.md
 │
 ├── commands/                ← Slash command definitions (one .md per command)
 │   ├── pipeline.md
@@ -105,9 +119,16 @@ job-seeker/
 ## Directory Rules
 
 ### `skills/`
-One subdirectory per skill, each containing a `SKILL.md`.
+One subdirectory per skill, each containing a `SKILL.md` orchestrator.
+Skills may also have local sub-modules (e.g., `scoring-rules.md`) for
+skill-specific logic that would bloat the orchestrator.
 
-**What belongs here**: Skill prompt text, step-by-step behavior, invocation patterns.
+**`skills/_shared/`** contains modules referenced by multiple skills via
+`Read` directives (e.g., `Read skills/_shared/preflight.md and execute`).
+These are the single source of truth for shared logic like config
+validation, state I/O, ATS verification, and URL quality rules.
+
+**What belongs here**: Skill orchestrators, local sub-modules, shared modules.
 **What does not belong here**: Config values, executable scripts, specs.
 
 ### `scripts/`
@@ -161,6 +182,8 @@ Test suites and manual test protocols.
 ## File Placement Decision Tree
 
 1. **Is it a skill definition?** → `skills/{skill-name}/SKILL.md`
+1a. **Is it logic shared across multiple skills?** → `skills/_shared/`
+1b. **Is it skill-specific logic extracted from a SKILL.md?** → `skills/{skill-name}/`
 2. **Is it an executable script?** → `scripts/`
 3. **Is it a user-specific value (folder name, plugin path)?** → `integrations/config/` as `.example` + gitignored actual
 4. **Is it an adapter doc (how to talk to a system)?** → `integrations/adapters/`

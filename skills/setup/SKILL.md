@@ -13,6 +13,12 @@ allowed-tools: Read, Write, Edit, Bash, Glob, AskUserQuestion
 Reports configuration status and interactively walks the user through any
 missing or incomplete pieces. Safe to re-run anytime as a health check.
 
+## Phase 0 — Preflight
+
+Read `skills/_shared/preflight.md` and execute, but display validate-config
+output even on success — setup's purpose is to show config status. Do NOT
+fail-fast on validation errors; capture them for the status dashboard instead.
+
 ---
 
 ## Phase 1 — Status Dashboard

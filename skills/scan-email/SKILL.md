@@ -1,429 +1,218 @@
 ---
 name: scan-email
 description: >
-  Scan Apple Mail inbox for job alert emails from Indeed, LinkedIn, Glassdoor,
-  and other sources. Extracts role URLs, deduplicates against seen-postings,
-  verifies via ATS APIs, and presents new roles for confirmation. Read-only —
-  never modifies emails. Output appended to seen-postings and preferences.
+  Scan Apple Mail and/or Gmail for job alert emails from Indeed, LinkedIn,
+  Glassdoor, and other sources. Extracts role URLs, deduplicates against
+  seen-postings (and cross-deduplicates between sources), verifies via ATS
+  APIs, and presents new roles for confirmation. Processed Apple Mail alerts
+  are trashed; Gmail alerts are reported for manual cleanup (MCP limitation).
+  Output appended to seen-postings and preferences.
   Triggers: "scan my email", "check mail for jobs", "any job emails", "scan inbox"
 allowed-tools: Read, Write, Edit, Bash, WebSearch, WebFetch, Glob
 ---
 
 # Scan Email
 
-Scans an Apple Mail inbox for job alert emails, extracts role URLs, verifies
-them via ATS APIs, and presents new roles for the user to confirm before
-adding to seen-postings.
+Scans Apple Mail and/or Gmail for job alert emails, extracts role URLs,
+verifies them via ATS APIs, and presents new roles for the user to confirm
+before adding to seen-postings. At least one source (Apple Mail or Gmail)
+must be configured.
 
-## Before You Start
+## Phase 0 — Preflight
 
-1. Run `node scripts/validate-config.js` — if it exits non-zero, stop and
-   show the error
-2. Read `PRINCIPLES.md` — quality standards and privacy constraints
-3. Read `config/candidate.md` — candidate name
-4. Read `config/search.md` — target role titles, comp floor, location
-   constraints, companies to skip, title exclusions, staffing/aggregator
-   exclusions
-5. Read `references/email-patterns.md` — sender domains, title keywords,
-   skip rules, URL extraction patterns
-6. Check `integrations/config/mail-config.md` exists. If not, stop:
-   > "Apple Mail is not configured. Copy `integrations/config/mail-config.md.example`
-   > to `mail-config.md` and update the account name and inbox. See the setup
-   > skill for guidance."
-7. Read `integrations/config/mail-config.md` to get `account_name` and
-   `inbox_name`
-8. Determine `plugin_root`: if `integrations/config/notes-config.md` exists,
-   read `plugin_root` from it. Otherwise use the current working directory.
-9. Glob `output/*-seen-postings.md`, sort descending, read the most recent
-   file. Build a dedup set of all known URLs and (company_name_lowercase,
-   role_title_lowercase) pairs. If no file exists, treat as empty.
-10. Glob `output/*-preferences.md`, sort descending, read the most recent
-    file (if exists) for source effectiveness context.
+Read `skills/_shared/preflight.md` and execute.
 
----
+Read `skills/_shared/batching.md` for reference — all phases follow the
+batching protocol.
 
-## Phase 1 — Verify Apple Mail
+Additionally:
+- Read `references/email-patterns.md` — sender domains, title keywords,
+  skip rules, URL extraction patterns
 
-Before scanning, confirm Apple Mail is accessible.
+## Phase 0a — Source Configuration
 
-### Step 1a: Check if Apple Mail is running
+Determine available sources:
+- **Apple Mail**: Check if `integrations/config/mail-config.md` exists.
+  If yes, read `account_name` and `inbox_name`. Set `apple_mail_enabled = true`.
+- **Gmail**: Check if `integrations/config/gmail-config.md` exists and
+  `enabled: true`. If yes, read `email`, `max_results`, `lookback_days`.
+  Set `gmail_enabled = true`.
+- If neither source is configured, stop:
+  > "No email sources configured. Set up at least one:
+  > - Apple Mail: copy `integrations/config/mail-config.md.example` to `mail-config.md`
+  > - Gmail: copy `integrations/config/gmail-config.md.example` to `gmail-config.md`
+  > See the setup skill for guidance."
 
+Determine `plugin_root`: if `integrations/config/notes-config.md` exists,
+read `plugin_root`. Otherwise use the current working directory.
+
+## Phase 0b — State
+
+Read `skills/_shared/state-io.md` and execute the read pattern for:
+- `seen-postings` — build dedup set of all known URLs
+- `preferences` — for source effectiveness context
+
+Additionally, build dedup tuples of `(company_name_lowercase,
+role_title_lowercase)` pairs from seen-postings for fuzzy matching.
+
+Report which sources are active:
+> "Scanning: {Apple Mail (account_name/inbox_name) | Gmail (email) | both}"
+
+## Phase 1 — Verify Sources
+
+### Phase 1A: Verify Apple Mail (skip if `apple_mail_enabled = false`)
+
+**Step 1Aa**: Check if Apple Mail is running:
 ```bash
 osascript -e 'tell application "System Events" to (name of processes) contains "Mail"'
 ```
+If `false`, warn and ask to proceed (auto-launch) or skip to Gmail.
 
-If this returns `false`, warn the user:
-> "Apple Mail is not currently running. Running the scan will auto-launch it,
-> which may take a moment. Proceed?"
-
-If the user declines, stop.
-
-### Step 1b: Verify account and mailbox
-
-Run a 1-message scan to verify connectivity:
-
+**Step 1Ab**: Verify account and mailbox — scan 1 message:
 ```bash
 osascript {plugin_root}/scripts/apple_mail_scan.applescript "{account_name}" "{inbox_name}" 1 1
 ```
+Handle: valid record (ready), `ACCOUNT_NOT_FOUND`, `MAILBOX_NOT_FOUND`, `error:`.
 
-| Result | Action |
-|--------|--------|
-| Valid record | Proceed to Phase 2 |
-| `ACCOUNT_NOT_FOUND` | Stop: "Could not find a mail account matching '{account_name}'. Check `integrations/config/mail-config.md`." |
-| `MAILBOX_NOT_FOUND` | Stop: "Could not find mailbox '{inbox_name}' in the '{account_name}' account. Check Apple Mail for the correct inbox name." |
-| `error: ...` | Stop: show the error |
+### Phase 1G: Verify Gmail (skip if `gmail_enabled = false`)
 
----
+Test connection: `[gmail_get_profile]`. Handle: success (ready), MCP error (skip).
 
-## Phase 2 — Batch Metadata Scan
+If both sources fail, stop.
 
-Scan the inbox in sequential batches of 10 messages. After each batch,
-classify messages before fetching the next batch.
+## Phase 2 — Apple Mail Metadata Scan (skip if `apple_mail_enabled = false`)
 
-### Batches
-
-Scan up to 5 batches sequentially:
-- Batch 1: messages 1–10
-- Batch 2: messages 11–20
-- Batch 3: messages 21–30
-- Batch 4: messages 31–40
-- Batch 5: messages 41–50
-
-For each batch:
+Scan inbox in sequential batches of 10 messages (up to 5 batches = 50 messages):
 
 ```bash
 osascript {plugin_root}/scripts/apple_mail_scan.applescript "{account_name}" "{inbox_name}" {start} {end}
 ```
 
-If the script returns `NO_MESSAGES`, stop scanning (all messages processed).
+If `NO_MESSAGES`, stop scanning.
 
-### Classification
+Read `skills/scan-email/classification-rules.md` and execute for each record.
 
-For each record returned (parsed as subject, sender, date_received,
-message_index):
+## Phase 2G — Gmail Metadata Scan (skip if `gmail_enabled = false`)
 
-**Step 2a: Sender match** — Check if the sender's email domain matches any
-job alert sender pattern from `references/email-patterns.md` → Job Alert
-Senders table. If no match, skip. **Note**: `@google.com` is a conditional
-match — only classify as a job alert if the subject also contains "Google
-Alert" (otherwise it's a regular Google notification).
+Build search queries from sender domains in `references/email-patterns.md`.
+Execute via `[gmail_search_messages]`. Paginate if needed.
 
-**Step 2b: Subject pre-filter** — Check if the subject contains at least
-one title keyword from `references/email-patterns.md` → Title Keywords
-section (cross-referenced with `config/search.md` Target Role Titles).
-Normalize common abbreviations before matching: "Sr." / "Sr " → "Senior".
-If no title keyword after normalization, skip.
+Read `skills/scan-email/classification-rules.md` and execute for each result.
 
-**Step 2c: Skip rules** — Apply each skip rule from `references/email-patterns.md`:
-- Newsletter/digest summaries (subject contains "weekly digest", etc.)
-- Marketing/promotional emails
-- Emails older than 7 days (compare date_received to today)
-- Company already in seen-postings dedup set (fuzzy match on company name
-  extracted from subject)
+## Phase 3 — Body Fetch (Apple Mail)
 
-**Step 2d: Company skip** — If a company name can be extracted from the
-subject, check against `config/search.md` Companies to Skip list.
+Skip if no Apple Mail candidates.
 
-Messages that pass all filters become **candidates** for body fetch.
+Read `skills/scan-email/body-extraction.md` and execute for Apple Mail candidates.
 
-**Early stop**: If 20+ candidates have been identified, stop scanning
-remaining batches.
+## Phase 3G — Body Fetch (Gmail)
 
----
+Skip if no Gmail candidates.
 
-## Phase 3 — Body Fetch
-
-**Issue ALL body fetch calls in a single message** (batching protocol —
-never one at a time).
-
-For each candidate from Phase 2, use the `message_index` captured during
-the metadata scan. **Do NOT re-derive the index** — always use the stored
-value from Phase 2. Message indices can shift if new mail arrives between
-phases.
-
-```bash
-osascript {plugin_root}/scripts/apple_mail_read.applescript "{account_name}" "{inbox_name}" {message_index}
-```
-
-### Parsing the response
-
-**If response starts with `HTML:`** — extract URLs from the HTML source:
-1. Find all `href="..."` attribute values using regex
-2. Filter for known ATS URL patterns (see `references/email-patterns.md` →
-   URL Extraction Patterns)
-3. If URLs are tracking redirects (Indeed `rc/clk/`, LinkedIn `/comm/`,
-   etc.), note them for redirect resolution in Phase 4
-
-**If response starts with `TEXT:`** — extract URLs from plaintext:
-1. Find all URLs matching `https?://[^\s<>"]+` pattern
-2. Filter for known ATS URL patterns
-
-**If response starts with `BODY_UNAVAILABLE:`** — classification failed
-for this message. Add it to the results table with a note: "body unavailable
-— classified on subject/sender only".
-
-**If response is `ACCOUNT_NOT_FOUND` or `MAILBOX_NOT_FOUND`** — the mail
-account became unavailable mid-scan. Stop all remaining body fetches and
-report the error to the user.
-
-**If response is `MESSAGE_NOT_FOUND`** — the message was deleted or moved
-between the scan and body fetch phases. Skip this message and note
-"message moved/deleted since scan" in the results.
-
-**If response starts with `error:`** — an unexpected error occurred. Log
-the error, skip this message, and continue with remaining fetches.
-
-If some calls in the batch fail while others succeed, process successful
-results normally and handle failures per the rules above.
-
-### URL extraction
-
-For each email, extract:
-- **Job URL(s)** — direct ATS posting URLs or career page URLs
-- **Company name** — from the email subject, body content, or URL domain
-- **Role title** — from the email subject or body content
-- **Location** — if mentioned in the body
-- **Comp range** — if mentioned in the body
-
-If no job URL is found in the body despite matching sender/subject patterns,
-flag the role for **WebSearch fallback** in Phase 4.
-
----
+Read `skills/scan-email/body-extraction.md` and execute for Gmail candidates.
 
 ## Phase 4 — Dedup, Filter, and Verify
 
-### Step 4a: Resolve tracking redirects
+### Step 4a: Cross-source dedup
+Deduplicate across Apple Mail and Gmail. Same URL or same company+title → keep
+the entry with more extracted data. Tag survivors with `source: both`.
 
-For any tracking redirect URLs identified in Phase 3, attempt to resolve
-them. Issue all redirect resolution calls in a single batched message:
+### Step 4b: Resolve tracking redirects
+Read `skills/_shared/url-quality.md` for tracking redirect guidance.
+Issue all resolution calls in a single batched message.
 
-```
-[WebFetch: {tracking_url_1}] [WebFetch: {tracking_url_2}] ...
-```
+### Step 4c: Dedup against seen-postings
+Normalize URLs (strip query params, trailing slashes). Check against dedup set.
 
-Use the resolved URL (final destination) for dedup and verification.
+### Step 4d: Apply search filters
+Read `skills/_shared/url-quality.md` and execute title normalization.
+Apply filters from `config/search.md`: title exclusions, location constraints,
+staffing/aggregator exclusions, company skip list.
 
-### Step 4b: Dedup against seen-postings
+### Step 4e: Verify URLs via ATS APIs
+Read `skills/_shared/ats-verification.md` and execute.
 
-For each extracted role:
-1. Normalize the URL (strip query params, trailing slashes)
-2. Check against the dedup set built in Before You Start step 8
-3. If the URL or (company, title) pair already exists, skip
-
-### Step 4c: Apply search filters
-
-For surviving roles, apply filters from `config/search.md`:
-- Normalize abbreviations before title matching: "Sr." / "Sr " → "Senior"
-- Title exclusions (VP of Reliability, Sales Engineering, etc.)
-- Location constraints (reject 100% in-office outside Austin, relocation)
-- Staffing/aggregator company exclusions
-- Company skip list (if not already caught in Phase 2)
-
-### Step 4d: Verify URLs via ATS APIs
-
-**Issue ALL verification calls in a single message** (batching protocol).
-
-Route each URL through the ATS API verification logic from
-`integrations/adapters/ats-apis.md`:
-
-| URL pattern | Method |
-|-------------|--------|
-| `boards.greenhouse.io/{company}/jobs/{id}` or `job-boards.greenhouse.io/{company}/jobs/{id}` | `GET https://boards-api.greenhouse.io/v1/boards/{company}/jobs/{id}` |
-| `jobs.lever.co/{company}/{id}` | `GET https://api.lever.co/v0/postings/{company}/{id}` |
-| `jobs.ashbyhq.com/{company}` | `GET https://api.ashbyhq.com/posting-api/job-board/{company}` (match by title) |
-| Anything else | WebFetch (check for 404 or "no longer accepting" text) |
-
-**Interpreting results:**
-- 200 + job data → open, include in results
-- 404 → closed, exclude
-- API error → fall back to WebFetch for that URL
-
-Extract `posted:YYYY-MM-DD` from ATS API responses where available (see
-`references/email-patterns.md` → URL Extraction Patterns and the daily-digest
-skill Phase 2 for field mapping).
-
-### Step 4e: WebSearch fallback
-
-For roles where no URL was extracted from the email body (flagged in
-Phase 3), attempt to find a direct posting:
-
+### Step 4f: WebSearch fallback
+For roles with no URL from body extraction:
 ```
 [WebSearch: {company} {role_title} careers site:greenhouse.io OR site:lever.co OR site:ashbyhq.com]
 ```
 
-If found, verify the URL using Step 4d. If not found, include the role in
-results with a note: "No direct link found — check manually".
-
----
-
 ## Phase 5 — Present Results
 
-Show a confirmation table with all verified roles:
+Show a confirmation table:
 
 ```
 | # | Company | Role | Source | Location | Comp | Link | Status |
 |---|---------|------|--------|----------|------|------|--------|
-| 1 | TrueML | VP of Software Engineering | Indeed | Remote | $225K-$325K | [View](url) | Verified ✓ |
-| 2 | Acme Corp | Head of Engineering | LinkedIn | Austin | — | [View](url) | Verified ✓ |
-| 3 | Beta Inc | VP Engineering | Glassdoor | Remote | — | — | No link found |
+| 1 | TrueML | VP of Software Engineering | Indeed (Gmail) | Remote | $225K-$325K | [View](url) | Verified ✓ |
 ```
 
-Below the table, show:
-- **Skipped**: N roles already in seen-postings, M excluded by filters,
-  K postings closed
-- **Errors**: Any messages that failed body fetch (classified on subject only)
+Source column: alert source with email channel in parentheses: `(Mail)`,
+`(Gmail)`, or `(both)`.
 
-If no new roles found but job alert emails were body-fetched (all roles
-filtered out):
-> "No new roles found in {account_name}/{inbox_name} — {M} job alert
-> emails were scanned but all roles were already seen or excluded by
-> filters. Move these {M} processed alerts to Trash?"
+Show: skipped counts, errors, sources scanned.
 
-If roles were found, ask:
-> "Should I add these {N} roles to your seen-postings? All {M} processed
-> job alert emails (including those where every role was filtered out)
-> will be moved to Trash after confirmation. Let me know if any need
-> adjusting."
-
----
+Ask for confirmation before writing state.
 
 ## Phase 6 — State Updates
 
-After user confirmation, write state updates.
+After user confirmation:
 
-### Seen Postings
+Read `skills/_shared/state-io.md` and execute the append pattern for:
+- `seen-postings` — confirmed roles with `source:email-{source_label}` tags
+- `preferences` — per-source effectiveness counts
 
-Glob `output/*-seen-postings.md`, sort descending, read the most recent file.
-Append confirmed roles under a new date section:
+### Apple Notes sync (optional)
+Read `skills/_shared/apple-notes.md` and execute the update operation for
+the Seen Postings note.
 
-```
-## YYYY-MM-DD (email scan)
-- {Company} | {Title} | {URL} | posted:YYYY-MM-DD | source:email-{source_label}
-```
+### Trash Apple Mail alerts
+Skip if `apple_mail_enabled = false` or no Apple Mail candidates body-fetched.
 
-Use `posted:YYYY-MM-DD` if the ATS API returned a posting date during
-verification. Otherwise use `discovered:YYYY-MM-DD` (today's date).
-
-The `source:email-{source_label}` tag uses the source label from
-`references/email-patterns.md` (e.g., `source:email-indeed`,
-`source:email-linkedin`).
-
-If no seen-postings file exists, create `output/YYYY-MM-DD-seen-postings.md`.
-
-### Preferences
-
-Glob `output/*-preferences.md`, sort descending, read the most recent file.
-Append source effectiveness:
-
-```
-## YYYY-MM-DD
-### Email Scan
-- Apple Mail ({account_name}): {N} new roles found, {M} already seen, {K} excluded
-- Sources: Indeed ({n1}), LinkedIn ({n2}), Glassdoor ({n3}), Other ({n4})
-```
-
-If no preferences file exists, create `output/YYYY-MM-DD-preferences.md`.
-
-### Apple Notes (optional)
-
-If `integrations/config/notes-config.md` exists, sync the updated
-seen-postings note using the update script:
-
+Trash in **descending index order** (highest first to prevent index shifting):
 ```bash
-osascript {plugin_root}/scripts/apple_notes_update.applescript "{prefix} - Seen Postings" "{html_body}" "{default_folder}"
+osascript {plugin_root}/scripts/apple_mail_trash.applescript "{account_name}" "{inbox_name}" {index}
 ```
 
-Where `{prefix}` is the Apple Notes Prefix from `config/search.md`.
-Apple Notes sync errors are non-blocking — the output/ files are the
-source of truth.
+Handle: `MESSAGE_NOT_FOUND` (skip), `TRASH_NOT_FOUND` (stop all trash calls).
 
-### Trash Processed Alerts
+### Gmail cleanup report
+Skip if `gmail_enabled = false` or no Gmail candidates body-fetched.
 
-After state writes complete, move processed job alert emails to Trash.
-All emails that matched a job alert sender pattern AND had their body
-fetched are trashed — regardless of whether any individual roles survived
-Phase 4 filtering. The email was processed; keeping it in the inbox adds
-clutter. Skipped/unmatched emails (those that never had their body fetched)
-remain in the inbox.
-
-**Issue all trash calls in a single message** (batching protocol). Use
-the stored `message_index` values from Phase 2/3. **Trash in descending
-index order** — higher indices first — to prevent index shifting from
-invalidating remaining indices.
-
-```bash
-osascript {plugin_root}/scripts/apple_mail_trash.applescript "{account_name}" "{inbox_name}" {index_highest}
-osascript {plugin_root}/scripts/apple_mail_trash.applescript "{account_name}" "{inbox_name}" {index_next}
-# ... one call per processed alert, descending index order
-```
-
-If a trash call returns `MESSAGE_NOT_FOUND`, the message was already
-moved or deleted — skip and continue. If it returns `TRASH_NOT_FOUND`,
-log the error and skip all remaining trash calls (the Trash mailbox
-is missing for the account).
-
-Report: "Moved {N} processed alert emails to Trash."
-
-If any trash calls fail, report: "Moved {N} of {M} alert emails to
-Trash. {K} could not be moved: {reason}."
-
----
+Report processed messages for manual cleanup (Gmail MCP cannot trash).
 
 ## Error Handling
 
 | Condition | Behavior |
 |-----------|----------|
-| `mail-config.md` missing | Stop: show config guidance |
-| Apple Mail not running | Warn, ask to proceed (auto-launch) or stop |
-| Account not found | Stop: "Could not find account '{account_name}'" |
-| Mailbox not found | Stop: "Could not find mailbox '{inbox_name}'" |
-| Individual body fetch fails (`BODY_UNAVAILABLE`) | Classify on subject/sender only, note in results |
-| Message moved/deleted since scan (`MESSAGE_NOT_FOUND`) | Skip message, note "message moved/deleted since scan" in results |
-| Account/mailbox lost mid-scan | Stop remaining fetches, report error |
-| ATS verification fails | WebFetch fallback per standard adapter |
-| Tracking redirect resolution fails | Use original URL, note "unresolved redirect" |
-| osascript timeout on batch | Reduce remaining batches to 5 messages, note slowdown |
-| No job-related emails found | Report: "No new job-related emails in {account}/{inbox}" |
-| Seen-postings file doesn't exist | Create `output/YYYY-MM-DD-seen-postings.md` |
-| Trash mailbox not found (`TRASH_NOT_FOUND`) | Log error, skip all remaining trash calls |
-| Individual trash call fails (`MESSAGE_NOT_FOUND`) | Skip, continue trashing remaining |
-| Trash call returns `error:` | Log error, skip that message, continue |
-
----
+| Neither source configured | Stop: show config guidance |
+| Source config missing | Skip that source, continue with other |
+| Apple Mail not running | Warn, ask to proceed or skip |
+| Account/mailbox not found | Skip source, continue with other |
+| Gmail MCP error | Skip Gmail, continue with Apple Mail |
+| Body fetch fails | Classify on subject/sender only |
+| Message moved/deleted | Skip, note in results |
+| ATS verification fails | WebFetch fallback |
+| Redirect resolution fails | Use original URL |
+| osascript timeout | Reduce batch size, note slowdown |
+| No job emails found | Report per source |
 
 ## Key Constraints
 
-- **Read + trash only** — processed job alert emails are moved to Trash
-  after user confirmation. Unmatched emails are never touched. Emails are
-  never marked as read or moved to any mailbox other than Trash.
-- **10-message batches** — osascript times out on larger loops
-- **50-message cap** — at most 50 messages scanned per session
-- **User confirmation required** — state is only written after user approves
-- **Never fabricate roles** — only extract what the email actually contains
-- **Batching protocol** — all body fetches in one message, all verifications
-  in one message (never one at a time)
-
----
+- At least one source required
+- Apple Mail: read + trash; Gmail: read only
+- Cross-source dedup — same role counted once
+- 10-message batches (Apple Mail osascript limit)
+- 50-message cap per source
+- User confirmation required before state writes
+- Never fabricate roles
+- Graceful degradation between sources
 
 ## Future Enhancements
 
-> Not implemented in v1. Documented for when the need arises.
+> Not implemented. Documented for when the need arises.
 
-### Application Status Detection (v2)
-
-Detect emails from Greenhouse, Lever, and Ashby that indicate application
-status changes (received, interview scheduled, rejected). Update
-`output/*-applications.md` accordingly. Patterns documented in
-`references/email-patterns.md` → Future: Application Status Patterns.
-
-### Recruiter Outreach Surfacing (v2)
-
-Detect cold emails from recruiters or hiring managers that match title
-keywords. Present in a separate "Recruiter Outreach" section for manual
-review. Patterns documented in `references/email-patterns.md` → Future:
-Recruiter Outreach Patterns.
-
-### Gmail Cross-Reference (v2)
-
-Dedup extracted roles against Gmail MCP scan results to avoid processing
-the same alert from both iCloud and Gmail accounts.
+- Application status detection (Greenhouse/Lever/Ashby status change emails)
+- Recruiter outreach surfacing
+- Gmail trash support (when MCP adds message modification)

@@ -50,7 +50,7 @@ for (const line of lines) {
   // Skill subdirectory: inside skills block, one level of │ nesting
   if (inSkillsBlock) {
     const skillMatch = line.match(/^│\s+[├└]── ([\w-]+)\//);
-    if (skillMatch) {
+    if (skillMatch && skillMatch[1] !== '_shared') {
       documentedSkills.add(skillMatch[1]);
     }
     // Exit skills block when we hit a line without │ prefix (next top-level dir)
@@ -99,9 +99,11 @@ for (const dir of actualDirs) {
 
 const skillsDir = path.join(root, 'skills');
 const actualSkills = new Set();
+// Directories under skills/ that are not skills (no SKILL.md, not in plugin.json)
+const nonSkillDirs = new Set(['_shared']);
 if (fs.existsSync(skillsDir)) {
   for (const entry of fs.readdirSync(skillsDir, { withFileTypes: true })) {
-    if (entry.isDirectory()) {
+    if (entry.isDirectory() && !nonSkillDirs.has(entry.name)) {
       actualSkills.add(entry.name);
     }
   }
