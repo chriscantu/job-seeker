@@ -197,6 +197,44 @@ describe('state.js CLI', () => {
       assert.ok(exitCode !== 0);
     });
 
+    it('close moves entry to closed', () => {
+      run(`create applications '${APP_ENTRY}'`, { outputDir: appTmpDir });
+      run('close applications --company TestCorp --reason rejected --summary "No response"', { outputDir: appTmpDir });
+      const { stdout } = run('read applications', { outputDir: appTmpDir });
+      const data = JSON.parse(stdout);
+      const closed = data.filter(e => e.stage && e.stage.startsWith('Closed'));
+      assert.equal(closed.length, 1);
+      assert.equal(closed[0].company, 'TestCorp');
+    });
+
+    it('reopen moves closed entry back to active', () => {
+      run(`create applications '${APP_ENTRY}'`, { outputDir: appTmpDir });
+      run('close applications --company TestCorp --reason rejected --summary "No response"', { outputDir: appTmpDir });
+      run('reopen applications --company TestCorp --stage Screen --detail "Recruiter called back"', { outputDir: appTmpDir });
+      const { stdout } = run('read applications', { outputDir: appTmpDir });
+      const data = JSON.parse(stdout);
+      const entry = data.find(e => e.company === 'TestCorp');
+      assert.equal(entry.stage, 'Screen');
+      assert.equal(entry.closed, null);
+    });
+
+    it('update rejects Closed stage via CLI', () => {
+      run(`create applications '${APP_ENTRY}'`, { outputDir: appTmpDir });
+      const { exitCode } = run('update applications --company TestCorp --stage Closed', { expectError: true, outputDir: appTmpDir });
+      assert.ok(exitCode !== 0);
+    });
+
+    it('close exits non-zero for missing --reason', () => {
+      run(`create applications '${APP_ENTRY}'`, { outputDir: appTmpDir });
+      const { exitCode } = run('close applications --company TestCorp', { expectError: true, outputDir: appTmpDir });
+      assert.ok(exitCode !== 0);
+    });
+
+    it('reopen exits non-zero for missing --stage', () => {
+      const { exitCode } = run('reopen applications --company TestCorp', { expectError: true, outputDir: appTmpDir });
+      assert.ok(exitCode !== 0);
+    });
+
     it('read --stage filters entries', () => {
       run(`create applications '${APP_ENTRY}'`, { outputDir: appTmpDir });
       const second = JSON.stringify({

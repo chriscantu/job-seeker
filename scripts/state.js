@@ -25,7 +25,7 @@ const ROOT = path.resolve(__dirname, '..');
 const OUTPUT_DIR = process.env.OUTPUT_DIR || path.join(ROOT, 'output');
 
 const SEEN_POSTINGS_COMMANDS = ['query', 'dedup-check', 'flag'];
-const APPLICATIONS_COMMANDS = ['update', 'add-note', 'create'];
+const APPLICATIONS_COMMANDS = ['update', 'add-note', 'create', 'close', 'reopen'];
 
 function usage() {
   console.error(`Usage: bun scripts/state.js <command> <type> [args]
@@ -38,6 +38,8 @@ Commands:
   flag seen-postings --url <url> --add <flag>  Mutate an entry's flags
   create applications '<json>'     Create a new application entry
   update applications --company <name> --stage <stage> [--detail <text>]  Update application stage
+  close applications --company <name> --reason <reason> [--summary <text>]  Close an application
+  reopen applications --company <name> --stage <stage> [--detail <text>]  Reopen a closed application
   add-note applications --company <name> --note <text>  Append a note to an application
 
 Types: seen-postings, preferences, applications
@@ -57,6 +59,8 @@ Examples:
   bun scripts/state.js read applications --stage Applied
   bun scripts/state.js create applications '{"company":"Acme","title":"VP Eng","stage":"Applied"}'
   bun scripts/state.js update applications --company acme --stage Screen
+  bun scripts/state.js close applications --company acme --reason rejected --summary "No response"
+  bun scripts/state.js reopen applications --company acme --stage Screen --detail "Recruiter reached out"
   bun scripts/state.js add-note applications --company acme --note "Great call with CTO"`);
   process.exit(1);
 }
@@ -126,6 +130,12 @@ function main() {
         break;
       case 'add-note':
         handleAddNote(args.slice(2));
+        break;
+      case 'close':
+        handleClose(args.slice(2));
+        break;
+      case 'reopen':
+        handleReopen(args.slice(2));
         break;
       case 'create':
         handleCreate(type, args[2]);
@@ -251,6 +261,42 @@ function handleAddNote(remainingArgs) {
   applications.addNote(OUTPUT_DIR, {
     company: opts.company,
     note: opts.note,
+  });
+  console.log(JSON.stringify({ success: true }));
+}
+
+function handleClose(remainingArgs) {
+  const opts = parseArgs(remainingArgs);
+  if (!opts.company) {
+    console.error('close requires --company');
+    process.exit(1);
+  }
+  if (!opts.reason) {
+    console.error('close requires --reason');
+    process.exit(1);
+  }
+  applications.closeApplication(OUTPUT_DIR, {
+    company: opts.company,
+    reason: opts.reason,
+    summary: opts.summary || null,
+  });
+  console.log(JSON.stringify({ success: true }));
+}
+
+function handleReopen(remainingArgs) {
+  const opts = parseArgs(remainingArgs);
+  if (!opts.company) {
+    console.error('reopen requires --company');
+    process.exit(1);
+  }
+  if (!opts.stage) {
+    console.error('reopen requires --stage');
+    process.exit(1);
+  }
+  applications.reopenApplication(OUTPUT_DIR, {
+    company: opts.company,
+    stage: opts.stage,
+    detail: opts.detail || null,
   });
   console.log(JSON.stringify({ success: true }));
 }
