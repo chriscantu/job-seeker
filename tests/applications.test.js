@@ -11,6 +11,9 @@ const {
   formatApplication,
   formatApplicationsFile,
   createApplication,
+  updateApplication,
+  addNote,
+  findApplication,
 } = require('../scripts/lib/applications');
 
 const FIXTURES = path.join(__dirname, 'fixtures');
@@ -333,6 +336,137 @@ describe('applications parser', () => {
         () => createApplication(tmpDir, { company: '', title: 'VP Engineering', stage: 'Applied' }),
         /Invalid application entry/
       );
+    });
+  });
+
+  describe('updateApplication', () => {
+    let tmpDir;
+
+    beforeEach(() => {
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'app-update-test-'));
+      createApplication(tmpDir, {
+        company: 'Maven',
+        title: 'VP Engineering',
+        stage: 'Applied',
+      });
+    });
+
+    afterEach(() => {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    });
+
+    it('transitions stage and appends history', () => {
+      updateApplication(tmpDir, { company: 'Maven', stage: 'Screen' });
+      const { active } = parseApplications(tmpDir);
+      const entry = active.find(e => e.company === 'Maven');
+      assert.equal(entry.stage, 'Screen');
+      assert.equal(entry.history.length, 2);
+      assert.equal(entry.history[1].stage, 'Screen');
+    });
+
+    it('updates lastActivity date to today', () => {
+      const today = new Date().toISOString().slice(0, 10);
+      updateApplication(tmpDir, { company: 'Maven', stage: 'Screen' });
+      const { active } = parseApplications(tmpDir);
+      const entry = active.find(e => e.company === 'Maven');
+      assert.equal(entry.lastActivity.date, today);
+    });
+
+    it('finds company case-insensitively', () => {
+      updateApplication(tmpDir, { company: 'maven', stage: 'Screen' });
+      const { active } = parseApplications(tmpDir);
+      const entry = active.find(e => e.company === 'Maven');
+      assert.equal(entry.stage, 'Screen');
+    });
+
+    it('finds company by substring', () => {
+      updateApplication(tmpDir, { company: 'Mav', stage: 'Screen' });
+      const { active } = parseApplications(tmpDir);
+      const entry = active.find(e => e.company === 'Maven');
+      assert.equal(entry.stage, 'Screen');
+    });
+
+    it('throws for invalid stage', () => {
+      assert.throws(
+        () => updateApplication(tmpDir, { company: 'Maven', stage: 'Vibing' }),
+        /stage must be one of/
+      );
+    });
+
+    it('throws for no matching company', () => {
+      assert.throws(
+        () => updateApplication(tmpDir, { company: 'Nonexistent', stage: 'Screen' }),
+        /No application found/
+      );
+    });
+
+    it('throws for ambiguous match', () => {
+      createApplication(tmpDir, {
+        company: 'Maven Clinic',
+        title: 'VP Engineering',
+        stage: 'Applied',
+      });
+      assert.throws(
+        () => updateApplication(tmpDir, { company: 'Maven', stage: 'Screen' }),
+        /Multiple applications match/
+      );
+    });
+  });
+
+  describe('addNote', () => {
+    let tmpDir;
+
+    beforeEach(() => {
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'app-note-test-'));
+      createApplication(tmpDir, {
+        company: 'Maven',
+        title: 'VP Engineering',
+        stage: 'Applied',
+      });
+    });
+
+    afterEach(() => {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    });
+
+    it('appends note text to notes field', () => {
+      addNote(tmpDir, { company: 'Maven', note: 'Cover letter generated 2026-04-09' });
+      const { active } = parseApplications(tmpDir);
+      const entry = active.find(e => e.company === 'Maven');
+      assert.ok(entry.notes.includes('Cover letter generated 2026-04-09'));
+    });
+
+    it('appends history entry with note as detail', () => {
+      addNote(tmpDir, { company: 'Maven', note: 'Cover letter generated 2026-04-09' });
+      const { active } = parseApplications(tmpDir);
+      const entry = active.find(e => e.company === 'Maven');
+      const last = entry.history[entry.history.length - 1];
+      assert.ok(last.detail.includes('Cover letter generated 2026-04-09'));
+    });
+
+    it('updates lastActivity date to today', () => {
+      const today = new Date().toISOString().slice(0, 10);
+      addNote(tmpDir, { company: 'Maven', note: 'Some note' });
+      const { active } = parseApplications(tmpDir);
+      const entry = active.find(e => e.company === 'Maven');
+      assert.equal(entry.lastActivity.date, today);
+    });
+
+    it('throws for no matching company', () => {
+      assert.throws(
+        () => addNote(tmpDir, { company: 'Nonexistent', note: 'A note' }),
+        /No application found/
+      );
+    });
+
+    it('preserves existing notes when appending', () => {
+      addNote(tmpDir, { company: 'Maven', note: 'First note' });
+      addNote(tmpDir, { company: 'Maven', note: 'Second note' });
+      const { active } = parseApplications(tmpDir);
+      const entry = active.find(e => e.company === 'Maven');
+      assert.ok(entry.notes.includes('First note'));
+      assert.ok(entry.notes.includes('Second note'));
+      assert.ok(entry.notes.includes('; '));
     });
   });
 });

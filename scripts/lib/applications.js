@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { resolveStateFile, atomicWriteFileSync, ensureDir } = require('./util');
-const { validateApplicationEntry } = require('./validators');
+const { validateApplicationEntry, VALID_STAGES } = require('./validators');
 
 const HEADING_RE = /^### (.+?) — (.+)$/;
 const KEY_VALUE_RE = /^- \*\*(.+?)\*\*:\s*(.*)$/;
@@ -263,6 +263,58 @@ function createApplication(dir, entry) {
   }
 }
 
+function findApplication(data, companyQuery) {
+  const query = companyQuery.toLowerCase();
+  const all = [...data.active, ...data.closed];
+  const matches = all.filter(e => e.company.toLowerCase().includes(query));
+
+  if (matches.length === 0) {
+    throw new Error(`No application found matching "${companyQuery}"`);
+  }
+  if (matches.length > 1) {
+    const names = matches.map(e => e.company).join(', ');
+    throw new Error(`Multiple applications match "${companyQuery}": ${names}`);
+  }
+  return matches[0];
+}
+
+function updateApplication(dir, { company, stage, detail }) {
+  if (!VALID_STAGES.includes(stage)) {
+    throw new Error(`stage must be one of: ${VALID_STAGES.join(', ')}`);
+  }
+
+  const filePath = resolveStateFile(dir, 'applications');
+  if (!filePath) throw new Error('No applications file found');
+
+  const data = parseApplicationsFile(filePath);
+  const entry = findApplication(data, company);
+
+  const today = new Date().toISOString().slice(0, 10);
+  const detailText = detail || stage;
+
+  entry.stage = stage;
+  entry.lastActivity = { date: today, detail: detailText };
+  entry.history.push({ date: today, stage, detail: detailText });
+
+  atomicWriteFileSync(filePath, formatApplicationsFile(data));
+}
+
+function addNote(dir, { company, note }) {
+  const filePath = resolveStateFile(dir, 'applications');
+  if (!filePath) throw new Error('No applications file found');
+
+  const data = parseApplicationsFile(filePath);
+  const entry = findApplication(data, company);
+
+  const today = new Date().toISOString().slice(0, 10);
+
+  entry.notes = entry.notes ? `${entry.notes}; ${note}` : note;
+  entry.lastActivity = { date: today, detail: note };
+  entry.history.push({ date: today, stage: entry.stage, detail: note });
+
+  atomicWriteFileSync(filePath, formatApplicationsFile(data));
+}
+
 module.exports = {
   parseApplicationsContent,
   parseApplicationsFile,
@@ -271,4 +323,7 @@ module.exports = {
   formatApplication,
   formatApplicationsFile,
   createApplication,
+  findApplication,
+  updateApplication,
+  addNote,
 };
