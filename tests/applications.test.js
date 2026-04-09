@@ -14,6 +14,8 @@ const {
   updateApplication,
   addNote,
   findApplication,
+  closeApplication,
+  reopenApplication,
 } = require('../scripts/lib/applications');
 
 const FIXTURES = path.join(__dirname, 'fixtures');
@@ -509,6 +511,188 @@ describe('applications parser', () => {
       assert.ok(entry.notes.includes('First note'));
       assert.ok(entry.notes.includes('Second note'));
       assert.ok(entry.notes.includes('; '));
+    });
+  });
+
+  describe('closeApplication', () => {
+    let tmpDir;
+
+    beforeEach(() => {
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'app-close-test-'));
+      createApplication(tmpDir, {
+        company: 'Maven',
+        title: 'VP Engineering',
+        stage: 'Screen',
+      });
+    });
+
+    afterEach(() => {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    });
+
+    it('moves entry from active to closed', () => {
+      closeApplication(tmpDir, { company: 'Maven', reason: 'rejected', summary: 'No response after screen' });
+      const data = parseApplications(tmpDir);
+      assert.equal(data.active.length, 0);
+      assert.equal(data.closed.length, 1);
+      assert.equal(data.closed[0].company, 'Maven');
+    });
+
+    it('sets stage to Closed(reason)', () => {
+      closeApplication(tmpDir, { company: 'Maven', reason: 'rejected', summary: 'No response' });
+      const { closed } = parseApplications(tmpDir);
+      assert.equal(closed[0].stage, 'Closed (rejected)');
+    });
+
+    it('populates closed metadata', () => {
+      const today = new Date().toISOString().slice(0, 10);
+      closeApplication(tmpDir, { company: 'Maven', reason: 'withdrawn', summary: 'Accepted another offer' });
+      const { closed } = parseApplications(tmpDir);
+      assert.deepEqual(closed[0].closed, {
+        date: today,
+        reason: 'withdrawn',
+        summary: 'Accepted another offer',
+      });
+    });
+
+    it('appends history entry', () => {
+      closeApplication(tmpDir, { company: 'Maven', reason: 'rejected', summary: 'No fit' });
+      const { closed } = parseApplications(tmpDir);
+      const last = closed[0].history[closed[0].history.length - 1];
+      assert.equal(last.stage, 'Closed (rejected)');
+      assert.ok(last.detail.includes('No fit'));
+    });
+
+    it('throws if entry is already closed', () => {
+      closeApplication(tmpDir, { company: 'Maven', reason: 'rejected', summary: 'No fit' });
+      assert.throws(
+        () => closeApplication(tmpDir, { company: 'Maven', reason: 'rejected', summary: 'Again' }),
+        /not found in active applications/
+      );
+    });
+
+    it('throws if company not found', () => {
+      assert.throws(
+        () => closeApplication(tmpDir, { company: 'Nonexistent', reason: 'rejected', summary: 'n/a' }),
+        /No application found/
+      );
+    });
+
+    it('requires reason', () => {
+      assert.throws(
+        () => closeApplication(tmpDir, { company: 'Maven', summary: 'No fit' }),
+        /reason is required/
+      );
+    });
+
+    it('preserves other active entries', () => {
+      createApplication(tmpDir, { company: 'Acme', title: 'Sr Dir', stage: 'Applied' });
+      closeApplication(tmpDir, { company: 'Maven', reason: 'rejected', summary: 'No fit' });
+      const data = parseApplications(tmpDir);
+      assert.equal(data.active.length, 1);
+      assert.equal(data.active[0].company, 'Acme');
+      assert.equal(data.closed.length, 1);
+      assert.equal(data.closed[0].company, 'Maven');
+    });
+  });
+
+  describe('reopenApplication', () => {
+    let tmpDir;
+
+    beforeEach(() => {
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'app-reopen-test-'));
+      createApplication(tmpDir, {
+        company: 'Maven',
+        title: 'VP Engineering',
+        stage: 'Screen',
+      });
+      closeApplication(tmpDir, { company: 'Maven', reason: 'rejected', summary: 'No response' });
+    });
+
+    afterEach(() => {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    });
+
+    it('moves entry from closed to active', () => {
+      reopenApplication(tmpDir, { company: 'Maven', stage: 'Screen' });
+      const data = parseApplications(tmpDir);
+      assert.equal(data.active.length, 1);
+      assert.equal(data.closed.length, 0);
+      assert.equal(data.active[0].company, 'Maven');
+    });
+
+    it('sets stage to the provided value', () => {
+      reopenApplication(tmpDir, { company: 'Maven', stage: 'Interview (1)' });
+      const { active } = parseApplications(tmpDir);
+      assert.equal(active[0].stage, 'Interview (1)');
+    });
+
+    it('clears closed metadata', () => {
+      reopenApplication(tmpDir, { company: 'Maven', stage: 'Screen' });
+      const { active } = parseApplications(tmpDir);
+      assert.equal(active[0].closed, null);
+    });
+
+    it('appends history entry', () => {
+      reopenApplication(tmpDir, { company: 'Maven', stage: 'Screen', detail: 'Recruiter reached back out' });
+      const { active } = parseApplications(tmpDir);
+      const last = active[0].history[active[0].history.length - 1];
+      assert.equal(last.stage, 'Screen');
+      assert.ok(last.detail.includes('Recruiter reached back out'));
+    });
+
+    it('throws if entry is active (not closed)', () => {
+      reopenApplication(tmpDir, { company: 'Maven', stage: 'Screen' });
+      assert.throws(
+        () => reopenApplication(tmpDir, { company: 'Maven', stage: 'Screen' }),
+        /not found in closed applications/
+      );
+    });
+
+    it('throws for invalid stage', () => {
+      assert.throws(
+        () => reopenApplication(tmpDir, { company: 'Maven', stage: 'Vibing' }),
+        /stage must be one of/
+      );
+    });
+
+    it('rejects Closed as target stage', () => {
+      assert.throws(
+        () => reopenApplication(tmpDir, { company: 'Maven', stage: 'Closed' }),
+        /Cannot reopen to Closed/
+      );
+    });
+  });
+
+  describe('updateApplication — section guards', () => {
+    let tmpDir;
+
+    beforeEach(() => {
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'app-guard-test-'));
+      createApplication(tmpDir, {
+        company: 'Maven',
+        title: 'VP Engineering',
+        stage: 'Applied',
+      });
+    });
+
+    afterEach(() => {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    });
+
+    it('rejects Closed as a stage — directs to closeApplication', () => {
+      assert.throws(
+        () => updateApplication(tmpDir, { company: 'Maven', stage: 'Closed' }),
+        /use the "close" command/i
+      );
+    });
+
+    it('throws when updating a closed entry', () => {
+      closeApplication(tmpDir, { company: 'Maven', reason: 'rejected', summary: 'No fit' });
+      assert.throws(
+        () => updateApplication(tmpDir, { company: 'Maven', stage: 'Screen' }),
+        /not found in active applications/
+      );
     });
   });
 });

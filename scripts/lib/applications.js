@@ -285,7 +285,33 @@ function findApplication(data, companyQuery) {
   return matches[0];
 }
 
+function findInSection(data, companyQuery, section) {
+  const query = companyQuery.toLowerCase();
+  const primary = data[section];
+  const other = section === 'active' ? 'closed' : 'active';
+  const matches = primary.filter(e => e.company.toLowerCase().includes(query));
+
+  if (matches.length === 0) {
+    const otherMatches = data[other].filter(e => e.company.toLowerCase().includes(query));
+    if (otherMatches.length > 0) {
+      const hint = section === 'active'
+        ? 'it is closed — use the "reopen" command first'
+        : 'it is active';
+      throw new Error(`"${companyQuery}" not found in ${section} applications (${hint})`);
+    }
+    throw new Error(`No application found matching "${companyQuery}"`);
+  }
+  if (matches.length > 1) {
+    const names = matches.map(e => e.company).join(', ');
+    throw new Error(`Multiple applications match "${companyQuery}": ${names}`);
+  }
+  return matches[0];
+}
+
 function updateApplication(dir, { company, stage, detail }) {
+  if (stage === 'Closed') {
+    throw new Error('Cannot update stage to Closed directly — use the "close" command instead');
+  }
   if (!VALID_STAGES.includes(stage)) {
     throw new Error(`stage must be one of: ${VALID_STAGES.join(', ')}`);
   }
@@ -294,14 +320,74 @@ function updateApplication(dir, { company, stage, detail }) {
   if (!filePath) throw new Error('No applications file found');
 
   const data = parseApplicationsFile(filePath);
-  const entry = findApplication(data, company);
-
+  const entry = findInSection(data, company, 'active');
   const today = new Date().toISOString().slice(0, 10);
   const detailText = detail || stage;
 
   entry.stage = stage;
   entry.lastActivity = { date: today, detail: detailText };
   entry.history.push({ date: today, stage, detail: detailText });
+
+  atomicWriteFileSync(filePath, formatApplicationsFile(data));
+}
+
+function closeApplication(dir, { company, reason, summary }) {
+  if (!reason || typeof reason !== 'string' || !reason.trim()) {
+    throw new Error('reason is required');
+  }
+
+  const filePath = resolveStateFile(dir, 'applications');
+  if (!filePath) throw new Error('No applications file found');
+
+  const data = parseApplicationsFile(filePath);
+  const entry = findInSection(data, company, 'active');
+  const today = new Date().toISOString().slice(0, 10);
+  const closedStage = `Closed (${reason.trim()})`;
+  const detailText = summary || reason;
+
+  // Remove from active
+  data.active = data.active.filter(e => e !== entry);
+
+  // Update entry for closed section
+  entry.stage = closedStage;
+  entry.closed = { date: today, reason: reason.trim(), summary: summary || null };
+  entry.lastActivity = { date: today, detail: detailText };
+  entry.history.push({ date: today, stage: closedStage, detail: detailText });
+
+  // Add to closed
+  data.closed.push(entry);
+
+  atomicWriteFileSync(filePath, formatApplicationsFile(data));
+}
+
+function reopenApplication(dir, { company, stage, detail }) {
+  if (stage === 'Closed') {
+    throw new Error('Cannot reopen to Closed — use the "close" command instead');
+  }
+  if (!VALID_STAGES.includes(stage)) {
+    throw new Error(`stage must be one of: ${VALID_STAGES.join(', ')}`);
+  }
+
+  const filePath = resolveStateFile(dir, 'applications');
+  if (!filePath) throw new Error('No applications file found');
+
+  const data = parseApplicationsFile(filePath);
+  const entry = findInSection(data, company, 'closed');
+
+  const today = new Date().toISOString().slice(0, 10);
+  const detailText = detail || `Reopened at ${stage}`;
+
+  // Remove from closed
+  data.closed = data.closed.filter(e => e !== entry);
+
+  // Update entry for active section
+  entry.stage = stage;
+  entry.closed = null;
+  entry.lastActivity = { date: today, detail: detailText };
+  entry.history.push({ date: today, stage, detail: detailText });
+
+  // Add to active
+  data.active.push(entry);
 
   atomicWriteFileSync(filePath, formatApplicationsFile(data));
 }
@@ -336,5 +422,7 @@ module.exports = {
   createApplication,
   findApplication,
   updateApplication,
+  closeApplication,
+  reopenApplication,
   addNote,
 };
