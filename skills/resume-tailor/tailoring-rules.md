@@ -99,7 +99,7 @@ Reordering silently corrupts the .docx.
 
 ## Content Rules
 
-- Accomplishments table: best-fit 4 items from scoring. `**Bold Label** — description with numbers` format.
+- Accomplishments table: all 6 items, reordered by scoring relevance. `**Bold Label** — description with numbers` format.
 - Experience bullets: reordered per scoring. Facts/numbers verbatim from canonical resume. Light phrasing edits allowed: reorder clauses, lead with relevant phrase, echo synonymous keywords. No new claims, no inflated scope.
 - Summary: rewritten version from Phase 3
 - Education: copied verbatim — ALL degrees, school, full Core Expertise list

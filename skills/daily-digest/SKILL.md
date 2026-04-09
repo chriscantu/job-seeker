@@ -89,6 +89,8 @@ simply absent config), add a footer: "Note: TheirStack unavailable today
 
 ## Phase 4 — Apple Notes (optional)
 
+Skip if `integrations/config/notes-config.md` does not exist.
+
 Read `skills/_shared/apple-notes.md` and execute the create operation
 for the digest note.
 

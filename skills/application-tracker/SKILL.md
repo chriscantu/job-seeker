@@ -96,7 +96,8 @@ stage groupings.
 ## Apple Notes Sync
 
 Read `skills/_shared/apple-notes.md` and execute. Use the **update** (upsert)
-operation with title `Job Search - Applications`. Convert the markdown state
+operation with title `{prefix} - Applications` where `{prefix}` is the Apple
+Notes Prefix from `config/search.md` (default: `Job Search`). Convert the markdown state
 file to Apple Notes HTML following the rules in that module.
 
 ---

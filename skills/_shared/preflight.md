@@ -5,7 +5,8 @@ Every skill executes this module before doing any work.
 ## Step 1: Validate Configuration
 
 Run `node scripts/validate-config.js` — if it exits non-zero, stop and show the
-error to the user. Do not proceed with any subsequent phase.
+error to the user. Do not proceed with any subsequent phase. (If the orchestrator
+explicitly overrides this behavior, follow the orchestrator's instruction instead.)
 
 ## Step 2: Read Core Files
 

@@ -104,7 +104,7 @@ skills (cover-letter, interview-prep) read it for full detail. Requirements:
 
 ## Phase 4 — State Update
 
-Read `skills/_shared/state-io.md` and execute — read `seen-postings`.
+Read `skills/_shared/state-io.md` and execute — read `seen-postings`, then use the append pattern to write updates.
 
 After writing the brief, annotate the company's entry in seen-postings:
 
