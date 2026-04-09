@@ -56,21 +56,24 @@ is the source of truth for detailed accomplishments.
 
 ---
 
-## Skill Invocation
+## Skill Routing (AI — match user intent to slash command)
 
-| Skill | Trigger Phrases |
-|-------|----------------|
-| `daily-digest` | "run my job digest", "check for new roles", "job search" *(Apple Notes optional — requires macOS/osascript when enabled)* |
-| `why-this-company` | "why this company", "why am I applying to", "application response" |
-| `cover-letter` | "cover letter", "write a cover letter for" |
-| `resume-tailor` | "tailor my resume", "customize resume for" |
-| `company-research` | "research this company", "tell me about [company]", "company deep dive" |
-| `interview-prep` | "prep me for interview", "interview questions", "practice interview" |
-| `application-tracker` | "track application", "update pipeline", "where am I with" |
-| `networking-outreach` | "draft outreach", "reach out to", "networking message" |
-| `setup` | "setup", "configure job seeker", "check my setup", "get started", "what's missing" |
-| `linkedin-article` | "write a LinkedIn post", "LinkedIn article", "create LinkedIn content", "draft a post about", "LinkedIn thought leadership" |
-| `scan-email` | "scan my email", "check mail for jobs", "any job emails", "scan inbox" *(requires macOS/Apple Mail + mail-config.md)* |
+All skills are registered as slash commands in `.claude/commands/`.
+Use `/skill-name` for direct invocation or match natural language below:
+
+| User says (any of these) | Run this command |
+|--------------------------|------------------|
+| digest, daily scan, job search, new roles, check for roles | `/daily-digest` |
+| scan email, check mail, inbox scan, any job emails | `/scan-email` |
+| research, tell me about, company deep dive | `/company-research` |
+| tailor resume, customize resume | `/resume-tailor` |
+| cover letter, application letter | `/cover-letter` |
+| why this company, why am I applying | `/why-this-company` |
+| track application, update pipeline, where am I | `/application-tracker` |
+| prep me, interview questions, practice interview | `/interview-prep` |
+| linkedin post, linkedin article, thought leadership | `/linkedin-article` |
+| draft outreach, reach out to, networking message | `/networking-outreach` |
+| setup, configure, get started, what's missing | `/setup` |
 
 ## Commands
 
