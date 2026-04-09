@@ -63,15 +63,10 @@ extraction — batch all resolutions together later.
 ### No URL Found
 
 If no job URL is found in the body despite matching sender/subject patterns,
-flag the role for **WebSearch fallback** in Phase 4:
-
-```
-[WebSearch: {company} {role_title} careers site:greenhouse.io OR site:lever.co OR site:ashbyhq.com]
-```
+flag the role for **WebSearch fallback** in the orchestrator's dedup/verify phase.
 
 ## Batching
 
-Read `skills/_shared/batching.md` for reference. Issue ALL body fetch calls
-in a single message — never one at a time. If some calls fail while others
-succeed, process successful results normally and handle failures per the
-rules above.
+Read `skills/_shared/batching.md` for reference. If some calls in the batch
+fail while others succeed, process successful results normally and handle
+failures per the rules above.

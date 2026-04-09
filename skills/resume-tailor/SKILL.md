@@ -96,7 +96,7 @@ Files written:
 
 ## Phase 4 — State Update
 
-Read `skills/_shared/state-io.md` and execute.
+Read `skills/_shared/state-io.md` and execute the **append** pattern for `seen-postings`.
 
 Find the seen-postings line matching the company name or URL and append
 `| RESUME TAILORED` to that line.

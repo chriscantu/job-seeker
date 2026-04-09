@@ -17,9 +17,8 @@ Inspect each URL and route to the appropriate verification method:
 
 ## Batching
 
-Read `skills/_shared/batching.md` for reference. Issue ALL verification calls
-in a single parallel batch — ATS API calls and WebFetch calls together in one
-message.
+Read `skills/_shared/batching.md` for reference — ATS API calls and WebFetch
+calls go in the same batch.
 
 ## Interpreting Results
 
