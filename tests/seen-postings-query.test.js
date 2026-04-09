@@ -1,9 +1,9 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('path');
-const { querySeenPostings, dedupCheck } = require('../scripts/lib/seen-postings');
+const { querySeenPostings, dedupCheck, normalizeUrl, parseSeenPostingsContent } = require('../scripts/lib/seen-postings');
 
-const FIXTURES = path.join(__dirname, 'fixtures');
+const FIXTURES = path.join(__dirname, 'fixtures', 'multi');
 
 describe('seen-postings query', () => {
   it('filters by company (case-insensitive substring)', () => {
@@ -36,6 +36,17 @@ describe('seen-postings query', () => {
     assert.ok(results.length > 0);
     results.forEach(e => {
       assert.ok(e.flags.some(f => f.startsWith('APPLIED')));
+    });
+  });
+
+  it('combines company + notFlagged filters', () => {
+    const all = querySeenPostings(FIXTURES, { company: 'natera' });
+    const filtered = querySeenPostings(FIXTURES, { company: 'natera', notFlagged: 'RESEARCHED' });
+    assert.ok(all.length > 0);
+    assert.ok(filtered.length < all.length, 'notFlagged should reduce results');
+    filtered.forEach(e => {
+      assert.ok(!e.flags.includes('RESEARCHED'));
+      assert.ok(e.company.toLowerCase().includes('natera'));
     });
   });
 });
@@ -91,5 +102,72 @@ describe('seen-postings dedup-check', () => {
       title: 'VP of Engineering',
     });
     assert.equal(result.match, 'exact-url');
+  });
+
+  it('returns not-duplicate for same company but different title', () => {
+    const result = dedupCheck(FIXTURES, {
+      company: 'Natera',
+      title: 'Director of QA',
+    });
+    assert.equal(result.duplicate, false);
+  });
+});
+
+describe('normalizeUrl', () => {
+  it('strips www prefix', () => {
+    assert.equal(
+      normalizeUrl('https://www.example.com/jobs/123'),
+      normalizeUrl('https://example.com/jobs/123')
+    );
+  });
+
+  it('strips query parameters', () => {
+    assert.equal(
+      normalizeUrl('https://example.com/jobs/123?ref=linkedin'),
+      normalizeUrl('https://example.com/jobs/123')
+    );
+  });
+
+  it('strips trailing slash', () => {
+    assert.equal(
+      normalizeUrl('https://example.com/jobs/123/'),
+      normalizeUrl('https://example.com/jobs/123')
+    );
+  });
+
+  it('strips fragment', () => {
+    assert.equal(
+      normalizeUrl('https://example.com/jobs/123#apply'),
+      normalizeUrl('https://example.com/jobs/123')
+    );
+  });
+
+  it('is case-insensitive', () => {
+    assert.equal(
+      normalizeUrl('https://Jobs.Greenhouse.IO/company/123'),
+      normalizeUrl('https://jobs.greenhouse.io/company/123')
+    );
+  });
+
+  it('returns empty string for null/undefined', () => {
+    assert.equal(normalizeUrl(null), '');
+    assert.equal(normalizeUrl(undefined), '');
+  });
+
+  it('handles invalid URLs gracefully', () => {
+    const result = normalizeUrl('not-a-url');
+    assert.equal(typeof result, 'string');
+  });
+});
+
+describe('empty file handling', () => {
+  it('parseSeenPostingsContent returns empty array for empty string', () => {
+    const entries = parseSeenPostingsContent('');
+    assert.deepEqual(entries, []);
+  });
+
+  it('parseSeenPostingsContent returns empty array for header-only file', () => {
+    const entries = parseSeenPostingsContent('# Seen Postings\n\n_Last updated: 2026-04-09_\n');
+    assert.deepEqual(entries, []);
   });
 });

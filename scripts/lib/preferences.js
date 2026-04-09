@@ -1,19 +1,11 @@
 const fs = require('fs');
 const path = require('path');
+const { resolveStateFile, atomicWriteFileSync, ensureDir } = require('./util');
 
 const DATE_HEADER_RE = /^## (\d{4}-\d{2}-\d{2})/;
 const SUBSECTION_RE = /^### (.+)/;
 const TABLE_HEADER_RE = /^\|[^|]+\|/;
 const TABLE_SEP_RE = /^\|[-|]+\|/;
-
-function resolveStateFile(dir, type) {
-  const pattern = new RegExp(`\\d{4}-\\d{2}-\\d{2}-${type}\\.md$`);
-  const files = fs.readdirSync(dir)
-    .filter(f => pattern.test(f))
-    .sort()
-    .reverse();
-  return files.length > 0 ? path.join(dir, files[0]) : null;
-}
 
 function parsePreferencesFile(filePath) {
   const content = fs.readFileSync(filePath, 'utf8');
@@ -29,21 +21,18 @@ function parsePreferencesFile(filePath) {
   let currentSubsection = null;
   let inTopLevelTable = false;
   let currentTable = null;
-  let lastRunDate = null;
 
   for (const line of lines) {
     const trimmed = line.trim();
 
-    // Date header: ## YYYY-MM-DD
     const dateMatch = trimmed.match(DATE_HEADER_RE);
     if (dateMatch) {
       currentDate = dateMatch[1];
       currentSubsection = null;
       inTopLevelTable = false;
 
-      // Track most recent date
-      if (!lastRunDate || currentDate > lastRunDate) {
-        lastRunDate = currentDate;
+      if (!result.last_run_date || currentDate > result.last_run_date) {
+        result.last_run_date = currentDate;
       }
 
       if (!result.sections[currentDate]) {
@@ -52,7 +41,6 @@ function parsePreferencesFile(filePath) {
       continue;
     }
 
-    // Subsection: ### Title (only within a date section)
     const subMatch = trimmed.match(SUBSECTION_RE);
     if (subMatch && currentDate) {
       currentSubsection = subMatch[1];
@@ -63,7 +51,6 @@ function parsePreferencesFile(filePath) {
       continue;
     }
 
-    // Top-level table (before any date header)
     if (!currentDate && TABLE_HEADER_RE.test(trimmed) && !TABLE_SEP_RE.test(trimmed)) {
       if (!inTopLevelTable) {
         currentTable = { headers: [], rows: [] };
@@ -79,32 +66,27 @@ function parsePreferencesFile(filePath) {
       }
     }
 
-    // Table separator — skip
     if (TABLE_SEP_RE.test(trimmed)) {
       continue;
     }
 
-    // Table row continuation (within top-level table)
     if (inTopLevelTable && trimmed.startsWith('|') && currentTable) {
       const cells = trimmed.split('|').map(c => c.trim()).filter(c => c);
       currentTable.rows.push(cells);
       continue;
     }
 
-    // Non-table, non-header content ends top-level table mode
     if (inTopLevelTable && trimmed && !trimmed.startsWith('|')) {
       inTopLevelTable = false;
       currentTable = null;
     }
 
-    // Bullet content within a subsection
     if (currentDate && currentSubsection && trimmed.startsWith('- ')) {
       result.sections[currentDate][currentSubsection].push(trimmed.slice(2));
       continue;
     }
   }
 
-  result.last_run_date = lastRunDate;
   return result;
 }
 
@@ -114,6 +96,8 @@ function appendPreferences(dir, entry) {
   if (!validation.valid) {
     throw new Error(`Invalid preferences entry: ${validation.errors.join(', ')}`);
   }
+
+  ensureDir(dir);
 
   const today = new Date().toISOString().slice(0, 10);
   const existing = resolveStateFile(dir, 'preferences');
@@ -125,11 +109,8 @@ function appendPreferences(dir, entry) {
     const todayHeader = `## ${today}`;
 
     if (content.includes(todayHeader)) {
-      // Append new subsection at end of today's section
       const headerIdx = content.indexOf(todayHeader);
       const afterHeader = content.indexOf('\n', headerIdx) + 1;
-
-      // Find where today's section ends (next ## or end of file)
       const nextSection = content.indexOf('\n## ', afterHeader);
       const insertAt = nextSection !== -1 ? nextSection : content.length;
 
@@ -140,16 +121,15 @@ function appendPreferences(dir, entry) {
       content = content.trimEnd() + '\n\n' + todayHeader + '\n' + sectionContent;
     }
 
-    fs.writeFileSync(existing, content);
+    atomicWriteFileSync(existing, content);
   } else {
     const fileName = `${today}-preferences.md`;
     const content = `# Job Search — Preferences & Source Effectiveness\n\n## ${today}\n${sectionContent}`;
-    fs.writeFileSync(path.join(dir, fileName), content);
+    atomicWriteFileSync(path.join(dir, fileName), content);
   }
 }
 
 module.exports = {
   parsePreferencesFile,
   appendPreferences,
-  resolveStateFile,
 };

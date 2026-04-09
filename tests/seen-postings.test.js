@@ -194,8 +194,10 @@ describe('seen-postings parser', () => {
   });
 
   describe('parseSeenPostings (multi-file)', () => {
+    const MULTI_FIXTURES = path.join(FIXTURES, 'multi');
+
     it('merges entries from multiple files', () => {
-      const entries = parseSeenPostings(FIXTURES);
+      const entries = parseSeenPostings(MULTI_FIXTURES);
       const companies = entries.map(e => e.company);
       // Gen 1 entry
       assert.ok(companies.includes('Acme Corp'), 'should include Gen 1 entries');
@@ -206,11 +208,15 @@ describe('seen-postings parser', () => {
     });
 
     it('returns entries sorted chronologically', () => {
-      const entries = parseSeenPostings(FIXTURES);
-      // First entries should be from earliest file
+      const entries = parseSeenPostings(MULTI_FIXTURES);
       const firstDate = entries[0].date;
       const lastDate = entries[entries.length - 1].date;
       assert.ok(firstDate <= lastDate, 'entries should be chronologically ordered');
+    });
+
+    it('returns empty array when directory does not exist', () => {
+      const entries = parseSeenPostings('/tmp/nonexistent-dir-12345');
+      assert.deepEqual(entries, []);
     });
   });
 });

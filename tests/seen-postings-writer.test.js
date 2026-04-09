@@ -5,9 +5,9 @@ const path = require('path');
 const {
   appendSeenPosting,
   flagSeenPosting,
-  resolveStateFile,
   formatEntry,
 } = require('../scripts/lib/seen-postings');
+const { resolveStateFile } = require('../scripts/lib/util');
 
 const TMP_DIR = path.join(__dirname, 'tmp-writer');
 
@@ -191,6 +191,55 @@ describe('seen-postings writer', () => {
     it('returns null when no files exist', () => {
       const result = resolveStateFile(TMP_DIR, 'seen-postings');
       assert.equal(result, null);
+    });
+
+    it('returns null when directory does not exist', () => {
+      const result = resolveStateFile('/tmp/nonexistent-dir-99999', 'seen-postings');
+      assert.equal(result, null);
+    });
+  });
+
+  describe('round-trip (append then parse)', () => {
+    it('produces entries the parser can read back correctly', () => {
+      const { parseSeenPostingsFile } = require('../scripts/lib/seen-postings');
+
+      appendSeenPosting(TMP_DIR, {
+        company: 'RoundTrip Co',
+        title: 'VP of Engineering',
+        url: 'https://example.com/roundtrip/1',
+        posted: '2026-04-09',
+        source: 'email-linkedin',
+        flags: ['RESEARCHED'],
+      });
+
+      const files = fs.readdirSync(TMP_DIR).filter(f => f.includes('seen-postings'));
+      const entries = parseSeenPostingsFile(path.join(TMP_DIR, files[0]));
+      const entry = entries.find(e => e.company === 'RoundTrip Co');
+
+      assert.ok(entry, 'should find appended entry');
+      assert.equal(entry.title, 'VP of Engineering');
+      assert.equal(entry.url, 'https://example.com/roundtrip/1');
+      assert.equal(entry.posted, '2026-04-09');
+      assert.equal(entry.source, 'email-linkedin');
+      assert.ok(entry.flags.includes('RESEARCHED'));
+    });
+  });
+
+  describe('flagSeenPosting across files', () => {
+    it('finds and flags entry in older file', () => {
+      const targetUrl = 'https://example.com/old-job/1';
+      fs.writeFileSync(path.join(TMP_DIR, '2026-03-14-seen-postings.md'),
+        `# Seen Postings\n\n## 2026-03-14\n- OldCo | VP Eng | ${targetUrl} | posted:2026-03-14\n`
+      );
+      fs.writeFileSync(path.join(TMP_DIR, '2026-04-01-seen-postings.md'),
+        '# Seen Postings\n\n## 2026-04-01\n- NewCo | VP Eng | https://example.com/new | posted:2026-04-01\n'
+      );
+
+      const result = flagSeenPosting(TMP_DIR, targetUrl, 'RESEARCHED');
+      assert.equal(result.success, true);
+
+      const content = fs.readFileSync(path.join(TMP_DIR, '2026-03-14-seen-postings.md'), 'utf8');
+      assert.ok(content.includes('| RESEARCHED'));
     });
   });
 });

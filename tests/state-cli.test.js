@@ -93,6 +93,23 @@ describe('state.js CLI', () => {
     });
   });
 
+  describe('flag', () => {
+    it('exits non-zero for URL not found', () => {
+      const { exitCode } = run('flag seen-postings --url "https://example.com/nonexistent-job-99999" --add RESEARCHED', true);
+      assert.ok(exitCode !== 0);
+    });
+
+    it('exits non-zero for missing --url', () => {
+      const { exitCode } = run('flag seen-postings --add RESEARCHED', true);
+      assert.ok(exitCode !== 0);
+    });
+
+    it('exits non-zero for missing --add', () => {
+      const { exitCode } = run('flag seen-postings --url "https://example.com"', true);
+      assert.ok(exitCode !== 0);
+    });
+  });
+
   describe('error handling', () => {
     it('exits non-zero for unknown type', () => {
       const { exitCode } = run('read unknown-type', true);
@@ -111,6 +128,21 @@ describe('state.js CLI', () => {
 
     it('exits non-zero for append with missing fields', () => {
       const { exitCode } = run('append seen-postings \'{"company":""}\'', true);
+      assert.ok(exitCode !== 0);
+    });
+
+    it('exits non-zero for dedup-check with wrong type', () => {
+      const { exitCode } = run('dedup-check preferences --url "https://example.com"', true);
+      assert.ok(exitCode !== 0);
+    });
+
+    it('exits non-zero for flag with wrong type', () => {
+      const { exitCode } = run('flag preferences --url "https://example.com" --add X', true);
+      assert.ok(exitCode !== 0);
+    });
+
+    it('exits non-zero for query with wrong type', () => {
+      const { exitCode } = run('query preferences --company test', true);
       assert.ok(exitCode !== 0);
     });
   });

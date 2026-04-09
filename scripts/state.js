@@ -4,13 +4,13 @@
 // Centralizes glob → sort → read → parse → append for state files.
 //
 // Usage:
-//   node scripts/state.js read seen-postings
-//   node scripts/state.js read preferences
-//   node scripts/state.js append seen-postings '{"company":"...","title":"...","url":"...","posted":"..."}'
-//   node scripts/state.js append preferences '{"section":"...","entries":[...]}'
-//   node scripts/state.js query seen-postings --company natera --not-flagged RESEARCHED
-//   node scripts/state.js dedup-check seen-postings --url "..." --company "..." --title "..."
-//   node scripts/state.js flag seen-postings --url "..." --add RESEARCHED
+//   bun scripts/state.js read seen-postings
+//   bun scripts/state.js read preferences
+//   bun scripts/state.js append seen-postings '{"company":"...","title":"...","url":"...","posted":"..."}'
+//   bun scripts/state.js append preferences '{"section":"...","entries":[...]}'
+//   bun scripts/state.js query seen-postings --company natera --not-flagged RESEARCHED
+//   bun scripts/state.js dedup-check seen-postings --url "..." --company "..." --title "..."
+//   bun scripts/state.js flag seen-postings --url "..." --add RESEARCHED
 //
 // Exit codes: 0 = success, 1 = error (message on stderr)
 // Output: JSON on stdout
@@ -18,12 +18,15 @@
 const path = require('path');
 const seenPostings = require('./lib/seen-postings');
 const preferences = require('./lib/preferences');
+const { resolveStateFile } = require('./lib/util');
 
 const ROOT = path.resolve(__dirname, '..');
 const OUTPUT_DIR = path.join(ROOT, 'output');
 
+const SEEN_POSTINGS_COMMANDS = ['query', 'dedup-check', 'flag'];
+
 function usage() {
-  console.error(`Usage: node scripts/state.js <command> <type> [args]
+  console.error(`Usage: bun scripts/state.js <command> <type> [args]
 
 Commands:
   read <type>                      Read all entries as JSON
@@ -51,9 +54,14 @@ function parseArgs(args) {
   for (let i = 0; i < args.length; i++) {
     if (args[i].startsWith('--')) {
       const key = args[i].slice(2);
-      const value = args[i + 1] && !args[i + 1].startsWith('--') ? args[i + 1] : true;
-      parsed[key] = value;
-      if (value !== true) i++;
+      const nextArg = args[i + 1];
+      if (nextArg !== undefined && !nextArg.startsWith('--')) {
+        parsed[key] = nextArg;
+        i++;
+      } else {
+        console.error(`Option --${key} requires a value`);
+        process.exit(1);
+      }
     }
   }
   return parsed;
@@ -74,6 +82,11 @@ function main() {
     process.exit(1);
   }
 
+  if (SEEN_POSTINGS_COMMANDS.includes(command) && type !== 'seen-postings') {
+    console.error(`${command} is only supported for seen-postings`);
+    process.exit(1);
+  }
+
   try {
     switch (command) {
       case 'read':
@@ -83,7 +96,7 @@ function main() {
         handleAppend(type, args[2]);
         break;
       case 'query':
-        handleQuery(type, args.slice(2));
+        handleQuery(args.slice(2));
         break;
       case 'dedup-check':
         handleDedupCheck(args.slice(2));
@@ -96,7 +109,7 @@ function main() {
         usage();
     }
   } catch (err) {
-    console.error(err.message);
+    console.error(err.stack || err.message);
     process.exit(1);
   }
 }
@@ -106,7 +119,7 @@ function handleRead(type) {
     const entries = seenPostings.parseSeenPostings(OUTPUT_DIR);
     console.log(JSON.stringify(entries, null, 2));
   } else if (type === 'preferences') {
-    const file = preferences.resolveStateFile(OUTPUT_DIR, 'preferences');
+    const file = resolveStateFile(OUTPUT_DIR, 'preferences');
     if (!file) {
       console.log(JSON.stringify({ last_run_date: null, sections: {}, tables: [] }));
       return;
@@ -125,8 +138,8 @@ function handleAppend(type, jsonStr) {
   let entry;
   try {
     entry = JSON.parse(jsonStr);
-  } catch {
-    console.error('Invalid JSON argument');
+  } catch (err) {
+    console.error(`Invalid JSON argument: ${err.message}`);
     process.exit(1);
   }
 
@@ -139,12 +152,7 @@ function handleAppend(type, jsonStr) {
   }
 }
 
-function handleQuery(type, remainingArgs) {
-  if (type !== 'seen-postings') {
-    console.error('query is only supported for seen-postings');
-    process.exit(1);
-  }
-
+function handleQuery(remainingArgs) {
   const opts = parseArgs(remainingArgs);
   const filters = {};
 

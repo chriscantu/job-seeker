@@ -5,8 +5,8 @@ const path = require('path');
 const {
   parsePreferencesFile,
   appendPreferences,
-  resolveStateFile,
 } = require('../scripts/lib/preferences');
+const { resolveStateFile } = require('../scripts/lib/util');
 
 const FIXTURES = path.join(__dirname, 'fixtures');
 const TMP_DIR = path.join(__dirname, 'tmp-prefs');
