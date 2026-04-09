@@ -29,7 +29,7 @@ doing anything else so the user sees the full picture.
 ### Required checks
 
 1. **config/candidate.md** — does it exist? If yes, run
-   `node scripts/validate-config.js` and check for field-level issues.
+   `bun scripts/validate-config.js` and check for field-level issues.
 2. **config/search.md** — same as above (validate-config.js covers both).
 3. **references/resume.pdf** — does the file exist?
 
@@ -182,7 +182,7 @@ If no, move on.
 
 After all guided fixes are complete:
 
-1. Run `node scripts/validate-config.js` — show the output
+1. Run `bun scripts/validate-config.js` — show the output
 2. Re-run the Phase 1 status dashboard to confirm everything is green
 3. If all required items pass, tell the user:
    > "Setup complete. You can run `/daily-digest` to start finding roles,

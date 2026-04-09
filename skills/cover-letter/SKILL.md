@@ -101,7 +101,7 @@ All files go in `output/{company-slug}/` (e.g., `output/natera/`).
 2. Generate the .docx:
    ```fish
    set NODE_PATH /opt/homebrew/lib/node_modules
-   node scripts/generate_coverletter_docx.js \
+   bun scripts/generate_coverletter_docx.js \
      output/{company-slug}/{Name}_CoverLetter_{Company}.md \
      output/{company-slug}/{Name}_CoverLetter_{Company}.docx
    ```

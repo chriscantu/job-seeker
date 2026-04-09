@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // scripts/validate-structure.js
 // Validates that STRUCTURE.md's directory map matches the actual repo and plugin.json.
-// Run: node scripts/validate-structure.js
+// Run: bun scripts/validate-structure.js
 // Exit 0 = valid. Exit 1 = issues found.
 
 const fs = require('fs');

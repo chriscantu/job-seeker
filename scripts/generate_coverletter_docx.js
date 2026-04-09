@@ -3,7 +3,7 @@
  * Generate a formatted .docx cover letter from a markdown source.
  *
  * Usage:
- *   node scripts/generate_coverletter_docx.js <input.md> <output.docx>
+ *   bun scripts/generate_coverletter_docx.js <input.md> <output.docx>
  *
  * The markdown format is simple:
  *   - First line starting with "Dear" is the salutation
