@@ -1,8 +1,9 @@
-# Email Patterns — Apple Mail
+# Email Patterns
 
 Pattern library for the `scan-email` skill. Used to detect and classify
-job-related emails from the configured Apple Mail account/inbox (see
-`integrations/config/mail-config.md`). All matching is case-insensitive.
+job-related emails from configured sources — Apple Mail (via osascript)
+and/or Gmail (via MCP). See `integrations/config/mail-config.md` and
+`integrations/config/gmail-config.md`. All matching is case-insensitive.
 
 ---
 
@@ -141,5 +142,5 @@ not, use the resolved URL as-is.
 
 ### Exclusions
 - Personal email services: `@gmail.com`, `@yahoo.com`, `@hotmail.com`,
-  `@outlook.com` (likely spam, not recruiting)
+  `@outlook.com` (likely spam/scam, not legitimate recruiting)
 - Known staffing/aggregator domains from `config/search.md` exclusions

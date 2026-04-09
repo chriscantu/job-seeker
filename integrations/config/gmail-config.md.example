@@ -1,0 +1,63 @@
+# Gmail Configuration
+
+Controls Gmail scanning via MCP tools in `scan-email`. The Gmail MCP
+connection is managed by Claude Code — this file just tells the skill
+whether to include Gmail as a source and which search parameters to use.
+
+---
+
+## Settings
+
+enabled: true
+email: christopher.cantu@gmail.com
+max_results: 50
+lookback_days: 7
+
+---
+
+## How It's Used
+
+The `scan-email` skill checks for this file during setup. When present and
+`enabled: true`, it adds a Gmail scan phase using MCP tools:
+
+- `gmail_search_messages` — searches for job alert emails matching sender
+  domains from `references/email-patterns.md`
+- `gmail_read_message` — fetches full body for candidate messages
+- Classification, dedup, and verification use the same logic as Apple Mail
+
+Used in:
+- `scan-email` — Gmail scan phases (1G, 2G)
+
+## Settings Reference
+
+**enabled** — Set to `false` to temporarily disable Gmail scanning without
+removing the config file.
+
+**email** — The Gmail address connected via MCP. Used for display/logging
+only — the MCP connection determines which account is actually accessed.
+
+**max_results** — Maximum messages to retrieve per search query. Gmail MCP
+supports up to 500 per request. Default 50 keeps scans fast.
+
+**lookback_days** — How many days back to search. Emails older than this
+are ignored. Default 7 matches the Apple Mail age filter.
+
+## How to Change
+
+1. Copy this file to `gmail-config.md` (remove the `.example` suffix)
+2. Update `email` to match your connected Gmail account
+3. Adjust `max_results` and `lookback_days` as needed
+
+## Scope Restriction
+
+Only job alert emails matching known sender patterns are processed.
+The skill reads and classifies emails but cannot currently trash or
+archive Gmail messages — the Gmail MCP does not yet support message
+modification. After scanning, the skill reports which messages were
+processed so you can bulk-clean them manually.
+
+## MCP Prerequisite
+
+Gmail MCP must be connected in Claude Code settings. If the MCP
+connection is not available at runtime, the skill skips Gmail scanning
+and logs a warning.
