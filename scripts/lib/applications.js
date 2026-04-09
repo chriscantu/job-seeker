@@ -295,7 +295,7 @@ function findInSection(data, companyQuery, section) {
     const otherMatches = data[other].filter(e => e.company.toLowerCase().includes(query));
     if (otherMatches.length > 0) {
       const hint = section === 'active'
-        ? 'it is closed — use reopenApplication() first'
+        ? 'it is closed — use the "reopen" command first'
         : 'it is active';
       throw new Error(`"${companyQuery}" not found in ${section} applications (${hint})`);
     }
@@ -310,7 +310,7 @@ function findInSection(data, companyQuery, section) {
 
 function updateApplication(dir, { company, stage, detail }) {
   if (stage === 'Closed') {
-    throw new Error('Cannot update stage to Closed directly — use closeApplication() instead');
+    throw new Error('Cannot update stage to Closed directly — use the "close" command instead');
   }
   if (!VALID_STAGES.includes(stage)) {
     throw new Error(`stage must be one of: ${VALID_STAGES.join(', ')}`);
@@ -362,7 +362,7 @@ function closeApplication(dir, { company, reason, summary }) {
 
 function reopenApplication(dir, { company, stage, detail }) {
   if (stage === 'Closed') {
-    throw new Error('cannot reopen to Closed — use closeApplication() instead');
+    throw new Error('Cannot reopen to Closed — use the "close" command instead');
   }
   if (!VALID_STAGES.includes(stage)) {
     throw new Error(`stage must be one of: ${VALID_STAGES.join(', ')}`);

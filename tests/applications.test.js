@@ -659,7 +659,7 @@ describe('applications parser', () => {
     it('rejects Closed as target stage', () => {
       assert.throws(
         () => reopenApplication(tmpDir, { company: 'Maven', stage: 'Closed' }),
-        /cannot reopen to Closed/
+        /Cannot reopen to Closed/
       );
     });
   });
@@ -683,7 +683,7 @@ describe('applications parser', () => {
     it('rejects Closed as a stage — directs to closeApplication', () => {
       assert.throws(
         () => updateApplication(tmpDir, { company: 'Maven', stage: 'Closed' }),
-        /use closeApplication/i
+        /use the "close" command/i
       );
     });
 
