@@ -78,7 +78,7 @@ for (const dir of documentedDirs) {
 // --- Check 2: Actual top-level directories not in STRUCTURE.md ---
 
 const ignoredDirs = new Set([
-  'node_modules', '.git', '.claude', '.github', 'docs',
+  'node_modules', '.git', '.claude', '.github', '.worktrees', 'docs',
   'config', 'output', 'memory',
 ]);
 

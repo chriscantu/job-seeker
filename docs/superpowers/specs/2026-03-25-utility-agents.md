@@ -61,7 +61,7 @@ from resume (e.g., "reduced deployment cycle from 6 months to minutes")
 
 ### Agent Definition
 
-**File**: `.claude-plugin/agents/voice-auditor.md`
+**File**: TBD — `.claude-plugin/agents/` directory does not exist yet
 
 ```yaml
 name: voice-auditor
@@ -162,7 +162,7 @@ file as its routing reference:
 
 ### Agent Definition
 
-**File**: `.claude-plugin/agents/url-verifier.md`
+**File**: TBD — `.claude-plugin/agents/` directory does not exist yet
 
 ```yaml
 name: url-verifier

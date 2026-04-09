@@ -81,7 +81,7 @@ ATS API routing from `integrations/adapters/ats-apis.md`.
 
 ## Reference Implementation
 
-Adapted from `claude-eisenhower/commands/scan-email.md`:
+Adapted from `.claude/commands/scan-email.md`:
 - Batch processing pattern (10 messages, sequential)
 - Metadata-first approach (body fetch only for matches)
 - osascript calling convention

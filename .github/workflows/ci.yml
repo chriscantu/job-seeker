@@ -25,3 +25,9 @@ jobs:
 
       - name: Test PII guard
         run: bun scripts/test-pii-guard.js
+
+      - name: Validate markdown links
+        run: bun scripts/validate-links.js
+
+      - name: Run tests
+        run: bun test
