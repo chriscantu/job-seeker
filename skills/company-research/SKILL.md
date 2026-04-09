@@ -13,43 +13,26 @@ allowed-tools: Read, Write, Edit, Bash, WebSearch, WebFetch, Glob
 Takes a job posting URL, researches the company, and produces a positioning-focused
 brief that other skills (cover-letter, why-this-company, interview-prep) can reference.
 
-## Before You Start
+## Phase 0 — Preflight
 
-1. Run `node scripts/validate-config.js` — if it exits non-zero, stop and show the error to the user
-2. Read `PRINCIPLES.md` — quality standards and voice guidelines that govern all output
-3. Read `config/candidate.md` — candidate name, core strengths, accomplishments
-4. Read `config/search.md` — company types of interest, to contextualize fit
-5. Accept the job posting URL from the user
+Read `skills/_shared/preflight.md` and execute.
+
+Accept the job posting URL from the user.
 
 ---
 
-## Company Extraction
+## Phase 1 — Company Extraction
 
-WebFetch the job posting URL. From the page content, extract:
-
-| Field | Source |
-|-------|--------|
-| Company name | Page title, meta tags, or ATS page structure |
-| Role title | Job title from the posting |
-| Location | Location field from the posting |
-| Company website domain | Links on the page, or derive from ATS URL pattern |
-
-Derive `{company-slug}` from the company name: lowercase, spaces replaced with
-hyphens, special characters removed (e.g., "Maven Clinic" → `maven-clinic`).
-
-**If the URL returns 404 or is unparseable**, stop with:
-> "Could not access that posting. Is the URL correct?"
-
-**If the company name cannot be determined**, stop with:
-> "Could not identify the company from this page. Try providing the company name directly."
+Read `skills/_shared/company-extraction.md` and execute.
 
 ---
 
-## Research Queries — Batched
+## Phase 2 — Research Queries (Batched)
+
+Read `skills/_shared/batching.md` for reference.
 
 Issue ALL research queries in a single parallel batch (one message, all calls
-at once). This follows the daily-digest batching protocol — never issue searches
-one at a time.
+at once).
 
 ```
 [WebSearch: {company} mission values "about us"]
@@ -68,7 +51,7 @@ queries.
 
 ---
 
-## Output Brief
+## Phase 3 — Output Brief
 
 Write the research brief to `output/{company-slug}/company-research.md`.
 
@@ -119,13 +102,14 @@ skills (cover-letter, interview-prep) read it for full detail. Requirements:
 
 ---
 
-## State Update
+## Phase 4 — State Update
 
-After writing the brief, annotate the company's entry in seen-postings.
+Read `skills/_shared/state-io.md` and execute — read `seen-postings`.
 
-1. Glob `output/*-seen-postings.md`, sort descending, read the most recent file
-2. Find the line matching the company name and URL
-3. Append `| RESEARCHED` to that line
+After writing the brief, annotate the company's entry in seen-postings:
+
+1. Find the line matching the company name and URL
+2. Append `| RESEARCHED` to that line
 
 **Before:**
 ```
@@ -148,9 +132,6 @@ every entry must have one or the other so all roles can be aged:
 ## {YYYY-MM-DD}
 - {Company} | {Title} | {URL} | posted:YYYY-MM-DD | RESEARCHED
 ```
-
-If no seen-postings file exists at all, create `output/YYYY-MM-DD-seen-postings.md`
-with the new entry.
 
 **Do not** update `preferences.md` or `applications.md`. Research is not a
 pipeline event.
