@@ -130,4 +130,18 @@ or the other so all roles can be aged:
 - {Company} | {Title} | cover letter generated | {date} | posted:YYYY-MM-DD
 ```
 
-Note: Applications pipeline tracking is deferred to the `application-tracker` skill.
+### Applications Pipeline (if tracked)
+
+If the company has an entry in the applications pipeline, record the cover letter:
+
+```fish
+bun scripts/state.js add-note applications --company "{company}" --note "Cover letter generated {YYYY-MM-DD}"
+```
+
+If the command exits non-zero (no matching application entry), this is expected
+for roles not yet in the pipeline. Log a note to the user:
+
+> "No application entry found for {company} — skipping pipeline update.
+> Run /application-tracker to add it."
+
+Do not fail the skill run.
