@@ -110,6 +110,111 @@ describe('state.js CLI', () => {
     });
   });
 
+  describe('applications', () => {
+    const APP_ENTRY = JSON.stringify({
+      company: 'TestCorp',
+      title: 'VP Engineering',
+      stage: 'Applied',
+      url: 'https://example.com/job/123',
+    });
+
+    // Clean up any test file after each test
+    afterEach(() => {
+      const outputDir = path.join(__dirname, '..', 'output');
+      const files = fs.readdirSync(outputDir).filter(f => f.includes('-applications.md'));
+      for (const f of files) {
+        const content = fs.readFileSync(path.join(outputDir, f), 'utf8');
+        if (content.includes('TestCorp') || content.includes('TestCorp2')) {
+          fs.unlinkSync(path.join(outputDir, f));
+        }
+      }
+    });
+
+    it('read returns valid JSON (empty when no file)', () => {
+      const { stdout } = run('read applications');
+      const data = JSON.parse(stdout);
+      assert.ok(Array.isArray(data));
+    });
+
+    it('create + read round-trips', () => {
+      run(`create applications '${APP_ENTRY}'`);
+      const { stdout } = run('read applications');
+      const data = JSON.parse(stdout);
+      const entry = data.find(e => e.company === 'TestCorp');
+      assert.ok(entry);
+      assert.equal(entry.stage, 'Applied');
+    });
+
+    it('update transitions stage', () => {
+      run(`create applications '${APP_ENTRY}'`);
+      run('update applications --company TestCorp --stage Screen --detail "Recruiter call"');
+      const { stdout } = run('read applications');
+      const data = JSON.parse(stdout);
+      const entry = data.find(e => e.company === 'TestCorp');
+      assert.equal(entry.stage, 'Screen');
+    });
+
+    it('add-note appends note', () => {
+      run(`create applications '${APP_ENTRY}'`);
+      run('add-note applications --company TestCorp --note "Cover letter generated"');
+      const { stdout } = run('read applications');
+      const data = JSON.parse(stdout);
+      const entry = data.find(e => e.company === 'TestCorp');
+      assert.ok(entry.notes.includes('Cover letter generated'));
+    });
+
+    it('exits non-zero for update with unknown stage', () => {
+      run(`create applications '${APP_ENTRY}'`);
+      const { exitCode } = run('update applications --company TestCorp --stage Vibing', true);
+      assert.ok(exitCode !== 0);
+    });
+
+    it('exits non-zero for update with missing --company', () => {
+      const { exitCode } = run('update applications --stage Screen', true);
+      assert.ok(exitCode !== 0);
+    });
+
+    it('exits non-zero for add-note with no matching company', () => {
+      const { exitCode } = run('add-note applications --company Nonexistent --note "test"', true);
+      assert.ok(exitCode !== 0);
+    });
+
+    it('exits non-zero for update on wrong type', () => {
+      const { exitCode } = run('update seen-postings --company Test --stage Screen', true);
+      assert.ok(exitCode !== 0);
+    });
+
+    it('exits non-zero for add-note on wrong type', () => {
+      const { exitCode } = run('add-note preferences --company Test --note "test"', true);
+      assert.ok(exitCode !== 0);
+    });
+
+    it('exits non-zero for append applications (unsupported)', () => {
+      const { exitCode } = run(`append applications '${APP_ENTRY}'`, true);
+      assert.ok(exitCode !== 0);
+    });
+
+    it('read --stage filters entries', () => {
+      run(`create applications '${APP_ENTRY}'`);
+      const second = JSON.stringify({
+        company: 'TestCorp2',
+        title: 'Director',
+        stage: 'Screen',
+      });
+      run(`create applications '${second}'`);
+
+      const { stdout: appliedOnly } = run('read applications --stage Applied');
+      const applied = JSON.parse(appliedOnly);
+      assert.equal(applied.length, 1);
+      assert.equal(applied[0].company, 'TestCorp');
+
+      const { stdout: screenOnly } = run('read applications --stage Screen');
+      const screen = JSON.parse(screenOnly);
+      assert.equal(screen.length, 1);
+      assert.equal(screen[0].company, 'TestCorp2');
+    });
+  });
+
   describe('error handling', () => {
     it('exits non-zero for unknown type', () => {
       const { exitCode } = run('read unknown-type', true);

@@ -47,4 +47,47 @@ function validatePreferencesEntry(entry) {
   return { valid: errors.length === 0, errors };
 }
 
-module.exports = { validateSeenPostingsEntry, validatePreferencesEntry };
+const VALID_STAGES = [
+  'Discovery',
+  'Research',
+  'Applied',
+  'Screen',
+  'Interview (1)',
+  'Interview (2+)',
+  'Final Round',
+  'Offer',
+  'Decision',
+  'Closed',
+];
+
+function validateApplicationEntry(entry) {
+  const errors = [];
+
+  if (!entry.company || typeof entry.company !== 'string' || !entry.company.trim()) {
+    errors.push('company is required');
+  } else if (entry.company.includes('|')) {
+    errors.push('company must not contain pipe character (|)');
+  }
+
+  if (!entry.title || typeof entry.title !== 'string' || !entry.title.trim()) {
+    errors.push('title is required');
+  } else if (entry.title.includes('|')) {
+    errors.push('title must not contain pipe character (|)');
+  }
+
+  if (!entry.stage || !VALID_STAGES.includes(entry.stage)) {
+    errors.push(`stage must be one of: ${VALID_STAGES.join(', ')}`);
+  }
+
+  if (entry.url !== null && entry.url !== undefined && !URL_RE.test(entry.url)) {
+    errors.push('url must be a valid HTTP(S) URL or null');
+  }
+
+  if (entry.applied && !DATE_FORMAT_RE.test(entry.applied)) {
+    errors.push('applied date must be in YYYY-MM-DD format');
+  }
+
+  return { valid: errors.length === 0, errors };
+}
+
+module.exports = { validateSeenPostingsEntry, validatePreferencesEntry, VALID_STAGES, validateApplicationEntry };

@@ -76,7 +76,29 @@ Skills may add additional subsections (e.g., `### TheirStack Credits`,
 
 ### Entry Format (applications)
 
-The applications state file has a different structure — see the
-`application-tracker` skill's pipeline-schema module for the full schema.
-The state-io module handles glob/read/create; the schema is owned by
-application-tracker.
+The applications state file uses a different structure from the append-only
+types. See `skills/application-tracker/pipeline-schema.md` for the full schema.
+
+**CLI subcommands for applications:**
+
+```bash
+# Read all entries (or filter by stage)
+bun scripts/state.js read applications
+bun scripts/state.js read applications --stage Applied
+
+# Create a new pipeline entry
+bun scripts/state.js create applications '{"company":"...","title":"...","stage":"Applied","url":"..."}'
+
+# Transition to a new stage
+bun scripts/state.js update applications --company "Company Name" --stage Screen --detail "Phone screen with recruiter"
+
+# Append a note (e.g., after generating a cover letter or tailoring a resume)
+bun scripts/state.js add-note applications --company "Company Name" --note "Cover letter generated 2026-04-09"
+```
+
+The `update` and `add-note` commands find entries by case-insensitive substring
+match on company name. They auto-timestamp `lastActivity` and append to the
+entry's history log. If no matching entry is found, the command exits non-zero.
+
+Skills that call `add-note` as a side effect (e.g., cover-letter, resume-tailor)
+should treat a non-zero exit as non-fatal — log a note and continue.

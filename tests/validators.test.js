@@ -1,6 +1,6 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
-const { validateSeenPostingsEntry, validatePreferencesEntry } = require('../scripts/lib/validators');
+const { validateSeenPostingsEntry, validatePreferencesEntry, validateApplicationEntry } = require('../scripts/lib/validators');
 
 describe('validators', () => {
   describe('validateSeenPostingsEntry', () => {
@@ -97,6 +97,104 @@ describe('validators', () => {
       });
       assert.equal(result.valid, false);
       assert.ok(result.errors.length >= 3, `expected 3+ errors, got ${result.errors.length}`);
+    });
+  });
+
+  describe('validateApplicationEntry', () => {
+    it('accepts valid entry with required fields only (company, title, stage)', () => {
+      const result = validateApplicationEntry({
+        company: 'Natera',
+        title: 'VP of Engineering',
+        stage: 'Applied',
+      });
+      assert.equal(result.valid, true);
+      assert.deepEqual(result.errors, []);
+    });
+
+    it('accepts valid entry with all fields', () => {
+      const result = validateApplicationEntry({
+        company: 'Natera',
+        title: 'VP of Engineering',
+        stage: 'Interview (1)',
+        url: 'https://jobs.natera.com/123',
+        applied: '2026-04-09',
+        notes: 'Referral from Jane',
+        contacts: ['Jane Doe'],
+        nextAction: 'Follow up',
+      });
+      assert.equal(result.valid, true);
+      assert.deepEqual(result.errors, []);
+    });
+
+    it('rejects empty company', () => {
+      const result = validateApplicationEntry({
+        company: '',
+        title: 'VP of Engineering',
+        stage: 'Applied',
+      });
+      assert.equal(result.valid, false);
+      assert.ok(result.errors.some(e => e.includes('company')));
+    });
+
+    it('rejects empty title', () => {
+      const result = validateApplicationEntry({
+        company: 'Natera',
+        title: '',
+        stage: 'Applied',
+      });
+      assert.equal(result.valid, false);
+      assert.ok(result.errors.some(e => e.includes('title')));
+    });
+
+    it('rejects missing stage', () => {
+      const result = validateApplicationEntry({
+        company: 'Natera',
+        title: 'VP of Engineering',
+      });
+      assert.equal(result.valid, false);
+      assert.ok(result.errors.some(e => e.includes('stage')));
+    });
+
+    it('rejects invalid stage', () => {
+      const result = validateApplicationEntry({
+        company: 'Natera',
+        title: 'VP of Engineering',
+        stage: 'Vibing',
+      });
+      assert.equal(result.valid, false);
+      assert.ok(result.errors.some(e => e.includes('stage')));
+    });
+
+    it('rejects invalid URL (not http/https)', () => {
+      const result = validateApplicationEntry({
+        company: 'Natera',
+        title: 'VP of Engineering',
+        stage: 'Applied',
+        url: 'ftp://jobs.natera.com/123',
+      });
+      assert.equal(result.valid, false);
+      assert.ok(result.errors.some(e => e.includes('url')));
+    });
+
+    it('rejects invalid applied date format (not YYYY-MM-DD)', () => {
+      const result = validateApplicationEntry({
+        company: 'Natera',
+        title: 'VP of Engineering',
+        stage: 'Applied',
+        applied: '04-09-2026',
+      });
+      assert.equal(result.valid, false);
+      assert.ok(result.errors.some(e => e.includes('applied')));
+    });
+
+    it('rejects pipe character in company name', () => {
+      const result = validateApplicationEntry({
+        company: 'Natera|Bad',
+        title: 'VP of Engineering',
+        stage: 'Applied',
+      });
+      assert.equal(result.valid, false);
+      assert.ok(result.errors.some(e => e.includes('company')));
     });
   });
 
