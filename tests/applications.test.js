@@ -1,12 +1,16 @@
-const { describe, it } = require('node:test');
+const { describe, it, beforeEach, afterEach } = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const {
   parseApplicationsContent,
   parseApplicationsFile,
+  parseApplications,
   makeEntry,
   formatApplication,
   formatApplicationsFile,
+  createApplication,
 } = require('../scripts/lib/applications');
 
 const FIXTURES = path.join(__dirname, 'fixtures');
@@ -258,6 +262,77 @@ describe('applications parser', () => {
       assert.equal(entry.notes, '');
       assert.deepEqual(entry.history, []);
       assert.equal(entry.closed, null);
+    });
+  });
+
+  describe('createApplication', () => {
+    let tmpDir;
+
+    beforeEach(() => {
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'app-test-'));
+    });
+
+    afterEach(() => {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    });
+
+    it('creates a new file when none exists and parseApplications returns 1 active entry', () => {
+      createApplication(tmpDir, {
+        company: 'Acme',
+        title: 'VP Engineering',
+        stage: 'Applied',
+      });
+      const { active } = parseApplications(tmpDir);
+      assert.equal(active.length, 1);
+      assert.equal(active[0].company, 'Acme');
+    });
+
+    it('defaults applied date to today when not provided', () => {
+      const today = new Date().toISOString().slice(0, 10);
+      createApplication(tmpDir, {
+        company: 'Acme',
+        title: 'VP Engineering',
+        stage: 'Applied',
+      });
+      const { active } = parseApplications(tmpDir);
+      assert.equal(active[0].applied, today);
+    });
+
+    it('appends to existing file: create two entries, verify both exist', () => {
+      createApplication(tmpDir, {
+        company: 'Acme',
+        title: 'VP Engineering',
+        stage: 'Applied',
+      });
+      createApplication(tmpDir, {
+        company: 'BetaCorp',
+        title: 'Senior Director',
+        stage: 'Screen',
+      });
+      const { active } = parseApplications(tmpDir);
+      assert.equal(active.length, 2);
+      assert.ok(active.some(e => e.company === 'Acme'));
+      assert.ok(active.some(e => e.company === 'BetaCorp'));
+    });
+
+    it('creates initial history entry with stage and detail', () => {
+      createApplication(tmpDir, {
+        company: 'Acme',
+        title: 'VP Engineering',
+        stage: 'Applied',
+      });
+      const { active } = parseApplications(tmpDir);
+      const entry = active[0];
+      assert.equal(entry.history.length, 1);
+      assert.equal(entry.history[0].stage, 'Applied');
+      assert.ok(entry.history[0].detail.length > 0);
+    });
+
+    it('rejects invalid entry: empty company throws', () => {
+      assert.throws(
+        () => createApplication(tmpDir, { company: '', title: 'VP Engineering', stage: 'Applied' }),
+        /Invalid application entry/
+      );
     });
   });
 });

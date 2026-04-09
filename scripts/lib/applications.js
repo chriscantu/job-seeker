@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { resolveStateFile, atomicWriteFileSync, ensureDir } = require('./util');
+const { validateApplicationEntry } = require('./validators');
 
 const HEADING_RE = /^### (.+?) — (.+)$/;
 const KEY_VALUE_RE = /^- \*\*(.+?)\*\*:\s*(.*)$/;
@@ -224,6 +225,44 @@ function formatApplicationsFile({ active, closed }) {
   return parts.join('\n') + '\n';
 }
 
+function createApplication(dir, entry) {
+  const validation = validateApplicationEntry(entry);
+  if (!validation.valid) {
+    throw new Error(`Invalid application entry: ${validation.errors.join(', ')}`);
+  }
+
+  ensureDir(dir);
+
+  const today = new Date().toISOString().slice(0, 10);
+  const applied = entry.applied || today;
+
+  const newEntry = {
+    ...makeEntry(),
+    company: entry.company,
+    title: entry.title,
+    stage: entry.stage,
+    applied,
+    url: entry.url || null,
+    notes: entry.notes || '',
+    contacts: entry.contacts || '',
+    nextAction: entry.nextAction || null,
+    lastActivity: { date: applied, detail: `${entry.stage} — Added to pipeline` },
+    history: [{ date: applied, stage: entry.stage, detail: 'Added to pipeline' }],
+  };
+
+  const existing = resolveStateFile(dir, 'applications');
+
+  if (existing) {
+    const data = parseApplicationsFile(existing);
+    data.active.push(newEntry);
+    atomicWriteFileSync(existing, formatApplicationsFile(data));
+  } else {
+    const fileName = `${today}-applications.md`;
+    const data = { active: [newEntry], closed: [] };
+    atomicWriteFileSync(path.join(dir, fileName), formatApplicationsFile(data));
+  }
+}
+
 module.exports = {
   parseApplicationsContent,
   parseApplicationsFile,
@@ -231,4 +270,5 @@ module.exports = {
   makeEntry,
   formatApplication,
   formatApplicationsFile,
+  createApplication,
 };
