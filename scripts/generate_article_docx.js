@@ -3,7 +3,7 @@
  * Generate a formatted .docx article from the fat-marker LinkedIn article markdown.
  *
  * Usage:
- *   node scripts/generate_article_docx.js
+ *   bun scripts/generate_article_docx.js
  *
  * Output: output/linkedin-article-fat-marker.docx
  *

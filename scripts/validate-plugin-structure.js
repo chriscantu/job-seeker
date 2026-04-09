@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // scripts/validate-plugin-structure.js
 // Validates that all files referenced in plugin.json exist.
-// Run: node scripts/validate-plugin-structure.js
+// Run: bun scripts/validate-plugin-structure.js
 // Exit 0 = valid. Exit 1 = issues found.
 
 const fs = require('fs');

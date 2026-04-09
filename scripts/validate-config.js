@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // scripts/validate-config.js
 // Validates config files exist and contain required fields.
-// Run: node scripts/validate-config.js
-// Run: node scripts/validate-config.js --ci  (skip personal config checks for CI)
+// Run: bun scripts/validate-config.js
+// Run: bun scripts/validate-config.js --ci  (skip personal config checks for CI)
 // Exit 0 = valid. Exit 1 = issues found (messages printed to stdout).
 
 const fs = require('fs');

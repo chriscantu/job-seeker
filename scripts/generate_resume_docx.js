@@ -3,7 +3,7 @@
  * Generate a formatted .docx resume from the canonical markdown source.
  *
  * Usage:
- *   node scripts/generate_resume_docx.js <input.md> <output.docx>
+ *   bun scripts/generate_resume_docx.js <input.md> <output.docx>
  */
 
 "use strict";

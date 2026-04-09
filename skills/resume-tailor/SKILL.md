@@ -68,7 +68,7 @@ Follow the markdown structure and content rules in
 
 ```fish
 set NODE_PATH /opt/homebrew/lib/node_modules
-node scripts/generate_resume_docx.js \
+bun scripts/generate_resume_docx.js \
   output/{company-slug}/{Name}_Resume_{Company}.md \
   output/{company-slug}/{Name}_Resume_{Company}.docx
 ```

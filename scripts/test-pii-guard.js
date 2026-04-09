@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // scripts/test-pii-guard.js
 // Automated tests for hooks/scripts/pii-guard.js
-// Run: node scripts/test-pii-guard.js
+// Run: bun scripts/test-pii-guard.js
 // Exit 0 = all pass. Exit 1 = failures found.
 
 const { execFileSync } = require('child_process');
