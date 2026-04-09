@@ -17,7 +17,7 @@ function run(label, input, expectedExit) {
   const stdin = typeof input === 'string' ? input : JSON.stringify(input);
   let actualExit;
   try {
-    execFileSync('node', [GUARD], { input: stdin, stdio: ['pipe', 'pipe', 'pipe'] });
+    execFileSync(process.execPath, [GUARD], { input: stdin, stdio: ['pipe', 'pipe', 'pipe'] });
     actualExit = 0;
   } catch (err) {
     actualExit = err.status;

@@ -246,7 +246,7 @@ Ashby public API does not expose posting dates; entries use `discovered:` fallba
 
 ### Hardcoded search queries in daily-digest (surfaced in v0.4)
 
-`daily-digest/SKILL.md` reads filter criteria from `config/search.md` but the
+`skills/daily-digest/SKILL.md` reads filter criteria from `config/search.md` but the
 actual search queries (Phases 1b, 1c, LinkedIn automation, weekly reminder
 sites) have hardcoded "VP Engineering" / "Senior Director Engineering" titles
 and exec-level board URLs. A user targeting different role levels or industries

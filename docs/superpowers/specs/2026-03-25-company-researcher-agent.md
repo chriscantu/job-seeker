@@ -123,7 +123,7 @@ Maps to `config/candidate.md` strengths:
 
 ### File Location
 
-`.claude-plugin/agents/company-researcher.md`
+TBD — `.claude-plugin/agents/` directory does not exist yet
 
 ### Frontmatter
 

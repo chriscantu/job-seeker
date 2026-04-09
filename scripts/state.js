@@ -22,7 +22,7 @@ const applications = require('./lib/applications');
 const { resolveStateFile } = require('./lib/util');
 
 const ROOT = path.resolve(__dirname, '..');
-const OUTPUT_DIR = path.join(ROOT, 'output');
+const OUTPUT_DIR = process.env.OUTPUT_DIR || path.join(ROOT, 'output');
 
 const SEEN_POSTINGS_COMMANDS = ['query', 'dedup-check', 'flag'];
 const APPLICATIONS_COMMANDS = ['update', 'add-note', 'create'];
