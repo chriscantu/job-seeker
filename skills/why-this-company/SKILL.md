@@ -14,15 +14,21 @@ Creates an authentic, executive-level response to "Why did you decide to apply
 to this company?" by connecting the candidate's real career trajectory and values to
 the company's mission, stage, and engineering challenges.
 
-## Before You Start
+## Phase 0 — Preflight
 
-1. Read `PRINCIPLES.md` — especially "Authenticity Over Polish" and "Mission Alignment Is Not Performative"
-2. Read `config/candidate.md` — candidate name, role, previous companies, strengths
-3. Read `references/resume.pdf` for detailed accomplishments
-4. Glob `references/writing-samples/*.md` — if any files exist, read them to
-   calibrate tone before writing.
-5. Glob `output/*-preferences.md`, sort descending, read the most recent file
-   for interest signals. If no file exists, proceed without preference context.
+Read `skills/_shared/preflight.md` and execute.
+
+Then read these additional files:
+- `references/resume.pdf` — for detailed accomplishments
+- Glob `references/writing-samples/*.md` — if any files exist, read them to
+  calibrate tone before writing.
+
+## Phase 0a — Load Preferences
+
+Read `skills/_shared/state-io.md` and execute — read `preferences`.
+
+Use interest signals from preferences to inform the response. If no preferences
+file exists, proceed without preference context.
 
 ## Required Inputs
 
@@ -102,15 +108,15 @@ Before presenting the output:
 
 ## State Update
 
-After generating, ask the candidate if they want to apply. If yes:
+Read `skills/_shared/state-io.md` and execute — append to `seen-postings`.
 
-1. Glob `output/*-seen-postings.md`, sort descending.
-2. Append to the most recent file (or create `output/YYYY-MM-DD-seen-postings.md`
-   if none exists). Include `posted:YYYY-MM-DD` if the posting date is visible
-   on the job page. If unknown, use `discovered:YYYY-MM-DD` (today's date)
-   instead — every entry must have one or the other so all roles can be aged:
-   ```
-   - {Company} | {Title} | APPLYING | {date} | posted:YYYY-MM-DD
-   ```
+After generating, ask the candidate if they want to apply. If yes, append to
+the seen-postings state file with `posted:YYYY-MM-DD` if the posting date is
+visible on the job page. If unknown, use `discovered:YYYY-MM-DD` (today's date)
+instead — every entry must have one or the other so all roles can be aged:
+
+```
+- {Company} | {Title} | APPLYING | {date} | posted:YYYY-MM-DD
+```
 
 Note: Applications pipeline tracking is deferred to the `application-tracker` skill.
