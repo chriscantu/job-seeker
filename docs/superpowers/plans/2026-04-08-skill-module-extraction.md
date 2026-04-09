@@ -73,7 +73,7 @@ Every skill executes this module before doing any work.
 
 ## Step 1: Validate Configuration
 
-Run `node scripts/validate-config.js` — if it exits non-zero, stop and show the
+Run `bun scripts/validate-config.js` — if it exits non-zero, stop and show the
 error to the user. Do not proceed with any subsequent phase.
 
 ## Step 2: Read Core Files
@@ -1517,7 +1517,7 @@ structure — the parser is rigid.
 
 ```fish
 set NODE_PATH /opt/homebrew/lib/node_modules
-node scripts/generate_resume_docx.js \
+bun scripts/generate_resume_docx.js \
   output/{company-slug}/{Name}_Resume_{Company}.md \
   output/{company-slug}/{Name}_Resume_{Company}.docx
 ```
@@ -1792,7 +1792,7 @@ Every SKILL.md should reference at least `preflight.md`.
 - [ ] **Step 3: Verify no orphaned duplication**
 
 Spot-check that the following patterns no longer appear inline in any SKILL.md:
-- `node scripts/validate-config.js` (should only be in preflight.md)
+- `bun scripts/validate-config.js` (should only be in preflight.md)
 - `Glob output/*-seen-postings.md, sort descending` (should only be in state-io.md)
 - `boards-api.greenhouse.io` (should only be in ats-verification.md and ats-apis.md)
 

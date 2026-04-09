@@ -59,7 +59,7 @@ both .md and .docx in one shot.
 
 ## Before You Start
 
-1. Run `node scripts/validate-config.js` — if it exits non-zero, stop and show the error
+1. Run `bun scripts/validate-config.js` — if it exits non-zero, stop and show the error
 2. Read `PRINCIPLES.md` — quality standards, voice guidelines, output conventions
 3. Read `config/candidate.md` — candidate name, core strengths, accomplishments
 4. Read `config/search.md` — target roles, to contextualize fit
@@ -339,7 +339,7 @@ Run:
 
 ```fish
 set NODE_PATH /opt/homebrew/lib/node_modules
-node scripts/generate_resume_docx.js \
+bun scripts/generate_resume_docx.js \
   output/{company-slug}/{Name}_Resume_{Company}.md \
   output/{company-slug}/{Name}_Resume_{Company}.docx
 ```
@@ -541,7 +541,7 @@ Manually confirm the markdown structure example in Step 4a matches what
 - [ ] **Step 5: Run existing validators**
 
 ```bash
-node scripts/validate-config.js && node scripts/validate-structure.js
+bun scripts/validate-config.js && bun scripts/validate-structure.js
 ```
 
 Expected: Both pass — we only changed the content of an existing SKILL.md, not the file structure or config.

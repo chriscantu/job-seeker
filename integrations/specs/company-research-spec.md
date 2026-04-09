@@ -171,7 +171,7 @@ pipeline event.
 
 ## Before You Start
 
-1. Run `node scripts/validate-config.js` — if it exits non-zero, stop and show
+1. Run `bun scripts/validate-config.js` — if it exits non-zero, stop and show
    the error to the user
 2. Read `PRINCIPLES.md` — quality standards and voice guidelines that govern all output
 3. Read `config/candidate.md` — candidate name, core strengths, accomplishments
@@ -244,7 +244,7 @@ seen-postings provides a quick check before globbing for the file.
 
 ### Manual validation steps
 
-1. Run `node scripts/validate-config.js` — confirm `✓ Config valid`
+1. Run `bun scripts/validate-config.js` — confirm `✓ Config valid`
 2. Invoke `company-research` with a live Greenhouse URL — confirm brief is
    written to `output/{company-slug}/company-research.md` with all 5 sections
 3. Check `output/*-seen-postings.md` — confirm the entry has `| RESEARCHED` appended
@@ -253,4 +253,4 @@ seen-postings provides a quick check before globbing for the file.
    created with `RESEARCHED` flag
 6. Verify the Positioning section references specific accomplishments from
    `config/candidate.md`, not generic platitudes
-7. Run `node scripts/validate-structure.js` — confirm no regressions
+7. Run `bun scripts/validate-structure.js` — confirm no regressions

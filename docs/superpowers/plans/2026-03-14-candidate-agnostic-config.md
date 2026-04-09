@@ -315,7 +315,7 @@ Create `scripts/validate-config.js`:
 #!/usr/bin/env node
 // scripts/validate-config.js
 // Validates config files exist and contain required fields.
-// Run: node scripts/validate-config.js
+// Run: bun scripts/validate-config.js
 // Exit 0 = valid. Exit 1 = issues found (messages printed to stdout).
 
 const fs = require('fs');
@@ -707,7 +707,7 @@ Replace step 1 with:
 ```
 1. Read `config/candidate.md` — candidate name and profile
 2. Read `config/search.md` — target role titles, comp floor, location constraints, sources
-3. Run `node scripts/validate-config.js` — if it exits non-zero, stop and show the error to the user
+3. Run `bun scripts/validate-config.js` — if it exits non-zero, stop and show the error to the user
 ```
 
 Renumber the remaining old steps as follows:
@@ -1105,7 +1105,7 @@ Add a new section before `## Intended Behavior`:
 ```markdown
 ## Before You Start
 
-1. Run `node scripts/validate-config.js` — if it exits non-zero, stop and show the error
+1. Run `bun scripts/validate-config.js` — if it exits non-zero, stop and show the error
 2. Read `config/candidate.md` — candidate name, role, accomplishments
 3. Read `config/search.md` — target roles, comp floor
 4. Read `references/resume.pdf` — canonical resume content
@@ -1127,7 +1127,7 @@ Add before `## Intended Behavior`:
 ```markdown
 ## Before You Start
 
-1. Run `node scripts/validate-config.js` — if it exits non-zero, stop and show the error
+1. Run `bun scripts/validate-config.js` — if it exits non-zero, stop and show the error
 2. Read `config/candidate.md` — candidate name, core strengths, previous companies
 3. Read `config/search.md` — company types of interest, comp floor
 ```
@@ -1148,7 +1148,7 @@ Add before `## Intended Behavior`:
 ```markdown
 ## Before You Start
 
-1. Run `node scripts/validate-config.js` — if it exits non-zero, stop and show the error
+1. Run `bun scripts/validate-config.js` — if it exits non-zero, stop and show the error
 2. Read `config/candidate.md` — candidate name, experience, core strengths, accomplishments
 3. Read `config/search.md` — target roles
 4. Read `references/resume.pdf` — for STAR story material
@@ -1160,7 +1160,7 @@ Add before `## Intended Behavior`:
 ```markdown
 ## Before You Start
 
-1. Run `node scripts/validate-config.js` — if it exits non-zero, stop and show the error
+1. Run `bun scripts/validate-config.js` — if it exits non-zero, stop and show the error
 2. Read `config/candidate.md` — candidate name, current role, target roles
 3. Glob `references/writing-samples/*.md` — if any files exist, read them to
    calibrate tone before writing
@@ -1182,7 +1182,7 @@ This skill is stubbed. Implementation spec: v0.4 Item 3 (separate spec required)
 
 ## Before You Start
 
-1. Run `node scripts/validate-config.js` — if it exits non-zero, stop and show the error
+1. Run `bun scripts/validate-config.js` — if it exits non-zero, stop and show the error
 2. Read `config/candidate.md` — candidate name
 3. Read `config/search.md` — target roles
 4. Glob `output/*-applications.md`, sort descending, read most recent for current pipeline.
@@ -1294,7 +1294,7 @@ Check each step off as you go. Note any failures with the exact error.
 - [ ] **1. Validate-config passes with full setup**
 
   ```
-  node scripts/validate-config.js
+  bun scripts/validate-config.js
   ```
   Expected: `✓ Config valid`
 
@@ -1302,7 +1302,7 @@ Check each step off as you go. Note any failures with the exact error.
 
   Rename `config/candidate.md` to `config/candidate.md.bak`, then run:
   ```
-  node scripts/validate-config.js
+  bun scripts/validate-config.js
   ```
   Expected: exit 1, message points to `config/candidate.md.example`
 
@@ -1312,7 +1312,7 @@ Check each step off as you go. Note any failures with the exact error.
 
   Temporarily rename the `Email` row in `config/candidate.md` to `EmailX`, run:
   ```
-  node scripts/validate-config.js
+  bun scripts/validate-config.js
   ```
   Expected: exit 1, message names the missing field `"Email"`
 
@@ -1360,7 +1360,7 @@ Check each step off as you go. Note any failures with the exact error.
   Create a misnamed state file:
   ```
   touch output/seen-postings.md
-  node scripts/validate-config.js
+  bun scripts/validate-config.js
   ```
   Expected: exit 1, message flags `output/seen-postings.md` naming violation.
   Cleanup: `rm output/seen-postings.md`

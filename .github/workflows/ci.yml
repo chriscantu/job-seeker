@@ -12,18 +12,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
+      - uses: oven-sh/setup-bun@v2
 
       - name: Validate plugin structure
-        run: node scripts/validate-plugin-structure.js
+        run: bun scripts/validate-plugin-structure.js
 
       - name: Validate config (CI mode)
-        run: node scripts/validate-config.js --ci
+        run: bun scripts/validate-config.js --ci
 
       - name: Validate STRUCTURE.md
-        run: node scripts/validate-structure.js
+        run: bun scripts/validate-structure.js
 
       - name: Test PII guard
-        run: node scripts/test-pii-guard.js
+        run: bun scripts/test-pii-guard.js

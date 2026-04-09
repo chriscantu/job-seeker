@@ -704,7 +704,7 @@ git commit -m "docs: mark candidate-agnostic-config spec as implemented"
 
 - [ ] **Step 1: Run validate-config.js**
 
-Run: `node scripts/validate-config.js`
+Run: `bun scripts/validate-config.js`
 Expected: `✓ Config valid` (both config files exist and have required fields).
 
 - [ ] **Step 2: Grep for remaining hardcoded references**
@@ -729,7 +729,7 @@ never be called "source of truth" in any skill or doc file.
 
 Follow `integrations/docs/config-migration-test-protocol.md` to validate the
 migration end-to-end. The key checks:
-1. `node scripts/validate-config.js` passes
+1. `bun scripts/validate-config.js` passes
 2. `memory/job-search/` is gone
 3. Skill files reference config, not hardcoded values
 4. Output/ is the primary state layer in all docs

@@ -47,7 +47,7 @@ brief that other skills (cover-letter, why-this-company, interview-prep) can ref
 
 ## Before You Start
 
-1. Run `node scripts/validate-config.js` — if it exits non-zero, stop and show the error to the user
+1. Run `bun scripts/validate-config.js` — if it exits non-zero, stop and show the error to the user
 2. Read `config/candidate.md` — candidate name, core strengths, accomplishments
 3. Read `config/search.md` — company types of interest, to contextualize fit
 4. Accept the job posting URL from the user
@@ -239,10 +239,10 @@ grep "allowed-tools" skills/company-research/SKILL.md
 - [ ] **Step 9: Run existing validators**
 
 ```bash
-node scripts/validate-config.js
+bun scripts/validate-config.js
 # Expected: ✓ Config valid
 
-node scripts/validate-structure.js
+bun scripts/validate-structure.js
 # Expected: ✓ Structure valid
 ```
 

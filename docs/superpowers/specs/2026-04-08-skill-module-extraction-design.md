@@ -34,7 +34,7 @@ on demand per phase.
 
 Combined config validation and standard reads. Every skill starts here.
 
-- Run `node scripts/validate-config.js` — fail-fast on non-zero exit
+- Run `bun scripts/validate-config.js` — fail-fast on non-zero exit
 - Read `PRINCIPLES.md` — quality standards, voice guidelines, privacy constraints
 - Read `config/candidate.md` — candidate name, role, strengths, accomplishments
 - Read `config/search.md` — target titles, comp floor, location, skip list

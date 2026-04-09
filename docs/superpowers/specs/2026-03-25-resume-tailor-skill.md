@@ -60,7 +60,7 @@ accomplishments table — all without fabricating experience.
 
 ### Before You Start
 
-1. Run `node scripts/validate-config.js` — stop on non-zero exit
+1. Run `bun scripts/validate-config.js` — stop on non-zero exit
 2. Read `PRINCIPLES.md` — quality standards and voice guidelines
 3. Read `config/candidate.md` — candidate name, core strengths, accomplishments
 4. Read `config/search.md` — target roles, to contextualize fit
@@ -152,7 +152,7 @@ Draft a new 2-3 sentence summary that:
 3. Generate .docx:
    ```fish
    set NODE_PATH /opt/homebrew/lib/node_modules
-   node scripts/generate_resume_docx.js \
+   bun scripts/generate_resume_docx.js \
      output/{company-slug}/{Name}_Resume_{Company}.md \
      output/{company-slug}/{Name}_Resume_{Company}.docx
    ```

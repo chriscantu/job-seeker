@@ -393,7 +393,7 @@ is unavailable.
 An interactive flow diagram is available at:
 `docs/superpowers/visualizations/source-priority-flow.html`
 
-Serve locally with: `npx http-server docs/superpowers/visualizations -p 8123`
+Serve locally with: `bunx http-server docs/superpowers/visualizations -p 8123`
 
 Features:
 - Click any node for detailed documentation

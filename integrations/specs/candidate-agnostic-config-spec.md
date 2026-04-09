@@ -292,7 +292,7 @@ voice), why skills use them (tone calibration), and file naming conventions.
 
 ### Automated validation — `scripts/validate-config.js`
 
-A Node.js script (run via `node scripts/validate-config.js`) that:
+A script (run via `bun scripts/validate-config.js`) that:
 
 1. Checks `config/candidate.md` exists; if not, exits with a message pointing to `config/candidate.md.example`
 2. Checks `config/candidate.md` contains all required fields: Name, Current Role, Target Roles, Experience, Core Strengths, Previous Companies, Education, Location, Email
@@ -302,13 +302,13 @@ A Node.js script (run via `node scripts/validate-config.js`) that:
 6. If any `output/*-seen-postings.md` files exist, validates they follow `YYYY-MM-DD-seen-postings.md` naming
 7. Prints a summary: `✓ Config valid` or `✗ N issues found` with specific messages for each failure
 
-Skills instruct Claude to run `node scripts/validate-config.js` as the first step in "Before You Start" — if it exits non-zero, stop and surface the error message to the user.
+Skills instruct Claude to run `bun scripts/validate-config.js` as the first step in "Before You Start" — if it exits non-zero, stop and surface the error message to the user.
 
 ### Manual test protocol — `integrations/docs/config-migration-test-protocol.md`
 
 A step-by-step protocol (modeled after `apple-notes-test-protocol.md`) to be run after implementation:
 
-1. Run `node scripts/validate-config.js` with both config files present — confirm `✓ Config valid`
+1. Run `bun scripts/validate-config.js` with both config files present — confirm `✓ Config valid`
 2. Rename `config/candidate.md` to `config/candidate.md.bak`, run `daily-digest` — confirm clear error message pointing to `.example` file
 3. Restore config, run `daily-digest` — confirm greeting uses `Name` field from config (not hardcoded "Chris")
 4. Confirm state was written to `output/*-seen-postings.md` with correct entry format
@@ -316,7 +316,7 @@ A step-by-step protocol (modeled after `apple-notes-test-protocol.md`) to be run
 6. Run `cover-letter` for a test company — confirm it reads `references/writing-samples/` if files are present
 7. Add a file to `references/writing-samples/` and rerun `cover-letter` — confirm the sample is referenced
 8. Confirm `memory/job-search/` directory no longer exists in the repo
-9. Run `node scripts/validate-config.js` with a missing required field — confirm specific failure message
+9. Run `bun scripts/validate-config.js` with a missing required field — confirm specific failure message
 
 ---
 

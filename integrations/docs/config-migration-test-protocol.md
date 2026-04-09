@@ -22,7 +22,7 @@ Check each step off as you go. Note any failures with the exact error.
 - [ ] **1. Validate-config passes with full setup**
 
   ```
-  node scripts/validate-config.js
+  bun scripts/validate-config.js
   ```
   Expected: `✓ Config valid`
 
@@ -30,7 +30,7 @@ Check each step off as you go. Note any failures with the exact error.
 
   Rename `config/candidate.md` to `config/candidate.md.bak`, then run:
   ```
-  node scripts/validate-config.js
+  bun scripts/validate-config.js
   ```
   Expected: exit 1, message points to `config/candidate.md.example`
 
@@ -40,7 +40,7 @@ Check each step off as you go. Note any failures with the exact error.
 
   Temporarily rename the `Email` row in `config/candidate.md` to `EmailX`, run:
   ```
-  node scripts/validate-config.js
+  bun scripts/validate-config.js
   ```
   Expected: exit 1, message names the missing field `"Email"`
 
@@ -88,7 +88,7 @@ Check each step off as you go. Note any failures with the exact error.
   Create a misnamed state file:
   ```
   touch output/seen-postings.md
-  node scripts/validate-config.js
+  bun scripts/validate-config.js
   ```
   Expected: exit 1, message flags `output/seen-postings.md` naming violation.
   Cleanup: `rm output/seen-postings.md`
