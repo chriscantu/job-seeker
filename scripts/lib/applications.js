@@ -170,9 +170,65 @@ function parseApplications(dir) {
   return parseApplicationsFile(filePath);
 }
 
+function formatApplication(entry) {
+  const lines = [];
+  lines.push(`### ${entry.company} — ${entry.title}`);
+  lines.push('');
+  lines.push(`- **Stage**: ${entry.stage || ''}`);
+  lines.push(`- **Applied**: ${entry.applied || ''}`);
+
+  const isClosed = entry.closed != null;
+
+  if (!isClosed) {
+    const laDate = entry.lastActivity && entry.lastActivity.date ? entry.lastActivity.date : '';
+    const laDetail = entry.lastActivity && entry.lastActivity.detail ? entry.lastActivity.detail : '';
+    const laValue = (laDate && laDetail) ? `${laDate} — ${laDetail}` : (laDate || laDetail || '');
+    lines.push(`- **Last activity**: ${laValue}`);
+    lines.push(`- **Next action**: ${entry.nextAction || ''}`);
+    lines.push(`- **Contacts**: ${entry.contacts != null ? entry.contacts : ''}`);
+    lines.push(`- **URL**: ${entry.url || ''}`);
+    lines.push(`- **Notes**: ${entry.notes != null ? entry.notes : ''}`);
+  } else {
+    lines.push(`- **Closed**: ${entry.closed.date || ''}`);
+    lines.push(`- **Summary**: ${entry.closed.summary || ''}`);
+  }
+
+  lines.push('');
+  lines.push('#### History');
+  lines.push('');
+  for (const h of entry.history) {
+    lines.push(`- ${h.date}: ${h.stage} — ${h.detail}`);
+  }
+
+  return lines.join('\n');
+}
+
+function formatApplicationsFile({ active, closed }) {
+  const today = new Date().toISOString().slice(0, 10);
+  const parts = [];
+
+  parts.push(`# Application Pipeline\n\nLast updated: ${today}\n`);
+
+  parts.push('## Active Applications\n');
+  if (active.length > 0) {
+    parts.push(active.map(formatApplication).join('\n\n---\n\n'));
+    parts.push('\n');
+  }
+
+  parts.push('\n## Closed Applications\n');
+  if (closed.length > 0) {
+    parts.push(closed.map(formatApplication).join('\n\n---\n\n'));
+    parts.push('\n');
+  }
+
+  return parts.join('\n') + '\n';
+}
+
 module.exports = {
   parseApplicationsContent,
   parseApplicationsFile,
   parseApplications,
   makeEntry,
+  formatApplication,
+  formatApplicationsFile,
 };

@@ -5,6 +5,8 @@ const {
   parseApplicationsContent,
   parseApplicationsFile,
   makeEntry,
+  formatApplication,
+  formatApplicationsFile,
 } = require('../scripts/lib/applications');
 
 const FIXTURES = path.join(__dirname, 'fixtures');
@@ -180,6 +182,67 @@ describe('applications parser', () => {
       assert.equal(techstart.stage, 'Interview (2+)');
     });
   });
+
+  describe('applications formatter', () => {
+  it('formats a single active entry', () => {
+    const md = formatApplication({
+      company: 'Maven',
+      title: 'VP Engineering',
+      stage: 'Screen',
+      applied: '2026-04-01',
+      lastActivity: { date: '2026-04-08', detail: 'Phone screen with recruiter' },
+      nextAction: 'Prep for technical interview',
+      contacts: 'Jane Doe (Recruiter)',
+      url: 'https://jobs.lever.co/maven/abc123',
+      notes: 'Strong culture fit',
+      history: [
+        { date: '2026-04-01', stage: 'Applied', detail: 'Submitted via website' },
+      ],
+      closed: null,
+    });
+    assert.ok(md.includes('### Maven — VP Engineering'));
+    assert.ok(md.includes('- **Stage**: Screen'));
+    assert.ok(md.includes('- **Applied**: 2026-04-01'));
+    assert.ok(md.includes('- 2026-04-01: Applied — Submitted via website'));
+  });
+
+  it('formats a closed entry with reason', () => {
+    const md = formatApplication({
+      company: 'Initech',
+      title: 'VP of Engineering',
+      stage: 'Closed (rejected)',
+      applied: '2026-03-15',
+      lastActivity: { date: null, detail: null },
+      nextAction: null,
+      contacts: null,
+      url: null,
+      notes: null,
+      history: [
+        { date: '2026-03-15', stage: 'Applied', detail: 'Submitted via referral' },
+      ],
+      closed: { date: '2026-03-28', reason: 'rejected', summary: 'No response' },
+    });
+    assert.ok(md.includes('- **Stage**: Closed (rejected)'));
+    assert.ok(md.includes('- **Closed**: 2026-03-28'));
+    assert.ok(md.includes('- **Summary**: No response'));
+  });
+
+  it('round-trips: parse → format → parse produces equivalent entries', () => {
+    const original = parseApplicationsFile(FIXTURE_PATH);
+    const formatted = formatApplicationsFile(original);
+    const reparsed = parseApplicationsContent(formatted);
+
+    assert.equal(reparsed.active.length, original.active.length);
+    assert.equal(reparsed.closed.length, original.closed.length);
+
+    for (let i = 0; i < original.active.length; i++) {
+      assert.equal(reparsed.active[i].company, original.active[i].company);
+      assert.equal(reparsed.active[i].stage, original.active[i].stage);
+      assert.equal(reparsed.active[i].applied, original.active[i].applied);
+      assert.equal(reparsed.active[i].history.length, original.active[i].history.length);
+    }
+  });
+});
 
   describe('makeEntry — default shape', () => {
     it('returns entry with expected defaults', () => {
