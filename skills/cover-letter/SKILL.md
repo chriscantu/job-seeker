@@ -29,7 +29,7 @@ Check if a `why-this-company` output already exists for this company
 
 Also check for `output/{company-slug}/company-research.md`. If it exists,
 read its frontmatter (see `skills/_shared/frontmatter.md`):
-- `generated` — if older than 7 days, note staleness in output
+- `generated` — if older than 7 days, suggest re-running company-research
 - `rating` — use for context on company fit
 Then read the prose body for positioning context.
 

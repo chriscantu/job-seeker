@@ -52,6 +52,9 @@ function parseFrontmatter(markdown) {
       value = value.slice(1, -1);
     }
 
+    // Unescape escaped double-quotes
+    value = value.replace(/\\"/g, '"');
+
     meta[key] = value;
   }
 
@@ -65,9 +68,16 @@ function parseFrontmatter(markdown) {
 function serializeFrontmatter(meta, body) {
   const lines = ["---"];
   for (const [key, value] of Object.entries(meta)) {
+    if (value === null || value === undefined) continue;
     const strVal = String(value);
+    if (strVal.includes("\n") || strVal.includes("\r")) {
+      throw new Error(
+        `frontmatter: cannot serialize key "${key}": value contains a newline. Values must be single-line.`
+      );
+    }
     if (strVal.includes(":")) {
-      lines.push(`${key}: "${strVal}"`);
+      const escaped = strVal.replace(/"/g, '\\"');
+      lines.push(`${key}: "${escaped}"`);
     } else {
       lines.push(`${key}: ${strVal}`);
     }

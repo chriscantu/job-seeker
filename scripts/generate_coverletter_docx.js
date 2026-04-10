@@ -16,6 +16,7 @@
 const fs = require("fs");
 const { Document, Packer, Paragraph, TextRun, AlignmentType } = require("docx");
 const { COLORS, FONT, PAGE } = require("./docx-styles");
+const { parseFrontmatter } = require("./lib/frontmatter");
 
 // ── CLI ──────────────────────────────────────────────────────────────────────
 const [,, inputPath, outputPath] = process.argv;
@@ -23,8 +24,6 @@ if (!inputPath || !outputPath) {
   console.error("Usage: node generate_coverletter_docx.js <input.md> <output.docx>");
   process.exit(1);
 }
-
-const { parseFrontmatter } = require("./lib/frontmatter");
 const raw = parseFrontmatter(fs.readFileSync(inputPath, "utf8")).body;
 
 // ── Parse ────────────────────────────────────────────────────────────────────

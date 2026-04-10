@@ -127,9 +127,34 @@ describe("serializeFrontmatter", () => {
     const result = serializeFrontmatter(meta, "\nBody.");
     assert.ok(!result.includes('""'));
   });
+
+  it("throws if a value contains a newline", () => {
+    assert.throws(
+      () => serializeFrontmatter({ desc: "line1\nline2" }, "\nBody."),
+      { message: /cannot serialize key "desc".*newline/ }
+    );
+  });
+
+  it("skips null and undefined values", () => {
+    const meta = { skill: "test", empty: null, missing: undefined, company: "Acme" };
+    const result = serializeFrontmatter(meta, "\nBody.");
+    assert.ok(result.includes("skill: test"));
+    assert.ok(result.includes("company: Acme"));
+    assert.ok(!result.includes("empty"));
+    assert.ok(!result.includes("missing"));
+    assert.ok(!result.includes("null"));
+    assert.ok(!result.includes("undefined"));
+  });
 });
 
 describe("roundtrip", () => {
+  it("roundtrips values with colons and embedded double-quotes", () => {
+    const meta = { note: 'said "hello": world' };
+    const serialized = serializeFrontmatter(meta, "\nBody.");
+    const { meta: parsed } = parseFrontmatter(serialized);
+    assert.equal(parsed.note, 'said "hello": world');
+  });
+
   it("parse(serialize(meta, body)) returns the same meta and body", () => {
     const meta = {
       skill: "company-research",

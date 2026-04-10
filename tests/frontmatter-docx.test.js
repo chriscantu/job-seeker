@@ -152,3 +152,21 @@ test("cover letter docx: with frontmatter succeeds and produces file > 1000 byte
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test("ATS resume docx: with frontmatter succeeds and produces file > 1000 bytes", () => {
+  const dir = makeTempDir();
+  try {
+    const inputPath = writeFile(dir, "ats-resume.md", RESUME_WITH_FRONTMATTER);
+    const outputPath = path.join(dir, "ats-resume.docx");
+
+    execSync(
+      `bun "${path.join(SCRIPTS_DIR, "generate_ats_resume_docx.js")}" "${inputPath}" "${outputPath}"`,
+      { stdio: "pipe" }
+    );
+
+    const stat = fs.statSync(outputPath);
+    assert.ok(stat.size > 1000, `Expected docx > 1000 bytes, got ${stat.size}`);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
