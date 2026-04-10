@@ -225,6 +225,93 @@ describe('seen-postings writer', () => {
     });
   });
 
+  describe('frontmatter support', () => {
+    it('appendSeenPosting preserves existing frontmatter and updates last_updated', () => {
+      const { parseFrontmatter } = require('../scripts/lib/frontmatter');
+      const today = new Date().toISOString().slice(0, 10);
+      const fileName = `${today}-seen-postings.md`;
+      fs.writeFileSync(path.join(TMP_DIR, fileName),
+        `---\nformat_version: 1\nlast_updated: 2026-01-01\n---\n# Job Search — Seen Postings\n\n## ${today}\n- Old | VP Eng | https://example.com/old | posted:${today}\n`
+      );
+
+      appendSeenPosting(TMP_DIR, {
+        company: 'NewCo',
+        title: 'VP Engineering',
+        url: 'https://example.com/new',
+        posted: '2026-04-09',
+      });
+
+      const content = fs.readFileSync(path.join(TMP_DIR, fileName), 'utf8');
+      const { meta, body } = parseFrontmatter(content);
+
+      assert.equal(meta.format_version, '1');
+      assert.equal(meta.last_updated, today);
+      assert.ok(body.includes('Old'));
+      assert.ok(body.includes('NewCo'));
+    });
+
+    it('appendSeenPosting backfills frontmatter when none exists', () => {
+      const { parseFrontmatter } = require('../scripts/lib/frontmatter');
+      const today = new Date().toISOString().slice(0, 10);
+      const fileName = `${today}-seen-postings.md`;
+      fs.writeFileSync(path.join(TMP_DIR, fileName),
+        `# Job Search — Seen Postings\n\n## ${today}\n- Old | VP Eng | https://example.com/old | posted:${today}\n`
+      );
+
+      appendSeenPosting(TMP_DIR, {
+        company: 'NewCo',
+        title: 'VP Engineering',
+        url: 'https://example.com/new',
+        posted: '2026-04-09',
+      });
+
+      const content = fs.readFileSync(path.join(TMP_DIR, fileName), 'utf8');
+      const { meta } = parseFrontmatter(content);
+
+      assert.equal(meta.format_version, '1');
+      assert.equal(meta.last_updated, today);
+    });
+
+    it('appendSeenPosting creates new file with frontmatter', () => {
+      const { parseFrontmatter } = require('../scripts/lib/frontmatter');
+
+      appendSeenPosting(TMP_DIR, {
+        company: 'FreshCo',
+        title: 'VP Engineering',
+        url: 'https://example.com/fresh',
+        posted: '2026-04-09',
+      });
+
+      const files = fs.readdirSync(TMP_DIR).filter(f => f.includes('seen-postings'));
+      const content = fs.readFileSync(path.join(TMP_DIR, files[0]), 'utf8');
+      const { meta, body } = parseFrontmatter(content);
+
+      assert.equal(meta.format_version, '1');
+      assert.ok(meta.last_updated);
+      assert.ok(body.includes('FreshCo'));
+    });
+
+    it('flagSeenPosting preserves frontmatter and updates last_updated', () => {
+      const { parseFrontmatter } = require('../scripts/lib/frontmatter');
+      const targetUrl = 'https://example.com/job/flag-test';
+      const fileName = '2026-04-01-seen-postings.md';
+      fs.writeFileSync(path.join(TMP_DIR, fileName),
+        `---\nformat_version: 1\nlast_updated: 2026-04-01\n---\n# Seen Postings\n\n## 2026-04-01\n- FlagCo | VP Eng | ${targetUrl} | posted:2026-04-01\n`
+      );
+
+      const result = flagSeenPosting(TMP_DIR, targetUrl, 'RESEARCHED');
+      assert.equal(result.success, true);
+
+      const content = fs.readFileSync(path.join(TMP_DIR, fileName), 'utf8');
+      const { meta, body } = parseFrontmatter(content);
+
+      assert.equal(meta.format_version, '1');
+      const today = new Date().toISOString().slice(0, 10);
+      assert.equal(meta.last_updated, today);
+      assert.ok(body.includes('RESEARCHED'));
+    });
+  });
+
   describe('flagSeenPosting across files', () => {
     it('finds and flags entry in older file', () => {
       const targetUrl = 'https://example.com/old-job/1';

@@ -1,7 +1,7 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('path');
-const { parseSeenPostings, parseSeenPostingsFile } = require('../scripts/lib/seen-postings');
+const { parseSeenPostings, parseSeenPostingsFile, parseSeenPostingsContent } = require('../scripts/lib/seen-postings');
 
 const FIXTURES = path.join(__dirname, 'fixtures');
 
@@ -190,6 +190,24 @@ describe('seen-postings parser', () => {
       noUrl.forEach(entry => {
         assert.ok(entry.company, 'entries without URLs should still have company');
       });
+    });
+  });
+
+  describe('frontmatter support', () => {
+    it('parseSeenPostingsContent ignores frontmatter and parses body', () => {
+      const content = `---
+format_version: 1
+last_updated: 2026-04-09
+---
+# Job Search — Seen Postings
+
+## 2026-04-09
+- TestCo | VP Engineering | https://example.com/job/1 | posted:2026-04-09
+`;
+      const entries = parseSeenPostingsContent(content);
+      assert.equal(entries.length, 1);
+      assert.equal(entries[0].company, 'TestCo');
+      assert.equal(entries[0].url, 'https://example.com/job/1');
     });
   });
 
