@@ -56,6 +56,19 @@ Read from `config/search.md`. Use the following fields to filter:
 - Consulting or contract
 - Postings verified as closed (see Phase 2)
 
+### Phase Cache Check
+
+Before starting discovery, check for cached results from a prior interrupted run.
+See `skills/_shared/phase-cache.md` for the full caching convention.
+
+1. Run `bun scripts/cache.js read daily-digest phase2`
+   - If exit 0: Phase 2 results are cached. Display: "Verification cached at {cached_at} — {N} roles verified. Resume from compose?" If user confirms, skip to Phase 3 using the cached data. If user says "fresh", proceed normally.
+
+2. If Phase 2 was not cached, run `bun scripts/cache.js read daily-digest phase1`
+   - If exit 0: Phase 1 results are cached. Display: "Discovery cached at {cached_at} — {N} roles found. Resume from verification?" If user confirms, skip to Phase 2 using the cached data. If user says "fresh", proceed normally.
+
+3. If neither cached, proceed with Phase 1 normally.
+
 ## Phase 1 — Discovery
 
 Read `skills/daily-digest/source-strategy.md` and execute.
@@ -64,6 +77,12 @@ This phase produces a raw candidate list from TheirStack, niche boards,
 and/or WebSearch fallback. All searches batched per sub-phase.
 
 Wait for all Phase 1 results before proceeding.
+
+#### Cache Phase 1 Results
+
+After discovery completes, cache the results for resumption:
+`bun scripts/cache.js write daily-digest phase1 '<json>'`
+— include the full candidate list and source metadata.
 
 ## Phase 2 — URL Verification
 
@@ -74,6 +93,12 @@ Read `skills/_shared/ats-verification.md` and execute — verify all
 candidate URLs in a single parallel batch.
 
 Wait for all verification results before composing the digest.
+
+#### Cache Phase 2 Results
+
+After verification completes, cache the results:
+`bun scripts/cache.js write daily-digest phase2 '<json>'`
+— include verified roles, closed postings, and source stats.
 
 ## Phase 3 — Compose and Write
 
