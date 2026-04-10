@@ -154,6 +154,51 @@ describe('cache lib', () => {
     });
   });
 
+  describe('corrupt file handling', () => {
+    it('readCache returns null for corrupt JSON', () => {
+      const { readCache } = require('../scripts/lib/cache');
+      const filePath = path.join(CACHE_DIR, 'daily-digest-phase1.json');
+      fs.writeFileSync(filePath, 'not-json{{{');
+      const result = readCache(OUTPUT_DIR, 'daily-digest', 'phase1');
+      assert.equal(result, null);
+    });
+
+    it('readCache returns null when expires_at is missing', () => {
+      const { readCache } = require('../scripts/lib/cache');
+      const filePath = path.join(CACHE_DIR, 'daily-digest-phase1.json');
+      fs.writeFileSync(filePath, JSON.stringify({
+        skill: 'daily-digest',
+        phase: 'phase1',
+        cached_at: new Date().toISOString(),
+        data: { roles: [] },
+      }));
+      const result = readCache(OUTPUT_DIR, 'daily-digest', 'phase1');
+      assert.equal(result, null);
+    });
+
+    it('listCaches skips corrupt files and returns valid entries', () => {
+      const { writeCache, listCaches } = require('../scripts/lib/cache');
+      writeCache(OUTPUT_DIR, 'scan-email', 'body-fetch', { emails: [] });
+      fs.writeFileSync(path.join(CACHE_DIR, 'corrupt-file.json'), '{bad');
+
+      const entries = listCaches(OUTPUT_DIR);
+      assert.equal(entries.length, 1);
+      assert.equal(entries[0].skill, 'scan-email');
+    });
+
+    it('cleanCaches skips corrupt files when filtering by skill', () => {
+      const { writeCache, cleanCaches } = require('../scripts/lib/cache');
+      writeCache(OUTPUT_DIR, 'daily-digest', 'phase1', { roles: [] });
+      fs.writeFileSync(path.join(CACHE_DIR, 'corrupt-file.json'), '{bad');
+
+      const count = cleanCaches(OUTPUT_DIR, 'daily-digest');
+      assert.equal(count, 1);
+
+      // Corrupt file should still be there (skipped, not deleted)
+      assert.ok(fs.existsSync(path.join(CACHE_DIR, 'corrupt-file.json')));
+    });
+  });
+
   describe('cleanCaches', () => {
     it('removes all cache files and returns count', () => {
       const { writeCache, cleanCaches } = require('../scripts/lib/cache');

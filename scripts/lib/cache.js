@@ -34,13 +34,22 @@ function writeCache(outputDir, skill, phase, data) {
 
 function readCache(outputDir, skill, phase) {
   const filePath = cacheFilePath(outputDir, skill, phase);
-  if (!fs.existsSync(filePath)) return null;
+  let raw;
+  try {
+    raw = fs.readFileSync(filePath, 'utf8');
+  } catch {
+    return null;
+  }
 
-  const raw = fs.readFileSync(filePath, 'utf8');
-  const content = JSON.parse(raw);
+  let content;
+  try {
+    content = JSON.parse(raw);
+  } catch {
+    return null;
+  }
 
-  const expiresAt = new Date(content.expires_at).getTime();
-  if (Date.now() > expiresAt) return null;
+  const expiresAt = content.expires_at ? new Date(content.expires_at).getTime() : 0;
+  if (isNaN(expiresAt) || Date.now() > expiresAt) return null;
 
   return content;
 }
@@ -53,8 +62,13 @@ function listCaches(outputDir, skill) {
   const entries = [];
 
   for (const file of files) {
-    const raw = fs.readFileSync(path.join(dir, file), 'utf8');
-    const content = JSON.parse(raw);
+    let content;
+    try {
+      const raw = fs.readFileSync(path.join(dir, file), 'utf8');
+      content = JSON.parse(raw);
+    } catch {
+      continue;
+    }
     if (skill && content.skill !== skill) continue;
     entries.push(content);
   }
@@ -71,8 +85,13 @@ function cleanCaches(outputDir, skill) {
 
   for (const file of files) {
     if (skill) {
-      const raw = fs.readFileSync(path.join(dir, file), 'utf8');
-      const content = JSON.parse(raw);
+      let content;
+      try {
+        const raw = fs.readFileSync(path.join(dir, file), 'utf8');
+        content = JSON.parse(raw);
+      } catch {
+        continue;
+      }
       if (content.skill !== skill) continue;
     }
     fs.unlinkSync(path.join(dir, file));

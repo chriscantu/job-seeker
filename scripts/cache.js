@@ -76,7 +76,9 @@ function main() {
           console.log('No cache entries found');
         } else {
           for (const entry of entries) {
-            console.log(`${entry.skill}/${entry.phase}  ${entry.cached_at.slice(0, 16).replace('T', ' ')}  (${formatAge(entry.cached_at)})`);
+            const expired = Date.now() > new Date(entry.expires_at).getTime();
+            const suffix = expired ? '  [EXPIRED]' : '';
+            console.log(`${entry.skill}/${entry.phase}  ${entry.cached_at.slice(0, 16).replace('T', ' ')}  (${formatAge(entry.cached_at)})${suffix}`);
           }
         }
         break;
