@@ -27,6 +27,12 @@ Then read these additional files:
 Check if a `why-this-company` output already exists for this company
 (`output/{company-slug}/`). If so, read it to avoid duplicating research.
 
+Also check for `output/{company-slug}/company-research.md`. If it exists,
+read its frontmatter (see `skills/_shared/frontmatter.md`):
+- `generated` — if older than 7 days, note staleness in output
+- `rating` — use for context on company fit
+Then read the prose body for positioning context.
+
 ## Required Inputs
 
 Ask the user for what you don't already have:
@@ -98,6 +104,11 @@ All files go in `output/{company-slug}/` (e.g., `output/natera/`).
    output/{company-slug}/{Name}_CoverLetter_{Company}.md
    ```
    Where `{Name}` is from `config/candidate.md` with spaces replaced by underscores.
+
+   Include a frontmatter block before the letter body (see
+   `skills/_shared/frontmatter.md` for the schema). The `word_count` field is
+   the word count of the letter body (excluding frontmatter). The docx
+   generation script strips frontmatter automatically before parsing.
 2. Generate the .docx:
    ```fish
    set NODE_PATH /opt/homebrew/lib/node_modules
