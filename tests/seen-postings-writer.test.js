@@ -291,6 +291,25 @@ describe('seen-postings writer', () => {
       assert.ok(body.includes('FreshCo'));
     });
 
+    it('flagSeenPosting backfills frontmatter on legacy file (no existing frontmatter)', () => {
+      const { parseFrontmatter } = require('../scripts/lib/frontmatter');
+      const targetUrl = 'https://example.com/job/legacy-flag';
+      const fileName = '2026-03-01-seen-postings.md';
+      fs.writeFileSync(path.join(TMP_DIR, fileName),
+        `# Job Search — Seen Postings\n\n## 2026-03-01\n- LegacyCo | VP Eng | ${targetUrl} | posted:2026-03-01\n`
+      );
+
+      const result = flagSeenPosting(TMP_DIR, targetUrl, 'RESEARCHED');
+      assert.equal(result.success, true);
+
+      const content = fs.readFileSync(path.join(TMP_DIR, fileName), 'utf8');
+      const { meta, body } = parseFrontmatter(content);
+
+      assert.equal(meta.format_version, '1');
+      assert.ok(meta.last_updated);
+      assert.ok(body.includes('RESEARCHED'));
+    });
+
     it('flagSeenPosting preserves frontmatter and updates last_updated', () => {
       const { parseFrontmatter } = require('../scripts/lib/frontmatter');
       const targetUrl = 'https://example.com/job/flag-test';

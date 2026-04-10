@@ -105,9 +105,11 @@ describe('preferences writer', () => {
 });
 
 describe('frontmatter support', () => {
+  beforeEach(() => setupTmpDir());
+  afterEach(() => teardownTmpDir());
+
   it('parsePreferencesFile ignores frontmatter and parses body', () => {
     const tmpFile = path.join(TMP_DIR, '2026-04-09-preferences.md');
-    setupTmpDir();
     fs.writeFileSync(tmpFile,
       `---\nformat_version: 1\nlast_updated: 2026-04-09\n---\n# Job Search — Preferences\n\n## 2026-04-09\n### Source Effectiveness\n- Indeed: 3 relevant roles\n`
     );
@@ -116,14 +118,12 @@ describe('frontmatter support', () => {
     assert.equal(result.last_run_date, '2026-04-09');
     assert.ok(result.sections['2026-04-09']);
     assert.ok(result.sections['2026-04-09']['Source Effectiveness']);
-    teardownTmpDir();
   });
 
   it('appendPreferences preserves existing frontmatter and updates last_updated', () => {
     const { parseFrontmatter } = require('../scripts/lib/frontmatter');
     const today = new Date().toISOString().slice(0, 10);
     const fileName = `${today}-preferences.md`;
-    setupTmpDir();
     fs.writeFileSync(path.join(TMP_DIR, fileName),
       `---\nformat_version: 1\nlast_updated: 2026-01-01\n---\n# Preferences\n\n## ${today}\n### Old Section\n- old data\n`
     );
@@ -140,14 +140,12 @@ describe('frontmatter support', () => {
     assert.equal(meta.last_updated, today);
     assert.ok(body.includes('Old Section'));
     assert.ok(body.includes('New Section'));
-    teardownTmpDir();
   });
 
   it('appendPreferences backfills frontmatter when none exists', () => {
     const { parseFrontmatter } = require('../scripts/lib/frontmatter');
     const today = new Date().toISOString().slice(0, 10);
     const fileName = `${today}-preferences.md`;
-    setupTmpDir();
     fs.writeFileSync(path.join(TMP_DIR, fileName),
       `# Preferences\n\n## ${today}\n### Old Section\n- old data\n`
     );
@@ -162,12 +160,10 @@ describe('frontmatter support', () => {
 
     assert.equal(meta.format_version, '1');
     assert.equal(meta.last_updated, today);
-    teardownTmpDir();
   });
 
   it('appendPreferences creates new file with frontmatter', () => {
     const { parseFrontmatter } = require('../scripts/lib/frontmatter');
-    setupTmpDir();
 
     appendPreferences(TMP_DIR, {
       section: 'Source Effectiveness',
@@ -181,6 +177,5 @@ describe('frontmatter support', () => {
     assert.equal(meta.format_version, '1');
     assert.ok(meta.last_updated);
     assert.ok(body.includes('Source Effectiveness'));
-    teardownTmpDir();
   });
 });
