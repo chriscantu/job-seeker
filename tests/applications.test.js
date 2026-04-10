@@ -716,6 +716,69 @@ Last updated: 2026-04-09
       assert.ok(body.includes('# Application Pipeline'));
       assert.ok(body.includes('### Acme — VP Eng'));
     });
+
+    it('round-trip: formatApplicationsFile -> parseApplicationsContent -> formatApplicationsFile is stable', () => {
+      const { parseFrontmatter } = require('../scripts/lib/frontmatter');
+      const data = {
+        active: [makeEntry({ company: 'Acme', title: 'VP Eng', stage: 'Screen', applied: '2026-04-01', lastActivity: { date: '2026-04-08', detail: 'Phone screen' }, nextAction: 'Technical interview', contacts: 'Jane Doe', url: 'https://example.com/job/1', notes: 'Good fit', history: [{ date: '2026-04-01', stage: 'Applied', detail: 'Submitted' }, { date: '2026-04-08', stage: 'Screen', detail: 'Phone screen' }] })],
+        closed: [],
+      };
+
+      const firstPass = formatApplicationsFile(data);
+      const parsed = parseApplicationsContent(firstPass);
+      const secondPass = formatApplicationsFile(parsed);
+
+      const first = parseFrontmatter(firstPass);
+      const second = parseFrontmatter(secondPass);
+
+      // Meta fields should match (except last_updated which is always today)
+      assert.equal(first.meta.format_version, second.meta.format_version);
+      assert.equal(first.meta.active_count, second.meta.active_count);
+      assert.equal(first.meta.closed_count, second.meta.closed_count);
+
+      // Body should be identical
+      assert.equal(first.body, second.body);
+    });
+
+    describe('createApplication with frontmatter', () => {
+      let tmpDir;
+
+      beforeEach(() => {
+        tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'app-fm-test-'));
+      });
+
+      afterEach(() => {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      });
+
+      it('new file has frontmatter with correct counts', () => {
+        const { parseFrontmatter } = require('../scripts/lib/frontmatter');
+        createApplication(tmpDir, { company: 'Acme', title: 'VP Eng', stage: 'Applied' });
+
+        const { resolveStateFile } = require('../scripts/lib/util');
+        const filePath = resolveStateFile(tmpDir, 'applications');
+        const raw = fs.readFileSync(filePath, 'utf8');
+        const { meta } = parseFrontmatter(raw);
+
+        assert.equal(meta.format_version, '1');
+        assert.equal(meta.active_count, '1');
+        assert.equal(meta.closed_count, '0');
+      });
+
+      it('second create updates counts in frontmatter', () => {
+        const { parseFrontmatter } = require('../scripts/lib/frontmatter');
+        createApplication(tmpDir, { company: 'Acme', title: 'VP Eng', stage: 'Applied' });
+        createApplication(tmpDir, { company: 'Beta', title: 'Director', stage: 'Screen' });
+
+        const { resolveStateFile } = require('../scripts/lib/util');
+        const filePath = resolveStateFile(tmpDir, 'applications');
+        const raw = fs.readFileSync(filePath, 'utf8');
+        const { meta } = parseFrontmatter(raw);
+
+        assert.equal(meta.active_count, '2');
+        assert.equal(meta.closed_count, '0');
+      });
+    });
   });
 
   describe('updateApplication — section guards', () => {
