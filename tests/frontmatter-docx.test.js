@@ -91,7 +91,7 @@ test("resume docx: no frontmatter succeeds and produces a non-empty file", () =>
     const outputPath = path.join(dir, "resume.docx");
 
     execSync(
-      `/opt/homebrew/bin/bun "${path.join(SCRIPTS_DIR, "generate_resume_docx.js")}" "${inputPath}" "${outputPath}"`,
+      `bun "${path.join(SCRIPTS_DIR, "generate_resume_docx.js")}" "${inputPath}" "${outputPath}"`,
       { stdio: "pipe" }
     );
 
@@ -108,14 +108,14 @@ test("resume docx: with frontmatter succeeds and produces similar-sized file (wi
     const noFmInput = writeFile(dir, "resume-no-fm.md", RESUME_NO_FRONTMATTER);
     const noFmOutput = path.join(dir, "resume-no-fm.docx");
     execSync(
-      `/opt/homebrew/bin/bun "${path.join(SCRIPTS_DIR, "generate_resume_docx.js")}" "${noFmInput}" "${noFmOutput}"`,
+      `bun "${path.join(SCRIPTS_DIR, "generate_resume_docx.js")}" "${noFmInput}" "${noFmOutput}"`,
       { stdio: "pipe" }
     );
 
     const withFmInput = writeFile(dir, "resume-with-fm.md", RESUME_WITH_FRONTMATTER);
     const withFmOutput = path.join(dir, "resume-with-fm.docx");
     execSync(
-      `/opt/homebrew/bin/bun "${path.join(SCRIPTS_DIR, "generate_resume_docx.js")}" "${withFmInput}" "${withFmOutput}"`,
+      `bun "${path.join(SCRIPTS_DIR, "generate_resume_docx.js")}" "${withFmInput}" "${withFmOutput}"`,
       { stdio: "pipe" }
     );
 
@@ -142,7 +142,7 @@ test("cover letter docx: with frontmatter succeeds and produces file > 1000 byte
     const outputPath = path.join(dir, "cover-letter.docx");
 
     execSync(
-      `/opt/homebrew/bin/bun "${path.join(SCRIPTS_DIR, "generate_coverletter_docx.js")}" "${inputPath}" "${outputPath}"`,
+      `bun "${path.join(SCRIPTS_DIR, "generate_coverletter_docx.js")}" "${inputPath}" "${outputPath}"`,
       { stdio: "pipe" }
     );
 
