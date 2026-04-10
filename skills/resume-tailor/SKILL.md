@@ -25,6 +25,16 @@ Additionally:
   the candidate's voice. If missing, rely on the anti-patterns list in tailoring-rules.
 - Glob `references/writing-samples/*.md` — if any exist, read them to calibrate tone
 
+### Phase Cache Check
+
+Before starting analysis, check for cached results from a prior interrupted run.
+See `skills/_shared/phase-cache.md` for the full caching convention.
+
+1. Run `bun scripts/cache.js read resume-tailor analysis`
+   - If exit 0: Posting analysis is cached. Display: "Posting analysis cached at {cached_at} for {company}. Resume from resume composition?" If user confirms, skip to Phase 3 using the cached data. If user says "fresh", proceed normally.
+
+2. If not cached, proceed with Phase 1 normally.
+
 ## Required Inputs
 
 Ask the user for what you don't already have:
@@ -54,6 +64,12 @@ Read `skills/_shared/company-extraction.md` and execute.
 ## Phase 2 — Analyze, Score, and Rewrite
 
 Read `skills/resume-tailor/tailoring-rules.md` and execute Phases 1-3.
+
+#### Cache Analysis Results
+
+After analysis completes, cache for resumption:
+`bun scripts/cache.js write resume-tailor analysis '<json>'`
+— include requirement mapping, accomplishment scoring, and gap analysis.
 
 ## Phase 3 — Generate Output
 
