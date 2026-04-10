@@ -38,8 +38,11 @@ Ask the user for what you don't already have:
 After extracting the company name and deriving `{company-slug}` (see Phase 1),
 check for `output/{company-slug}/company-research.md`:
 
-- **If exists**: Read it. Use the Positioning section and company context to
-  inform accomplishment scoring. Note the brief's date in the decisions summary.
+- **If exists**: Read the file. Check the frontmatter block first (see
+  `skills/_shared/frontmatter.md`):
+  - `generated` — if older than 7 days, suggest re-running company-research
+  - `rating` — note the fit rating in the decisions summary
+  - Then read the Positioning section in the body to inform accomplishment scoring.
 - **If not exists**: Fetch the job posting URL directly. Extract requirements
   from the posting content. Optionally suggest: "I can research {Company} first
   for better context — want me to run company-research?"
@@ -61,8 +64,13 @@ is from `config/candidate.md` with spaces replaced by underscores, and
 `{Company}` is the display name with spaces replaced by underscores and
 special characters removed (e.g., "Maven Clinic" → `Maven_Clinic`).
 
+Include a frontmatter block before the resume content (see
+`skills/_shared/frontmatter.md` for the schema). The `research_date` field
+is the `generated` date from the company-research brief, if one was used.
+
 Follow the markdown structure and content rules in
 `skills/resume-tailor/tailoring-rules.md` exactly — the parser is rigid.
+The docx generation script strips frontmatter automatically before parsing.
 
 ### Step 3b: Generate the .docx
 
