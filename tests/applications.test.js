@@ -664,6 +664,60 @@ describe('applications parser', () => {
     });
   });
 
+  describe('frontmatter support', () => {
+    it('parseApplicationsContent ignores frontmatter and parses body', () => {
+      const content = `---
+format_version: 1
+last_updated: 2026-04-09
+active_count: 1
+closed_count: 0
+---
+# Application Pipeline
+
+Last updated: 2026-04-09
+
+## Active Applications
+
+### Acme — VP Engineering
+
+- **Stage**: Applied
+- **Applied**: 2026-04-09
+- **Last activity**: 2026-04-09 — Applied — Added to pipeline
+- **Next action**:
+- **Contacts**:
+- **URL**: https://example.com/job/1
+- **Notes**: Test entry
+
+#### History
+- 2026-04-09: Applied — Added to pipeline
+
+## Closed Applications
+`;
+      const result = parseApplicationsContent(content);
+      assert.equal(result.active.length, 1);
+      assert.equal(result.active[0].company, 'Acme');
+      assert.equal(result.active[0].stage, 'Applied');
+      assert.equal(result.closed.length, 0);
+    });
+
+    it('formatApplicationsFile includes frontmatter with correct fields', () => {
+      const { parseFrontmatter } = require('../scripts/lib/frontmatter');
+      const data = {
+        active: [makeEntry({ company: 'Acme', title: 'VP Eng', stage: 'Applied', applied: '2026-04-09', history: [{ date: '2026-04-09', stage: 'Applied', detail: 'Added' }] })],
+        closed: [makeEntry({ company: 'Old Co', title: 'Director', stage: 'Closed (rejected)', applied: '2026-03-01', closed: { date: '2026-03-15', reason: 'rejected', summary: 'No fit' }, history: [{ date: '2026-03-01', stage: 'Applied', detail: 'Added' }] })],
+      };
+      const output = formatApplicationsFile(data);
+      const { meta, body } = parseFrontmatter(output);
+
+      assert.equal(meta.format_version, '1');
+      assert.ok(meta.last_updated);
+      assert.equal(meta.active_count, '1');
+      assert.equal(meta.closed_count, '1');
+      assert.ok(body.includes('# Application Pipeline'));
+      assert.ok(body.includes('### Acme — VP Eng'));
+    });
+  });
+
   describe('updateApplication — section guards', () => {
     let tmpDir;
 

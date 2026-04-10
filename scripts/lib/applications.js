@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const { resolveStateFile, atomicWriteFileSync, ensureDir } = require('./util');
 const { validateApplicationEntry, VALID_STAGES } = require('./validators');
+const { parseFrontmatter, serializeFrontmatter } = require('./frontmatter');
 
 const HEADING_RE = /^### (.+?) — (.+)$/;
 const KEY_VALUE_RE = /^- \*\*(.+?)\*\*:\s*(.*)$/;
@@ -30,7 +31,8 @@ function makeEntry(overrides) {
 function parseApplicationsContent(content) {
   if (!content || !content.trim()) return { active: [], closed: [] };
 
-  const lines = content.split('\n');
+  const { body } = parseFrontmatter(content);
+  const lines = body.split('\n');
   const result = { active: [], closed: [] };
 
   let currentSection = null; // 'active' | 'closed'
@@ -222,7 +224,14 @@ function formatApplicationsFile({ active, closed }) {
     parts.push('\n');
   }
 
-  return parts.join('\n') + '\n';
+  const body = parts.join('\n') + '\n';
+  const meta = {
+    format_version: 1,
+    last_updated: today,
+    active_count: active.length,
+    closed_count: closed.length,
+  };
+  return serializeFrontmatter(meta, body);
 }
 
 function createApplication(dir, entry) {
