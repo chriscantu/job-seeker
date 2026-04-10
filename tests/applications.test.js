@@ -563,6 +563,16 @@ describe('applications parser', () => {
       assert.ok(last.detail.includes('No fit'));
     });
 
+    it('updates frontmatter counts after close', () => {
+      const { parseFrontmatter } = require('../scripts/lib/frontmatter');
+      const { resolveStateFile } = require('../scripts/lib/util');
+      closeApplication(tmpDir, { company: 'Maven', reason: 'rejected', summary: 'No fit' });
+      const filePath = resolveStateFile(tmpDir, 'applications');
+      const { meta } = parseFrontmatter(fs.readFileSync(filePath, 'utf8'));
+      assert.equal(meta.active_count, '0');
+      assert.equal(meta.closed_count, '1');
+    });
+
     it('throws if entry is already closed', () => {
       closeApplication(tmpDir, { company: 'Maven', reason: 'rejected', summary: 'No fit' });
       assert.throws(
@@ -641,6 +651,16 @@ describe('applications parser', () => {
       assert.ok(last.detail.includes('Recruiter reached back out'));
     });
 
+    it('updates frontmatter counts after reopen', () => {
+      const { parseFrontmatter } = require('../scripts/lib/frontmatter');
+      const { resolveStateFile } = require('../scripts/lib/util');
+      reopenApplication(tmpDir, { company: 'Maven', stage: 'Screen' });
+      const filePath = resolveStateFile(tmpDir, 'applications');
+      const { meta } = parseFrontmatter(fs.readFileSync(filePath, 'utf8'));
+      assert.equal(meta.active_count, '1');
+      assert.equal(meta.closed_count, '0');
+    });
+
     it('throws if entry is active (not closed)', () => {
       reopenApplication(tmpDir, { company: 'Maven', stage: 'Screen' });
       assert.throws(
@@ -661,6 +681,142 @@ describe('applications parser', () => {
         () => reopenApplication(tmpDir, { company: 'Maven', stage: 'Closed' }),
         /Cannot reopen to Closed/
       );
+    });
+  });
+
+  describe('frontmatter support', () => {
+    it('parseApplicationsContent ignores frontmatter and parses body', () => {
+      const content = `---
+format_version: 1
+last_updated: 2026-04-09
+active_count: 1
+closed_count: 0
+---
+# Application Pipeline
+
+Last updated: 2026-04-09
+
+## Active Applications
+
+### Acme — VP Engineering
+
+- **Stage**: Applied
+- **Applied**: 2026-04-09
+- **Last activity**: 2026-04-09 — Applied — Added to pipeline
+- **Next action**:
+- **Contacts**:
+- **URL**: https://example.com/job/1
+- **Notes**: Test entry
+
+#### History
+- 2026-04-09: Applied — Added to pipeline
+
+## Closed Applications
+`;
+      const result = parseApplicationsContent(content);
+      assert.equal(result.active.length, 1);
+      assert.equal(result.active[0].company, 'Acme');
+      assert.equal(result.active[0].stage, 'Applied');
+      assert.equal(result.closed.length, 0);
+    });
+
+    it('formatApplicationsFile includes frontmatter with correct fields', () => {
+      const { parseFrontmatter } = require('../scripts/lib/frontmatter');
+      const data = {
+        active: [makeEntry({ company: 'Acme', title: 'VP Eng', stage: 'Applied', applied: '2026-04-09', history: [{ date: '2026-04-09', stage: 'Applied', detail: 'Added' }] })],
+        closed: [makeEntry({ company: 'Old Co', title: 'Director', stage: 'Closed (rejected)', applied: '2026-03-01', closed: { date: '2026-03-15', reason: 'rejected', summary: 'No fit' }, history: [{ date: '2026-03-01', stage: 'Applied', detail: 'Added' }] })],
+      };
+      const output = formatApplicationsFile(data);
+      const { meta, body } = parseFrontmatter(output);
+
+      assert.equal(meta.format_version, '1');
+      assert.ok(meta.last_updated);
+      assert.equal(meta.active_count, '1');
+      assert.equal(meta.closed_count, '1');
+      assert.ok(body.includes('# Application Pipeline'));
+      assert.ok(body.includes('### Acme — VP Eng'));
+    });
+
+    it('round-trip with both active and closed entries is stable', () => {
+      const { parseFrontmatter } = require('../scripts/lib/frontmatter');
+      const data = {
+        active: [makeEntry({ company: 'Acme', title: 'VP Eng', stage: 'Screen', applied: '2026-04-01', lastActivity: { date: '2026-04-08', detail: 'Phone screen' }, nextAction: 'Technical interview', contacts: 'Jane Doe', url: 'https://example.com/job/1', notes: 'Good fit', history: [{ date: '2026-04-01', stage: 'Applied', detail: 'Submitted' }, { date: '2026-04-08', stage: 'Screen', detail: 'Phone screen' }] })],
+        closed: [makeEntry({ company: 'Old Co', title: 'Director', stage: 'Closed (rejected)', applied: '2026-03-01', closed: { date: '2026-03-15', reason: 'rejected', summary: 'No fit' }, history: [{ date: '2026-03-01', stage: 'Applied', detail: 'Added' }, { date: '2026-03-15', stage: 'Closed (rejected)', detail: 'No fit' }] })],
+      };
+
+      const firstPass = formatApplicationsFile(data);
+      const parsed = parseApplicationsContent(firstPass);
+      const secondPass = formatApplicationsFile(parsed);
+
+      const first = parseFrontmatter(firstPass);
+      const second = parseFrontmatter(secondPass);
+
+      assert.equal(first.meta.active_count, second.meta.active_count);
+      assert.equal(first.meta.closed_count, second.meta.closed_count);
+      assert.equal(first.body, second.body);
+    });
+
+    it('round-trip: formatApplicationsFile -> parseApplicationsContent -> formatApplicationsFile is stable', () => {
+      const { parseFrontmatter } = require('../scripts/lib/frontmatter');
+      const data = {
+        active: [makeEntry({ company: 'Acme', title: 'VP Eng', stage: 'Screen', applied: '2026-04-01', lastActivity: { date: '2026-04-08', detail: 'Phone screen' }, nextAction: 'Technical interview', contacts: 'Jane Doe', url: 'https://example.com/job/1', notes: 'Good fit', history: [{ date: '2026-04-01', stage: 'Applied', detail: 'Submitted' }, { date: '2026-04-08', stage: 'Screen', detail: 'Phone screen' }] })],
+        closed: [],
+      };
+
+      const firstPass = formatApplicationsFile(data);
+      const parsed = parseApplicationsContent(firstPass);
+      const secondPass = formatApplicationsFile(parsed);
+
+      const first = parseFrontmatter(firstPass);
+      const second = parseFrontmatter(secondPass);
+
+      // Meta fields should match (except last_updated which is always today)
+      assert.equal(first.meta.format_version, second.meta.format_version);
+      assert.equal(first.meta.active_count, second.meta.active_count);
+      assert.equal(first.meta.closed_count, second.meta.closed_count);
+
+      // Body should be identical
+      assert.equal(first.body, second.body);
+    });
+
+    describe('createApplication with frontmatter', () => {
+      let tmpDir;
+
+      beforeEach(() => {
+        tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'app-fm-test-'));
+      });
+
+      afterEach(() => {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      });
+
+      it('new file has frontmatter with correct counts', () => {
+        const { parseFrontmatter } = require('../scripts/lib/frontmatter');
+        createApplication(tmpDir, { company: 'Acme', title: 'VP Eng', stage: 'Applied' });
+
+        const { resolveStateFile } = require('../scripts/lib/util');
+        const filePath = resolveStateFile(tmpDir, 'applications');
+        const raw = fs.readFileSync(filePath, 'utf8');
+        const { meta } = parseFrontmatter(raw);
+
+        assert.equal(meta.format_version, '1');
+        assert.equal(meta.active_count, '1');
+        assert.equal(meta.closed_count, '0');
+      });
+
+      it('second create updates counts in frontmatter', () => {
+        const { parseFrontmatter } = require('../scripts/lib/frontmatter');
+        createApplication(tmpDir, { company: 'Acme', title: 'VP Eng', stage: 'Applied' });
+        createApplication(tmpDir, { company: 'Beta', title: 'Director', stage: 'Screen' });
+
+        const { resolveStateFile } = require('../scripts/lib/util');
+        const filePath = resolveStateFile(tmpDir, 'applications');
+        const raw = fs.readFileSync(filePath, 'utf8');
+        const { meta } = parseFrontmatter(raw);
+
+        assert.equal(meta.active_count, '2');
+        assert.equal(meta.closed_count, '0');
+      });
     });
   });
 

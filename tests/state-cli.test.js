@@ -235,6 +235,19 @@ describe('state.js CLI', () => {
       assert.ok(exitCode !== 0);
     });
 
+    it('create produces file with frontmatter on disk', () => {
+      run(`create applications '${APP_ENTRY}'`, { outputDir: appTmpDir });
+
+      const files = fs.readdirSync(appTmpDir).filter(f => f.includes('applications'));
+      assert.equal(files.length, 1);
+
+      const content = fs.readFileSync(path.join(appTmpDir, files[0]), 'utf8');
+      assert.ok(content.startsWith('---\n'), 'file should start with frontmatter delimiter');
+      assert.ok(content.includes('format_version: 1'));
+      assert.ok(content.includes('active_count: 1'));
+      assert.ok(content.includes('closed_count: 0'));
+    });
+
     it('read --stage filters entries', () => {
       run(`create applications '${APP_ENTRY}'`, { outputDir: appTmpDir });
       const second = JSON.stringify({

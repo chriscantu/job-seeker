@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { resolveStateFile, atomicWriteFileSync, ensureDir } = require('./util');
+const { parseFrontmatter, serializeFrontmatter } = require('./frontmatter');
 
 const DATE_HEADER_RE = /^## (\d{4}-\d{2}-\d{2})/;
 const SUBSECTION_RE = /^### (.+)/;
@@ -9,7 +10,8 @@ const TABLE_SEP_RE = /^\|[-|]+\|/;
 
 function parsePreferencesFile(filePath) {
   const content = fs.readFileSync(filePath, 'utf8');
-  const lines = content.split('\n');
+  const { body } = parseFrontmatter(content);
+  const lines = body.split('\n');
 
   const result = {
     last_run_date: null,
@@ -105,27 +107,35 @@ function appendPreferences(dir, entry) {
   const sectionContent = `### ${entry.section}\n${entry.entries.map(e => `- ${e}`).join('\n')}\n`;
 
   if (existing) {
-    let content = fs.readFileSync(existing, 'utf8');
+    const raw = fs.readFileSync(existing, 'utf8');
+    const { meta: existingMeta, body: content } = parseFrontmatter(raw);
+
+    const meta = Object.keys(existingMeta).length > 0
+      ? { ...existingMeta, format_version: Number(existingMeta.format_version) || 1, last_updated: today }
+      : { format_version: 1, last_updated: today };
+
     const todayHeader = `## ${today}`;
+    let body = content;
 
-    if (content.includes(todayHeader)) {
-      const headerIdx = content.indexOf(todayHeader);
-      const afterHeader = content.indexOf('\n', headerIdx) + 1;
-      const nextSection = content.indexOf('\n## ', afterHeader);
-      const insertAt = nextSection !== -1 ? nextSection : content.length;
+    if (body.includes(todayHeader)) {
+      const headerIdx = body.indexOf(todayHeader);
+      const afterHeader = body.indexOf('\n', headerIdx) + 1;
+      const nextSection = body.indexOf('\n## ', afterHeader);
+      const insertAt = nextSection !== -1 ? nextSection : body.length;
 
-      const before = content.slice(0, insertAt);
-      const after = content.slice(insertAt);
-      content = before.trimEnd() + '\n\n' + sectionContent + after;
+      const before = body.slice(0, insertAt);
+      const after = body.slice(insertAt);
+      body = before.trimEnd() + '\n\n' + sectionContent + after;
     } else {
-      content = content.trimEnd() + '\n\n' + todayHeader + '\n' + sectionContent;
+      body = body.trimEnd() + '\n\n' + todayHeader + '\n' + sectionContent;
     }
 
-    atomicWriteFileSync(existing, content);
+    atomicWriteFileSync(existing, serializeFrontmatter(meta, body));
   } else {
     const fileName = `${today}-preferences.md`;
-    const content = `# Job Search — Preferences & Source Effectiveness\n\n## ${today}\n${sectionContent}`;
-    atomicWriteFileSync(path.join(dir, fileName), content);
+    const body = `# Job Search — Preferences & Source Effectiveness\n\n## ${today}\n${sectionContent}`;
+    const meta = { format_version: 1, last_updated: today };
+    atomicWriteFileSync(path.join(dir, fileName), serializeFrontmatter(meta, body));
   }
 }
 

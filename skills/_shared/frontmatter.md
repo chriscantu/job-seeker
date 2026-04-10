@@ -78,3 +78,26 @@ When reading another skill's output file, check the frontmatter block first:
 If the file does NOT start with `---`, treat it as a legacy file with no
 frontmatter — proceed with header-based reading. This ensures backward
 compatibility with files generated before frontmatter was added.
+
+## Central State Files
+
+In addition to per-company skill output files, the three central state files
+also use frontmatter. These are managed by the parsers in `scripts/lib/`.
+
+### Shared Fields
+
+| Field            | Type    | Description                                 |
+|------------------|---------|---------------------------------------------|
+| `format_version` | integer | Format version (currently `1`)              |
+| `last_updated`   | date    | Date the file was last written (YYYY-MM-DD) |
+
+### applications.md
+
+| Field          | Type    | Description                                       |
+|----------------|---------|---------------------------------------------------|
+| `active_count` | integer | Number of active applications (computed on write) |
+| `closed_count` | integer | Number of closed applications (computed on write) |
+
+### seen-postings.md and preferences.md
+
+Use only the shared fields (`format_version`, `last_updated`). No computed fields.

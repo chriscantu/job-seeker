@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { resolveStateFile, atomicWriteFileSync, ensureDir } = require('./util');
+const { parseFrontmatter, serializeFrontmatter } = require('./frontmatter');
 
 const URL_RE = /https?:\/\/[^\s|[\]]+/;
 const DATE_RE = /\d{4}-\d{2}-\d{2}/;
@@ -176,7 +177,8 @@ function parseBulletLine(line, currentDate, sectionLabel) {
 }
 
 function parseSeenPostingsContent(content) {
-  const lines = content.split('\n');
+  const { body } = parseFrontmatter(content);
+  const lines = body.split('\n');
   const entries = [];
   let currentDate = null;
   let sectionLabel = null;
@@ -288,27 +290,35 @@ function appendSeenPosting(dir, entry) {
   const existing = resolveStateFile(dir, 'seen-postings');
 
   if (existing) {
-    let content = fs.readFileSync(existing, 'utf8');
+    const raw = fs.readFileSync(existing, 'utf8');
+    const { meta: existingMeta, body: content } = parseFrontmatter(raw);
+
+    const meta = Object.keys(existingMeta).length > 0
+      ? { ...existingMeta, format_version: Number(existingMeta.format_version) || 1, last_updated: today }
+      : { format_version: 1, last_updated: today };
+
     const todayHeader = `## ${today}`;
+    let body = content;
 
-    if (content.includes(todayHeader)) {
-      const headerIdx = content.indexOf(todayHeader);
-      const afterHeader = content.indexOf('\n', headerIdx) + 1;
-      const nextSection = content.indexOf('\n## ', afterHeader);
-      const insertAt = nextSection !== -1 ? nextSection : content.length;
+    if (body.includes(todayHeader)) {
+      const headerIdx = body.indexOf(todayHeader);
+      const afterHeader = body.indexOf('\n', headerIdx) + 1;
+      const nextSection = body.indexOf('\n## ', afterHeader);
+      const insertAt = nextSection !== -1 ? nextSection : body.length;
 
-      const before = content.slice(0, insertAt);
-      const after = content.slice(insertAt);
-      content = before.trimEnd() + '\n' + line + '\n' + after;
+      const before = body.slice(0, insertAt);
+      const after = body.slice(insertAt);
+      body = before.trimEnd() + '\n' + line + '\n' + after;
     } else {
-      content = content.trimEnd() + '\n\n' + todayHeader + '\n' + line + '\n';
+      body = body.trimEnd() + '\n\n' + todayHeader + '\n' + line + '\n';
     }
 
-    atomicWriteFileSync(existing, content);
+    atomicWriteFileSync(existing, serializeFrontmatter(meta, body));
   } else {
     const fileName = `${today}-seen-postings.md`;
-    const content = `# Job Search — Seen Postings\n\n## ${today}\n${line}\n`;
-    atomicWriteFileSync(path.join(dir, fileName), content);
+    const body = `# Job Search — Seen Postings\n\n## ${today}\n${line}\n`;
+    const meta = { format_version: 1, last_updated: today };
+    atomicWriteFileSync(path.join(dir, fileName), serializeFrontmatter(meta, body));
   }
 }
 
@@ -317,7 +327,6 @@ function flagSeenPosting(dir, url, flag) {
     return { success: false, error: `Directory not found: ${dir}` };
   }
 
-  // Search all state files, not just the most recent
   const pattern = /\d{4}-\d{2}-\d{2}-seen-postings\.md$/;
   const files = fs.readdirSync(dir)
     .filter(f => pattern.test(f))
@@ -329,11 +338,13 @@ function flagSeenPosting(dir, url, flag) {
   }
 
   const normalizedTarget = normalizeUrl(url);
+  const today = new Date().toISOString().slice(0, 10);
 
   for (const file of files) {
     const filePath = path.join(dir, file);
-    const content = fs.readFileSync(filePath, 'utf8');
-    const lines = content.split('\n');
+    const raw = fs.readFileSync(filePath, 'utf8');
+    const { meta: existingMeta, body } = parseFrontmatter(raw);
+    const lines = body.split('\n');
 
     for (let i = 0; i < lines.length; i++) {
       const lineUrl = extractUrl(lines[i]);
@@ -343,7 +354,12 @@ function flagSeenPosting(dir, url, flag) {
         }
 
         lines[i] = lines[i].trimEnd() + ' | ' + flag;
-        atomicWriteFileSync(filePath, lines.join('\n'));
+
+        const meta = Object.keys(existingMeta).length > 0
+          ? { ...existingMeta, format_version: Number(existingMeta.format_version) || 1, last_updated: today }
+          : { format_version: 1, last_updated: today };
+
+        atomicWriteFileSync(filePath, serializeFrontmatter(meta, lines.join('\n')));
         return { success: true, alreadyFlagged: false };
       }
     }
