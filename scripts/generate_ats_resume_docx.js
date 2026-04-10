@@ -14,6 +14,7 @@ const {
   Document, Packer, Paragraph, TextRun, ExternalHyperlink,
   AlignmentType, BorderStyle, LevelFormat,
 } = require("docx");
+const { parseFrontmatter } = require("./lib/frontmatter");
 
 // ── Constants ────────────────────────────────────────────────────────────────
 const PAGE_W   = 12240;
@@ -404,7 +405,7 @@ async function main() {
     process.stderr.write("Usage: bun scripts/generate_ats_resume_docx.js <input.md> <output.docx>\n");
     process.exit(1);
   }
-  const md = fs.readFileSync(inputPath, "utf8");
+  const md = parseFrontmatter(fs.readFileSync(inputPath, "utf8")).body;
   const parsed = parseResume(md);
   const doc = buildDoc(parsed);
   const buffer = await Packer.toBuffer(doc);

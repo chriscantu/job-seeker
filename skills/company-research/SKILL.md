@@ -53,20 +53,32 @@ queries.
 
 ## Phase 3 — Output Brief
 
+Read `skills/_shared/frontmatter.md` for the schema contract.
+
 Write the research brief to `output/{company-slug}/company-research.md`.
 
 If `output/{company-slug}/` does not exist, create the directory first.
 
 ### Brief Structure
 
-Use this exact structure:
+Use this exact structure. The frontmatter block provides structured metadata;
+the body contains the research narrative.
 
 ```markdown
-# {Company Name} — Research Brief
+---
+skill: company-research
+company: {Company Name}
+slug: {company-slug}
+role: {Title from posting}
+url: "{Original posting URL}"
+generated: {YYYY-MM-DD}
+rating: {1-5 fit rating}
+remote: {true/false}
+positioning_count: {number of positioning bullets written below}
+gaps_count: {number of gaps/questions written below}
+---
 
-**Date**: {YYYY-MM-DD}
-**Role**: {Title from posting}
-**URL**: {Original posting URL}
+# {Company Name} — Research Brief
 
 ## Mission & Products
 {What the company does, who they serve, why it matters — 2-4 sentences}
