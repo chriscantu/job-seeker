@@ -294,7 +294,7 @@ function appendSeenPosting(dir, entry) {
     const { meta: existingMeta, body: content } = parseFrontmatter(raw);
 
     const meta = Object.keys(existingMeta).length > 0
-      ? { ...existingMeta, last_updated: today }
+      ? { ...existingMeta, format_version: Number(existingMeta.format_version) || 1, last_updated: today }
       : { format_version: 1, last_updated: today };
 
     const todayHeader = `## ${today}`;
@@ -356,7 +356,7 @@ function flagSeenPosting(dir, url, flag) {
         lines[i] = lines[i].trimEnd() + ' | ' + flag;
 
         const meta = Object.keys(existingMeta).length > 0
-          ? { ...existingMeta, last_updated: today }
+          ? { ...existingMeta, format_version: Number(existingMeta.format_version) || 1, last_updated: today }
           : { format_version: 1, last_updated: today };
 
         atomicWriteFileSync(filePath, serializeFrontmatter(meta, lines.join('\n')));
