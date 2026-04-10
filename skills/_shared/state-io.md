@@ -102,3 +102,28 @@ entry's history log. If no matching entry is found, the command exits non-zero.
 
 Skills that call `add-note` as a side effect (e.g., cover-letter, resume-tailor)
 should treat a non-zero exit as non-fatal — log a note and continue.
+
+## Frontmatter
+
+All state files include a YAML frontmatter block before the markdown body.
+The `scripts/lib/frontmatter.js` module handles parsing and serialization.
+
+### Shared Fields (all state file types)
+
+| Field            | Type    | Description                                            |
+|------------------|---------|--------------------------------------------------------|
+| `format_version` | integer | Format version (currently `1`), bumped on breaking changes |
+| `last_updated`   | date    | Date the file was last written (YYYY-MM-DD)            |
+
+### Applications-Specific Fields
+
+| Field          | Type    | Description                                    |
+|----------------|---------|------------------------------------------------|
+| `active_count` | integer | Number of active applications (computed on write) |
+| `closed_count` | integer | Number of closed applications (computed on write) |
+
+### Backfill Behavior
+
+Files created before frontmatter was added will receive frontmatter on their
+next write operation. Parsers handle the no-frontmatter case gracefully —
+`parseFrontmatter` returns empty metadata and the full content as the body.
