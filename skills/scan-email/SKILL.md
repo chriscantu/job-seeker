@@ -58,6 +58,16 @@ role_title_lowercase)` pairs from seen-postings for fuzzy matching.
 Report which sources are active:
 > "Scanning: {Apple Mail (account_name/inbox_name) | Gmail (email) | both}"
 
+### Phase Cache Check
+
+Before starting email scan, check for cached results from a prior interrupted run.
+See `skills/_shared/phase-cache.md` for the full caching convention.
+
+1. Run `bun scripts/cache.js read scan-email body-fetch`
+   - If exit 0: Body fetch results are cached. Display: "Body fetch cached at {cached_at} — {N} roles extracted. Resume from dedup/verification?" If user confirms, skip to Phase 4 using the cached data. If user says "fresh", proceed normally.
+
+2. If not cached, proceed with Phase 1 normally.
+
 ## Phase 1 — Verify Sources
 
 ### Phase 1A: Verify Apple Mail (skip if `apple_mail_enabled = false`)
@@ -110,6 +120,12 @@ Read `skills/scan-email/body-extraction.md` and execute for Apple Mail candidate
 Skip if no Gmail candidates.
 
 Read `skills/scan-email/body-extraction.md` and execute for Gmail candidates.
+
+#### Cache Body Fetch Results
+
+After body fetch completes, cache extracted roles for resumption:
+`bun scripts/cache.js write scan-email body-fetch '<json>'`
+— include all extracted roles with URLs, company names, and source labels.
 
 ## Phase 4 — Dedup, Filter, and Verify
 
