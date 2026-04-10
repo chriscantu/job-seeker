@@ -452,7 +452,8 @@ async function main() {
     process.stderr.write("Usage: node generate_resume_docx.js <input.md> <output.docx>\n");
     process.exit(1);
   }
-  const md = fs.readFileSync(inputPath, "utf8");
+  const { parseFrontmatter } = require("./lib/frontmatter");
+  const md = parseFrontmatter(fs.readFileSync(inputPath, "utf8")).body;
   const parsed = parseResume(md);
   const doc = buildDoc(parsed);
   const buffer = await Packer.toBuffer(doc);

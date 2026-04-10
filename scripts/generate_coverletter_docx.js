@@ -24,7 +24,8 @@ if (!inputPath || !outputPath) {
   process.exit(1);
 }
 
-const raw = fs.readFileSync(inputPath, "utf8");
+const { parseFrontmatter } = require("./lib/frontmatter");
+const raw = parseFrontmatter(fs.readFileSync(inputPath, "utf8")).body;
 
 // ── Parse ────────────────────────────────────────────────────────────────────
 // Split into blocks on blank lines, trim each, discard empties.
