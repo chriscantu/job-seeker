@@ -122,7 +122,7 @@ describe("serializeFrontmatter", () => {
     assert.ok(result.includes('url: "https://example.com/jobs/123"'));
   });
 
-  it("does not double-quote already quoted values", () => {
+  it("does not quote values that contain no colons", () => {
     const meta = { url: "https://example.com" };
     const result = serializeFrontmatter(meta, "\nBody.");
     assert.ok(!result.includes('""'));

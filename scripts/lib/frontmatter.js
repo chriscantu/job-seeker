@@ -10,15 +10,28 @@ function parseFrontmatter(markdown) {
     return { meta: {}, body: markdown };
   }
 
-  const endIndex = markdown.indexOf("\n---", 3);
+  // Find the closing delimiter, verifying it is followed by \n, \r\n, or end-of-string
+  // (not an arbitrary \n---anything false match).
+  let endIndex = markdown.indexOf("\n---", 3);
+  while (endIndex !== -1) {
+    const afterDelim = endIndex + 4; // position right after "\n---"
+    const ch = markdown[afterDelim];
+    if (ch === undefined || ch === "\n" || ch === "\r") break; // valid delimiter
+    endIndex = markdown.indexOf("\n---", afterDelim);
+  }
   if (endIndex === -1) {
     return { meta: {}, body: markdown };
   }
 
-  const yamlBlock = markdown.slice(4, endIndex);
-  // Skip "\n---\n" (5 chars) — the closing delimiter and its trailing newline.
-  // Body retains its own leading "\n" so that serialize/parse roundtrips cleanly.
-  const body = markdown.slice(endIndex + 5);
+  // Opening delimiter is either "---\n" (4 bytes) or "---\r\n" (5 bytes).
+  const openingOffset = markdown.startsWith("---\r\n") ? 5 : 4;
+  const yamlBlock = markdown.slice(openingOffset, endIndex);
+
+  // Determine how many bytes the closing "\n---" + line-ending consumes.
+  // Pattern: (\r?)\n---(\r?\n|$)
+  const afterDelim = endIndex + 4; // index after "\n---"
+  const closingLineEnd = markdown[afterDelim] === "\r" ? 2 : markdown[afterDelim] === "\n" ? 1 : 0;
+  const body = markdown.slice(endIndex + 4 + closingLineEnd);
 
   const meta = {};
   for (const line of yamlBlock.split("\n")) {
