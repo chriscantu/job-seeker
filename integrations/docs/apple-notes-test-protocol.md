@@ -192,7 +192,7 @@ Test Note Upsert 002
 1. Open Claude Code with the job-seeker plugin loaded
 2. Run: "run my job digest"
 3. Skill should call `apple_notes_create.applescript` with today's digest title
-4. Verify note appears in Apple Notes with correct title format: `Executive Job Digest — {Month Day, Year}`
+4. Verify note appears in Apple Notes with correct title format: `Executive Job Digest — {Month Day, Year}` (note: the `—` is an em-dash, not a hyphen)
 5. Verify body renders correctly (no raw HTML tags visible)
 
 **Pass criteria:**

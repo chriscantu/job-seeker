@@ -57,33 +57,25 @@ Digest notes use a date-specific title (note the em-dash `—`, not a hyphen):
 
 The digest title is **not prefixed** — it always starts with `Executive Job Digest`.
 This is the dedup key: same title on same-day re-runs → single note, not duplicates.
+Title matching is case-insensitive and whitespace-trimmed (see
+`integrations/adapters/apple-notes.md` Deduplication Logic for details).
 
-## HTML Rules
+## HTML Rules and Pre-Write Validation
 
-Apple Notes HTML must follow these rules (see `integrations/adapters/apple-notes.md`
-for full reference):
-
-- Wrap every line in `<div>` tags — bare text without `<div>` collapses into one block
-- Use `<div><span style="font-size: 11px"><br></span></div>` for blank lines
-- Never put `<a href="">` inside `<table>` cells — Apple Notes strips those links
-- Use `<b><span style="font-size: Xpx">` instead of `<h1>`/`<h2>`/`<h3>` — heading tags render incorrectly
-- Use `<b>` instead of `<strong>`
-- No CSS classes, `<style>` blocks, or external stylesheets
-- Use `<span style="font-size: Xpx">` for font sizing, not `<font size="...">`
-
-## HTML Pre-Write Validation
-
-Before passing `html_body` to any Apple Notes script, verify all of the following.
+Apple Notes renders a limited HTML subset. Violations produce garbled output.
+Before passing `html_body` to any Apple Notes script, verify **every** rule below.
 If any check fails, fix the HTML before writing — do not pass invalid HTML.
 
-1. **Every text line is wrapped in `<div>...</div>`** — no bare text outside a `<div>`
+1. **Every text line is wrapped in `<div>...</div>`** — bare text without `<div>` collapses into one block
 2. **No `<h1>`, `<h2>`, `<h3>` tags** — replace with `<div><b><span style="font-size: Xpx">...</span></b></div>`
 3. **No `<strong>` tags** — replace with `<b>`
 4. **No `<p>` or `<li>` tags** — replace with `<div>` wrappers
-5. **No `<a href="">` inside `<td>` cells** — move links outside tables or use plain text URLs
+5. **No `<a href="">` inside `<table>` cells** (`<td>` or `<th>`) — move links outside tables or use plain text URLs
 6. **No `<style>` blocks or CSS classes** — use only inline `style=""` attributes
 7. **No `<font>` tags** — use `<span style="font-size: Xpx">` instead
-8. **Blank lines use** `<div><span style="font-size: 11px"><br></span></div>` — not bare `<br>`
+8. **Blank lines use** `<div><span style="font-size: 11px"><br></span></div>` — not bare `<br>` or `<div><br></div>`
+
+See `integrations/adapters/apple-notes.md` for the full adapter reference.
 
 ## Error Handling
 
