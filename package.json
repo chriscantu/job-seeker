@@ -23,6 +23,7 @@
   "homepage": "https://github.com/chriscantu/job-seeker#readme",
   "dependencies": {
     "docx": "^9.6.1",
+    "googleapis": "^171.4.0",
     "pdfkit": "^0.17.2"
   }
 }
