@@ -71,6 +71,7 @@ Use `/skill-name` for direct invocation or match natural language below:
 | why this company, why am I applying | `/why-this-company` |
 | track application, update pipeline, where am I | `/application-tracker` |
 | prep me, interview questions, practice interview | `/interview-prep` |
+| draft follow-ups, follow up on applications, any stale apps, what needs follow-up | `/follow-up` |
 | linkedin post, linkedin article, thought leadership | `/linkedin-article` |
 | draft outreach, reach out to, networking message | `/networking-outreach` |
 | setup, configure, get started, what's missing | `/setup` |
