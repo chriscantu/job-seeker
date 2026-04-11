@@ -12,32 +12,65 @@
 --   "NO_EVENTS_FOUND"   — no events matched
 --   "error: {message}"  — something went wrong
 --
--- Usage:
---   osascript apple_calendar_search.applescript "interview,screen,technical,hiring manager,recruiter,panel,culture fit,final round,onsite,phone screen" "7"
+-- Timestamps are in local system time with no UTC offset. Downstream consumers
+-- should be aware that these are not timezone-qualified ISO 8601 strings.
+--
+-- Usage (path relative to plugin root):
+--   osascript scripts/apple_calendar_search.applescript "interview,screen,technical" "7"
+--   The actual keyword list is driven by integrations/config/calendar-config.md.
 
 on run argv
+    -- Guard: require exactly 2 arguments
     if (count of argv) < 2 then
         return "error: Expected 2 arguments (keywords, days_ahead) but got " & (count of argv)
     end if
 
     set keywordString to item 1 of argv
-    set daysAhead to (item 2 of argv) as integer
+    set daysAheadStr to item 2 of argv
+
+    -- Validate days_ahead is non-empty and numeric
+    if daysAheadStr is "" then
+        return "error: days_ahead argument is empty — expected a positive integer"
+    end if
+    try
+        set daysAhead to daysAheadStr as integer
+    on error
+        return "error: days_ahead argument '" & daysAheadStr & "' is not a valid integer"
+    end try
+    if daysAhead < 1 then
+        return "error: days_ahead must be a positive integer, got " & daysAhead
+    end if
+
+    -- Validate keywords is non-empty
+    if keywordString is "" then
+        return "error: keywords argument is empty — expected comma-separated keyword list"
+    end if
 
     -- Parse comma-separated keywords into a list
     set AppleScript's text item delimiters to ","
     set keywordList to text items of keywordString
     set AppleScript's text item delimiters to ""
 
-    -- Trim whitespace from each keyword
-    set trimmedKeywords to {}
+    -- Trim whitespace from each keyword and lowercase once (avoid per-event shell calls)
+    set loweredKeywords to {}
     repeat with kw in keywordList
-        set end of trimmedKeywords to my trim(kw)
+        set trimmed to my trim(kw)
+        if trimmed is not "" then
+            set end of loweredKeywords to my toLower(trimmed)
+        end if
     end repeat
+
+    if (count of loweredKeywords) is 0 then
+        return "error: no valid keywords after parsing — check calendar config"
+    end if
 
     set startDate to current date
     set endDate to startDate + (daysAhead * days)
 
-    set matchedEvents to {}
+    -- Collect raw event data from Calendar, then build JSON outside the tell block.
+    -- This separation ensures that helper function errors (buildJSON, jsonString)
+    -- are not misattributed to Calendar IPC failures.
+    set rawEvents to {}
 
     tell application "Calendar"
         try
@@ -46,45 +79,53 @@ on run argv
                 set evts to (every event of cal whose start date ≥ startDate and start date ≤ endDate)
                 repeat with evt in evts
                     set evtTitle to summary of evt
+
+                    -- Description is optional — read with explicit error handling
                     set evtDescription to ""
                     try
                         set evtDescription to description of evt
+                        if evtDescription is missing value then set evtDescription to ""
+                    on error
+                        set evtDescription to ""
                     end try
-                    if evtDescription is missing value then set evtDescription to ""
 
                     set searchText to my toLower(evtTitle & " " & evtDescription)
 
-                    repeat with kw in trimmedKeywords
-                        if searchText contains my toLower(kw) then
+                    repeat with kw in loweredKeywords
+                        if searchText contains kw then
                             set evtStart to start date of evt
                             set evtEnd to end date of evt
-                            set evtJSON to my buildJSON(evtTitle, evtStart, evtEnd, evtDescription, calName)
-                            set end of matchedEvents to evtJSON
+                            set end of rawEvents to {evtTitle, evtStart, evtEnd, evtDescription, calName}
                             exit repeat
                         end if
                     end repeat
                 end repeat
             end repeat
-
-            if (count of matchedEvents) is 0 then
-                return "NO_EVENTS_FOUND"
-            end if
-
-            -- Build JSON array
-            set jsonArray to "["
-            repeat with i from 1 to count of matchedEvents
-                set jsonArray to jsonArray & item i of matchedEvents
-                if i < (count of matchedEvents) then
-                    set jsonArray to jsonArray & ","
-                end if
-            end repeat
-            set jsonArray to jsonArray & "]"
-            return jsonArray
-
         on error errMsg
-            return "error: Calendar search failed — " & errMsg
+            return "error: Calendar query failed — " & errMsg
         end try
     end tell
+
+    if (count of rawEvents) is 0 then
+        return "NO_EVENTS_FOUND"
+    end if
+
+    -- Build JSON outside the Calendar tell block so helper errors are distinct
+    try
+        set jsonArray to "["
+        repeat with i from 1 to count of rawEvents
+            set evt to item i of rawEvents
+            set evtJSON to my buildJSON(item 1 of evt, item 2 of evt, item 3 of evt, item 4 of evt, item 5 of evt)
+            set jsonArray to jsonArray & evtJSON
+            if i < (count of rawEvents) then
+                set jsonArray to jsonArray & ","
+            end if
+        end repeat
+        set jsonArray to jsonArray & "]"
+        return jsonArray
+    on error errMsg
+        return "error: JSON assembly failed — " & errMsg
+    end try
 end run
 
 on buildJSON(evtTitle, evtStart, evtEnd, evtDescription, calName)
@@ -101,7 +142,7 @@ on buildJSON(evtTitle, evtStart, evtEnd, evtDescription, calName)
 end buildJSON
 
 on jsonString(str)
-    -- Escape backslashes, quotes, and newlines for JSON
+    -- Escape backslashes first, then quotes and newlines for JSON
     set str to my replaceText(str, "\\", "\\\\")
     set str to my replaceText(str, "\"", "\\\"")
     set str to my replaceText(str, return, "\\n")
@@ -120,10 +161,17 @@ on replaceText(theText, searchString, replacementString)
 end replaceText
 
 on toLower(str)
-    set lowStr to do shell script "echo " & quoted form of str & " | tr '[:upper:]' '[:lower:]'"
-    return lowStr
+    try
+        set lowStr to do shell script "echo " & quoted form of str & " | tr '[:upper:]' '[:lower:]'"
+        return lowStr
+    on error errMsg
+        -- If shell fails, return original string rather than crashing
+        return str
+    end try
 end toLower
 
+-- Timestamps are in local system time with no UTC offset.
+-- AppleScript's `current date` uses the system timezone.
 on toISO(d)
     set y to year of d as string
     set m to my padZero(month of d as integer)

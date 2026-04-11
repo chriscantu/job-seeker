@@ -1,4 +1,4 @@
-# Adapter: Apple Calendar (v1)
+# Adapter: Apple Calendar (v0.1)
 
 **System**: Apple Calendar (macOS)
 **Access method**: AppleScript via osascript
@@ -76,7 +76,10 @@ Arguments:
 
 When `Provider` is set to `google-calendar`, the skill uses the `gcal_list_events`
 MCP tool instead of the AppleScript. The skill filters results client-side against
-the same keyword list and normalizes to the same event shape.
+the same keyword list and maps Google Calendar fields to the same event JSON shape
+(`title` ← summary, `datetime` ← start, `end_datetime` ← end, `description` ← description,
+`calendar_name` ← calendar display name). Timestamps are in local system time
+with no timezone offset, matching the AppleScript output.
 
 ---
 

@@ -7,6 +7,7 @@ description: >
   across multiple runs.
   Triggers: "prep me for an interview", "interview prep", "practice interview
   questions", "prep me", "interview questions"
+allowed-tools: Read, Write, Edit, Bash, Glob
 ---
 
 # Interview Prep
@@ -21,7 +22,8 @@ Read `skills/_shared/preflight.md` and execute.
 
 Then read these additional files in parallel:
 - `references/resume.pdf` — detailed accomplishments for STAR stories
-- `references/voice-guide.md` — tone calibration for all written output
+- `references/voice-guide.md` — tone calibration for all written output.
+  If missing, proceed with default voice calibration from `PRINCIPLES.md`.
 
 ---
 
@@ -42,9 +44,14 @@ Check if `integrations/config/calendar-config.md` exists.
 - If the user chooses to skip: go directly to Phase 2.
 
 **If file exists**, read it and extract:
-- `Provider` — which backend to use
-- `Lookahead Days` — search window (default 7)
-- `Interview Keywords` — comma-separated match terms
+- `Provider` — which backend to use. Must be `apple-calendar` or
+  `google-calendar`. If unrecognized, show error: "Unknown calendar
+  provider '{value}'. Supported: apple-calendar, google-calendar."
+- `Lookahead Days` — search window (default 7). Must be a positive
+  integer. If blank or invalid, use default of 7 and warn the user.
+- `Interview Keywords` — comma-separated match terms. If blank, use
+  the default keyword list from `calendar-config.md.example` and warn
+  the user.
 
 ### Apple Calendar Backend
 
@@ -70,17 +77,28 @@ event list as the Apple Calendar backend.
 
 ### Normalized Event Shape
 
-Both backends must produce the same event structure:
+Both backends produce the same event structure:
 
-```
-- title: "Technical Screen — Weave"
-  datetime: 2026-04-14T14:00:00
-  description: "Meet with Sarah Chen, VP Eng. Focus: system design, CI/CD"
-  source: apple-calendar
+```json
+{
+  "title": "Technical Screen — Weave",
+  "datetime": "2026-04-14T14:00:00",
+  "end_datetime": "2026-04-14T15:00:00",
+  "description": "Meet with Sarah Chen, VP Eng. Focus: system design, CI/CD",
+  "calendar_name": "Work"
+}
 ```
 
-Fields: `title` (event summary), `datetime` (ISO start time), `description`
-(event notes/body, may be empty), `source` (`apple-calendar` or `google-calendar`).
+Fields:
+- `title` — event summary
+- `datetime` — start time, local system time, no timezone offset
+- `end_datetime` — end time, same format
+- `description` — event notes/body, may be empty string
+- `calendar_name` — which calendar the event is from
+
+The Apple Calendar backend returns this shape directly from the AppleScript.
+The Google Calendar backend must map `gcal_list_events` fields to this shape
+and filter by keywords client-side.
 
 ### Company Matching
 
@@ -277,8 +295,11 @@ appear immediately after the snapshot:
 | `recruiter-screen` | Departure Framing, STAR Stories |
 | `unknown` | Departure Framing, STAR Stories |
 
-Remaining sections follow in their default order (2, 3, 4, 5, 6) with
-the two lead sections removed from their default positions.
+The remaining three sections appear after the two leads, preserving their
+relative order from the default sequence (2, 3, 4, 5, 6) with the two
+lead sections removed. Example: for a `technical` round, the leads are
+Technical Strategy Qs (6) and STAR Stories (3), so the remaining order
+is Departure Framing (2), Behavioral Qs (4), Company-Specific Qs (5).
 
 ---
 
@@ -352,6 +373,7 @@ After writing, show the user:
 | Condition | Behavior |
 |-----------|----------|
 | No calendar config | Prompt user to set up or skip — never silent |
+| Calendar config has invalid/missing fields | Warn user, fall back to defaults (7 days, default keywords) or show error for unrecognized provider |
 | Calendar query returns no events | Tell user, fall back to manual input |
 | Calendar query errors | Show error message, fall back to manual input |
 | No company research brief | Prompt: run /company-research or proceed with limited context |
@@ -360,3 +382,4 @@ After writing, show the user:
 | Company not in active applications | Accept any company name — pipeline is not a gate |
 | Existing interview-prep.md | Read and merge — never silently overwrite |
 | `output/{company-slug}/` doesn't exist | Create the directory before writing |
+| `references/voice-guide.md` missing | Proceed with default voice calibration from PRINCIPLES.md |
