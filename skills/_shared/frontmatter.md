@@ -41,6 +41,13 @@ Every skill output file includes these fields:
 |-------|------|-------------|
 | `word_count` | integer | Word count of the cover letter body |
 
+### interview-prep
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `last_updated` | date | Date of most recent run (YYYY-MM-DD) |
+| `rounds_prepped` | list | Array of objects: `{type, date, context?}` for each round prepped |
+
 ## Writing Frontmatter (Producers)
 
 When writing a skill output file, include the frontmatter block before the
