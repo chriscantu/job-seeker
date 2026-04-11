@@ -14,6 +14,7 @@ This file is gitignored — only the .example template is committed.
 | Education | Degree, University |
 | Location | City, State |
 | Email | you@example.com |
+| Departure Context | Brief context about why you left or are leaving your current role. Used by interview-prep to generate departure framing. Leave blank if not applicable. |
 
 ## Accomplishments
 
