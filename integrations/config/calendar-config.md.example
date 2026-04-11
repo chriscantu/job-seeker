@@ -1,0 +1,15 @@
+# Calendar Configuration
+
+Copy this file to `integrations/config/calendar-config.md` to enable
+calendar integration for interview-prep.
+
+| Field | Value |
+|-------|-------|
+| Provider | apple-calendar |
+| Lookahead Days | 7 |
+| Interview Keywords | interview, screen, phone screen, onsite, hiring manager, recruiter, technical, panel, culture fit, final round |
+
+## Provider Options
+
+- `apple-calendar` — queries Calendar.app via AppleScript (macOS only)
+- `google-calendar` — uses Google Calendar MCP tools (requires MCP setup)
