@@ -65,11 +65,11 @@ Apple Notes renders a limited HTML subset. Violations produce garbled output.
 | Rule | Correct | Incorrect |
 |------|---------|-----------|
 | Line wrapping | `<div>text</div>` | Bare text, `<p>`, `<li>` |
-| Headings | `<div><span style="font-size: 18px"><b>Title</b></span></div>` | `<h1>`, `<h2>`, `<h3>` |
+| Headings | `<div><b><span style="font-size: 18px">Title</span></b></div>` | `<h1>`, `<h2>`, `<h3>` |
 | Links in table cells | Not supported — use plain text or move link outside table | `<a href="...">` inside `<td>` |
 | Font sizing | `<span style="font-size: 14px">` | `<font size="...">` |
-| Bold | `<b>text</b>` | `<strong>` (works but inconsistent) |
-| Line breaks | `<div><br></div>` | `<br>` outside div |
+| Bold | `<b>text</b>` | `<strong>` (not supported) |
+| Line breaks | `<div><span style="font-size: 11px"><br></span></div>` | Bare `<br>` or `<div><br></div>` |
 
 ---
 
@@ -173,9 +173,11 @@ Errors are **non-blocking** — matching eisenhower's reminders adapter pattern:
 
 ## State Notes Reference
 
+`{prefix}` = the "Apple Notes Prefix" value from `config/search.md` (default: `Job Search`).
+
 | Apple Note | Operation | Script |
 |------------|-----------|--------|
-| `Job Search - Seen Postings` | read + update | read.applescript, update.applescript |
-| `Job Search - Preferences` | read + update | read.applescript, update.applescript |
-| `Job Search - Applications` | read + update | read.applescript, update.applescript |
-| Daily digest (`Job Search Digest - {date}`) | create | create.applescript |
+| `{prefix} - Seen Postings` | read + update | read.applescript, update.applescript |
+| `{prefix} - Preferences` | read + update | read.applescript, update.applescript |
+| `{prefix} - Applications` | read + update | read.applescript, update.applescript |
+| `Executive Job Digest — {Month Day, Year}` | create | create.applescript |

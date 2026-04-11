@@ -51,19 +51,31 @@ Use the Apple Notes Prefix from `config/search.md` (default: `Job Search`):
 - `{prefix} - Preferences`
 - `{prefix} - Applications`
 
-Digest notes use a date-specific title:
-- `Executive Job Digest — {Month Day, Year}`
+Digest notes use a date-specific title (note the em-dash `—`, not a hyphen):
 
-## HTML Rules
+- `Executive Job Digest — {Month Day, Year}` (e.g., `Executive Job Digest — April 11, 2026`)
 
-Apple Notes HTML must follow these rules (see `integrations/adapters/apple-notes.md`
-for full reference):
+The digest title is **not prefixed** — it always starts with `Executive Job Digest`.
+This is the dedup key: same title on same-day re-runs → single note, not duplicates.
+Title matching is case-insensitive and whitespace-trimmed (see
+`integrations/adapters/apple-notes.md` Deduplication Logic for details).
 
-- Wrap every line in `<div>` tags
-- Use `<div><span style="font-size: 11px"><br></span></div>` for blank lines
-- Never put `<a href="">` inside `<table>` cells
-- Use `<b><span style="font-size: Xpx">` instead of `<h1>`/`<h2>`/`<h3>`
-- No CSS classes, `<style>` blocks, or external stylesheets
+## HTML Rules and Pre-Write Validation
+
+Apple Notes renders a limited HTML subset. Violations produce garbled output.
+Before passing `html_body` to any Apple Notes script, verify **every** rule below.
+If any check fails, fix the HTML before writing — do not pass invalid HTML.
+
+1. **Every text line is wrapped in `<div>...</div>`** — bare text without `<div>` collapses into one block
+2. **No `<h1>`, `<h2>`, `<h3>` tags** — replace with `<div><b><span style="font-size: Xpx">...</span></b></div>`
+3. **No `<strong>` tags** — replace with `<b>`
+4. **No `<p>` or `<li>` tags** — replace with `<div>` wrappers
+5. **No `<a href="">` inside `<table>` cells** (`<td>` or `<th>`) — move links outside tables or use plain text URLs
+6. **No `<style>` blocks or CSS classes** — use only inline `style=""` attributes
+7. **No `<font>` tags** — use `<span style="font-size: Xpx">` instead
+8. **Blank lines use** `<div><span style="font-size: 11px"><br></span></div>` — not bare `<br>` or `<div><br></div>`
+
+See `integrations/adapters/apple-notes.md` for the full adapter reference.
 
 ## Error Handling
 
