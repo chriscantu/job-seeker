@@ -68,6 +68,20 @@ Filter results client-side: for each event, check if the title or description
 contains any of the `Interview Keywords` (case-insensitive). Build the same
 event list as the Apple Calendar backend.
 
+### Normalized Event Shape
+
+Both backends must produce the same event structure:
+
+```
+- title: "Technical Screen — Weave"
+  datetime: 2026-04-14T14:00:00
+  description: "Meet with Sarah Chen, VP Eng. Focus: system design, CI/CD"
+  source: apple-calendar
+```
+
+Fields: `title` (event summary), `datetime` (ISO start time), `description`
+(event notes/body, may be empty), `source` (`apple-calendar` or `google-calendar`).
+
 ### Company Matching
 
 Read `skills/_shared/state-io.md` and execute — read `applications`.
