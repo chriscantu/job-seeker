@@ -69,10 +69,6 @@ job-seeker/
 │       ├── classification-rules.md
 │       └── body-extraction.md
 │
-├── credentials/             ← Gitignored — Gmail OAuth2 tokens (user-provided)
-│   └── gmail-client-secret.json
-│   └── gmail-tokens.json
-│
 ├── commands/                ← Slash command definitions (one .md per command)
 │   ├── pipeline.md
 │   ├── is-open.md

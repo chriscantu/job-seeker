@@ -63,7 +63,7 @@ for (const line of lines) {
 // --- Check 1: Documented top-level directories exist ---
 
 // Directories that may not exist in CI (gitignored or empty)
-const optionalDirs = new Set(['output', 'config', 'references', 'tests']);
+const optionalDirs = new Set(['output', 'config', 'references', 'tests', 'credentials']);
 
 for (const dir of documentedDirs) {
   if (optionalDirs.has(dir)) continue;
@@ -79,7 +79,7 @@ for (const dir of documentedDirs) {
 
 const ignoredDirs = new Set([
   'node_modules', '.git', '.claude', '.github', '.worktrees', 'docs',
-  'config', 'output', 'memory',
+  'config', 'output', 'memory', 'credentials',
 ]);
 
 const actualDirs = fs.readdirSync(root, { withFileTypes: true })
