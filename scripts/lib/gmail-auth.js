@@ -15,13 +15,19 @@ function resolveCredentialPaths(projectRoot) {
 
 function loadTokens(tokenPath) {
   if (!fs.existsSync(tokenPath)) return null;
-  return JSON.parse(fs.readFileSync(tokenPath, 'utf8'));
+  try {
+    return JSON.parse(fs.readFileSync(tokenPath, 'utf8'));
+  } catch {
+    throw new Error(
+      `Token file is corrupted: ${tokenPath}. Delete it and run: bun scripts/gmail.js auth`
+    );
+  }
 }
 
 function saveTokens(tokenPath, tokens) {
   const dir = path.dirname(tokenPath);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(tokenPath, JSON.stringify(tokens, null, 2));
+  fs.writeFileSync(tokenPath, JSON.stringify(tokens, null, 2), { mode: 0o600 });
 }
 
 function createOAuth2Client(clientSecretPath) {
@@ -47,8 +53,14 @@ function getAuthenticatedClient(projectRoot) {
   }
   oauth2.setCredentials(tokens);
   oauth2.on('tokens', (newTokens) => {
-    const merged = { ...tokens, ...newTokens };
-    saveTokens(paths.tokens, merged);
+    try {
+      const current = loadTokens(paths.tokens) || tokens;
+      const merged = { ...current, ...newTokens };
+      saveTokens(paths.tokens, merged);
+    } catch (err) {
+      console.error(`Warning: failed to persist refreshed tokens: ${err.message}`);
+      console.error('You may need to re-authenticate: bun scripts/gmail.js auth');
+    }
   });
   return oauth2;
 }

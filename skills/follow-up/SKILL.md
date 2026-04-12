@@ -20,7 +20,6 @@ drafts for user review — never sends automatically.
 Read `skills/_shared/preflight.md` and execute.
 
 Additionally:
-- Read `references/voice-guide.md` — tone and anti-patterns for email copy
 - Read `integrations/config/gmail-config.md` — verify Gmail is enabled
 
 If Gmail is not enabled, stop:
@@ -188,7 +187,7 @@ by reading the applications state file, finding the entry, editing the
 `Next action` line, and writing it back.
 
 Then append a note via CLI (this updates `lastActivity` and `history`
-automatically — see `scripts/lib/applications.js:404-422`):
+automatically — see the `addNote()` function in `scripts/lib/applications.js`):
 
 ```bash
 bun scripts/state.js add-note applications --company "{company}" --note "Follow-up drafted {today} via /follow-up"
