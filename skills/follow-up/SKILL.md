@@ -3,8 +3,9 @@ name: follow-up
 description: >
   Identify stale applications and draft personalized follow-up emails.
   Reads application state, filters by staleness thresholds, generates
-  emails per voice-guide, creates Gmail drafts via MCP, and updates
-  application state. Never sends automatically — always drafts for review.
+  emails per voice-guide, creates Gmail drafts via scripts/gmail.js, and
+  updates application state. Never sends automatically — always drafts
+  for review.
   Triggers: "draft follow-ups", "follow up on applications", "any stale apps",
   "what needs follow-up"
 allowed-tools: Read, Write, Edit, Bash, Glob
@@ -19,15 +20,20 @@ drafts for user review — never sends automatically.
 
 Read `skills/_shared/preflight.md` and execute.
 
-Additionally:
-- Read `integrations/config/gmail-config.md` — verify Gmail is enabled
+Verify Gmail API credentials are configured and authenticated:
 
-If Gmail is not enabled, stop:
-> "Gmail is required for follow-up drafts. Configure it first:
-> copy `integrations/config/gmail-config.md.example` to `gmail-config.md`"
+```bash
+bun scripts/gmail.js profile
+```
 
-Verify Gmail MCP connection: `[gmail_get_profile]`. If error, stop with
-guidance.
+If the command fails with "Not authenticated" or "Client secret file not
+found", stop with guidance:
+> "Gmail API credentials are required for follow-up drafts. Set them up:
+> 1. Create OAuth2 credentials in Google Cloud Console (Desktop app)
+> 2. Save as `credentials/gmail-client-secret.json`
+> 3. Run `bun scripts/gmail.js auth`"
+
+On success, the command prints the authenticated email address.
 
 ## Phase 1 — Identify Stale Applications
 
@@ -91,12 +97,14 @@ If the application entry has a contact name, ask the user:
 
 **Step 3b: Search Gmail for prior correspondence**
 If no contact or user says "search":
-```
-[gmail_search_messages: query="from:@{company-domain} OR to:@{company-domain}" maxResults=5]
+```bash
+bun scripts/gmail.js search "from:@{company-domain} OR to:@{company-domain}" --max 5
 ```
 
-Read the most recent thread to extract the recruiter/HR email address.
-Present the found address to the user for confirmation.
+The command prints a JSON array of messages with `from`, `to`, `subject`,
+`date`, and `snippet`. Parse it and extract the recruiter/HR email address
+from the most recent thread. Present the found address to the user for
+confirmation.
 
 **Step 3c: Ask directly**
 If neither source yields an address:
@@ -174,10 +182,15 @@ Ask: "Send this to Gmail drafts? (yes / edit / skip)"
 
 ### Step 4d: Create Gmail draft
 
-```
-[gmail_create_draft: to="{email}" subject="{subject}" body="{body}"]
+Write the body to a temp file, then call the CLI:
+
+```bash
+# Write body to temp file (use the Write tool)
+# Then:
+bun scripts/gmail.js create-draft --to "{email}" --subject "{subject}" --body-file /tmp/followup-{company-slug}.txt
 ```
 
+The command prints a JSON object with `draftId` and `messageId` on success.
 Report: "Draft created for {Company}."
 
 ### Step 4e: Update application state
@@ -205,8 +218,9 @@ After all selected applications are processed:
 | Condition | Behavior |
 | --------- | -------- |
 | No applications file | Stop: "No applications tracked yet. Use /application-tracker first." |
-| Gmail MCP error | Stop: show connection guidance |
-| gmail_create_draft fails | Report error, continue with next app |
+| `gmail.js profile` fails (not authenticated) | Stop: show setup guidance |
+| `gmail.js create-draft` fails | Report error, continue with next app |
+| `gmail.js search` fails (401/403) | Stop: prompt to re-authenticate |
 | state.js add-note fails | Warn, continue — draft was still created |
 | Company slug directory missing | Skip context gathering, draft without personalization |
 
