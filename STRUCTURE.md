@@ -58,6 +58,8 @@ job-seeker/
 │   │   └── pipeline-schema.md
 │   ├── networking-outreach/
 │   │   └── SKILL.md
+│   ├── follow-up/
+│   │   └── SKILL.md
 │   ├── setup/
 │   │   └── SKILL.md
 │   ├── linkedin-article/
@@ -66,6 +68,10 @@ job-seeker/
 │       ├── SKILL.md
 │       ├── classification-rules.md
 │       └── body-extraction.md
+│
+├── credentials/             ← Gitignored — Gmail OAuth2 tokens (user-provided)
+│   └── gmail-client-secret.json
+│   └── gmail-tokens.json
 │
 ├── commands/                ← Slash command definitions (one .md per command)
 │   ├── pipeline.md
