@@ -16,6 +16,8 @@ const {
   findApplication,
   closeApplication,
   reopenApplication,
+  flagForReview,
+  markStatusChanged,
 } = require('../scripts/lib/applications');
 
 const FIXTURES = path.join(__dirname, 'fixtures');
@@ -937,6 +939,101 @@ format_version: 1
       const output = formatApplicationsFile(data);
       assert.match(output, /flagged_count:\s*0/);
       assert.doesNotMatch(output, /## Flagged for Review/);
+    });
+  });
+
+  describe('flagForReview / markStatusChanged', () => {
+    let dir;
+
+    beforeEach(() => {
+      dir = fs.mkdtempSync(path.join(os.tmpdir(), 'apps-status-'));
+      // Seed with fixture
+      const content = fs.readFileSync(path.join(__dirname, 'fixtures', 'status-emails', 'applications.md'), 'utf8');
+      fs.writeFileSync(path.join(dir, '2026-04-13-applications.md'), content);
+    });
+
+    afterEach(() => {
+      fs.rmSync(dir, { recursive: true, force: true });
+    });
+
+    it('flagForReview appends to Flagged section and bumps flagged_count', () => {
+      flagForReview(dir, {
+        company: 'Acme Corp',
+        title: 'Unknown role',
+        signal: 'unfortunately',
+        status: 'Rejected',
+        sender: 'no-reply@greenhouse-mail.io',
+        matchMethod: 'none',
+        msgId: '<fixture-unknown-001@mail.gmail.com>',
+        detectedAt: '2026-04-13',
+      });
+      const data = parseApplications(dir);
+      assert.equal(data.flagged.length, 1);
+      assert.equal(data.flagged[0].company, 'Acme Corp');
+
+      const raw = fs.readFileSync(path.join(dir, '2026-04-13-applications.md'), 'utf8');
+      assert.match(raw, /flagged_count:\s*1/);
+    });
+
+    it('markStatusChanged(Rejected) moves entry to Closed and appends history with msg-id', () => {
+      const result = markStatusChanged(dir, {
+        msgId: '<fixture-atlassian-001@mail.gmail.com>',
+        matchedCompany: 'Atlassian',
+        newStatus: 'Rejected',
+        signal: "we've decided not to move forward",
+        atsSender: 'greenhouse',
+        detectedAt: '2026-04-13',
+      });
+      assert.equal(result.skipped, false);
+
+      const data = parseApplications(dir);
+      assert.equal(data.active.find(e => e.company === 'Atlassian'), undefined);
+      const closed = data.closed.find(e => e.company === 'Atlassian');
+      assert.notEqual(closed, undefined);
+      assert.match(closed.stage, /Closed \(rejected\)/);
+
+      const raw = fs.readFileSync(path.join(dir, '2026-04-13-applications.md'), 'utf8');
+      assert.match(raw, /msg-id: <fixture-atlassian-001@mail\.gmail\.com>/);
+    });
+
+    it('markStatusChanged is idempotent by msg-id', () => {
+      markStatusChanged(dir, {
+        msgId: '<fixture-atlassian-001@mail.gmail.com>',
+        matchedCompany: 'Atlassian',
+        newStatus: 'Rejected',
+        signal: 'unfortunately',
+        atsSender: 'greenhouse',
+        detectedAt: '2026-04-13',
+      });
+      const second = markStatusChanged(dir, {
+        msgId: '<fixture-atlassian-001@mail.gmail.com>',
+        matchedCompany: 'Atlassian',
+        newStatus: 'Rejected',
+        signal: 'unfortunately',
+        atsSender: 'greenhouse',
+        detectedAt: '2026-04-13',
+      });
+      assert.equal(second.skipped, true);
+
+      const data = parseApplications(dir);
+      const closed = data.closed.filter(e => e.company === 'Atlassian');
+      assert.equal(closed.length, 1);
+    });
+
+    it('markStatusChanged(Interview) updates stage on Active entry with msg-id history', () => {
+      markStatusChanged(dir, {
+        msgId: '<fixture-realtor-001@mail.gmail.com>',
+        matchedCompany: 'Realtor.com',
+        newStatus: 'Interview',
+        signal: 'next steps',
+        atsSender: 'greenhouse',
+        detectedAt: '2026-04-13',
+      });
+      const data = parseApplications(dir);
+      const entry = data.active.find(e => e.company === 'Realtor.com');
+      assert.equal(entry.stage, 'Interview');
+      const last = entry.history[entry.history.length - 1];
+      assert.match(last.detail, /msg-id: <fixture-realtor-001@mail\.gmail\.com>/);
     });
   });
 });

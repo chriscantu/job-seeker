@@ -499,6 +499,81 @@ function reopenApplication(dir, { company, stage, detail }) {
   atomicWriteFileSync(filePath, formatApplicationsFile(data));
 }
 
+function hasMsgIdInHistory(filePath, msgId) {
+  if (!msgId) return false;
+  const content = fs.readFileSync(filePath, 'utf8');
+  return content.includes(`msg-id: ${msgId}`);
+}
+
+function flagForReview(dir, opts) {
+  const filePath = resolveStateFile(dir, 'applications');
+  if (!filePath) throw new Error('No applications file found');
+
+  if (hasMsgIdInHistory(filePath, opts.msgId)) {
+    // Check flagged section too via parse
+    const existing = parseApplicationsFile(filePath);
+    const dup = (existing.flagged || []).find(e => e.msgId === opts.msgId);
+    if (dup) return { skipped: true };
+  }
+
+  const data = parseApplicationsFile(filePath);
+  data.flagged = data.flagged || [];
+  data.flagged.push({
+    company: opts.company || 'Unknown',
+    title: opts.title || 'Unknown role',
+    detectedAt: opts.detectedAt || new Date().toISOString().slice(0, 10),
+    signal: opts.signal || null,
+    status: opts.status || null,
+    sender: opts.sender || null,
+    matchMethod: opts.matchMethod || 'none',
+    msgId: opts.msgId || null,
+    action: opts.action || null,
+  });
+
+  atomicWriteFileSync(filePath, formatApplicationsFile(data));
+  return { skipped: false };
+}
+
+function markStatusChanged(dir, opts) {
+  const filePath = resolveStateFile(dir, 'applications');
+  if (!filePath) throw new Error('No applications file found');
+
+  if (hasMsgIdInHistory(filePath, opts.msgId)) {
+    return { skipped: true };
+  }
+
+  const data = parseApplicationsFile(filePath);
+  const query = opts.matchedCompany.toLowerCase();
+  const detectedAt = opts.detectedAt || new Date().toISOString().slice(0, 10);
+  const detail = `scan-email detected ${opts.atsSender} ${opts.newStatus.toLowerCase()} (msg-id: ${opts.msgId})`;
+
+  if (opts.newStatus === 'Rejected') {
+    const idx = data.active.findIndex(e => e.company.toLowerCase() === query);
+    if (idx === -1) throw new Error(`No active application matching "${opts.matchedCompany}"`);
+    const entry = data.active[idx];
+    data.active.splice(idx, 1);
+
+    entry.stage = 'Closed (rejected)';
+    entry.closed = {
+      date: detectedAt,
+      reason: 'rejected',
+      summary: `scan-email detected ${opts.atsSender} rejection: "${opts.signal}"`,
+    };
+    entry.lastActivity = { date: detectedAt, detail: `Closed (rejected) — ${opts.signal}` };
+    entry.history.push({ date: detectedAt, stage: 'Closed (rejected)', detail });
+    data.closed.push(entry);
+  } else {
+    const entry = data.active.find(e => e.company.toLowerCase() === query);
+    if (!entry) throw new Error(`No active application matching "${opts.matchedCompany}"`);
+    entry.stage = opts.newStatus;
+    entry.lastActivity = { date: detectedAt, detail: `${opts.newStatus} — ${opts.signal}` };
+    entry.history.push({ date: detectedAt, stage: opts.newStatus, detail });
+  }
+
+  atomicWriteFileSync(filePath, formatApplicationsFile(data));
+  return { skipped: false };
+}
+
 function addNote(dir, { company, note }) {
   if (!note || typeof note !== 'string' || !note.trim()) {
     throw new Error('note is required and must be a non-empty string');
@@ -532,4 +607,6 @@ module.exports = {
   closeApplication,
   reopenApplication,
   addNote,
+  flagForReview,
+  markStatusChanged,
 };
