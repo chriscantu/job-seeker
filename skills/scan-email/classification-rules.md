@@ -1,9 +1,9 @@
 # Scan Email — Classification Rules
 
 Rules for classifying email messages as job alerts vs non-job-related email.
-Applied to both Apple Mail and Gmail messages.
+Applied to both Apple Mail and Gmail messages. Each message is evaluated against both paths; the two are disjoint by sender so a single message can only match one.
 
-## Classification Pipeline
+## Job Alert Path
 
 For each message (using subject, sender email, date_received):
 
@@ -72,3 +72,53 @@ many matching emails.
   ```
   from:google.com subject:"Google Alert" newer_than:{lookback_days}d
   ```
+
+## Status Change Path
+
+Runs in parallel to the Job Alert Path. A message either matches this path (ATS status email) or the Job Alert Path (job posting alert) — never both, because the sender sets are disjoint.
+
+### Step 1: ATS Sender Match
+
+Check the sender domain against ATS Notification Senders in `references/email-patterns.md` → Application Status Patterns. Currently recognized:
+
+- `@greenhouse.io`, `@greenhouse-mail.io`, `no-reply@greenhouse.io`
+- `@lever.co`, `notifications@lever.co`
+- `@ashbyhq.com`
+
+No match → skip (may still be classified by the Job Alert Path).
+
+### Step 2: Tag for Body Fetch
+
+Tag the message with `type: status-change-candidate`. Do NOT invoke the classifier script here — the classifier requires the email body to extract ATS URLs and rejection signals, and the body is not yet available during metadata scan (Phase 2/2G).
+
+The classifier is invoked in Phase 3.5, after body fetch completes.
+
+Candidates from the Status Change Path are NOT subject to the same early-stop rule as job alerts — process all ATS matches in the batch.
+
+### Step 3: Classifier Output (reference — populated in Phase 3.5)
+
+After body fetch and Phase 3.5 classification, each `status-change-candidate` is updated to `type: status-change` with the following classifier result attached:
+
+```json
+{
+  "tier": "HIGH" | "MEDIUM" | "LOW",
+  "status": "Applied" | "Interview" | "Rejected" | "Offer" | null,
+  "matchMethod": "url" | "name" | "none",
+  "signal": "...",
+  "atsSender": "greenhouse" | "lever" | "ashby",
+  "matchedEntry": {
+    "company": "...",
+    "title": "...",
+    "url": "..." | null,
+    "stage": "...",
+    "section": "active" | "closed"
+  } | null,
+  "msgId": "<...>"
+}
+```
+
+Or `null` if the sender did not match an ATS domain after all (drop the message).
+
+The classifier matches against `active` and `closed` entries only — flagged entries are excluded so status signals don't silently collide with unresolved previous flags. The `section` field on `matchedEntry` is REQUIRED by `markStatusChanged` — it uses it to decide whether to mutate the entry (active) or silently skip (closed, already-handled application). Callers must pass the full `matchedEntry` verbatim through to `markStatusChanged`.
+
+These records flow into Phase 5 Gate 2 (HIGH/MEDIUM) or Phase 6 Flagged for Review append (LOW).

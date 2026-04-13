@@ -100,14 +100,32 @@ osascript {plugin_root}/scripts/apple_mail_scan.applescript "{account_name}" "{i
 
 If `NO_MESSAGES`, stop scanning.
 
-Read `skills/scan-email/classification-rules.md` and execute for each record.
+Read `skills/scan-email/classification-rules.md` and execute BOTH paths for each record:
+
+1. **Job Alert Path**: the existing 4-step flow. If it classifies as a candidate, tag with `type: job-alert` and continue to body fetch.
+2. **Status Change Path**: if the sender matches an ATS notification domain, tag with `type: status-change-candidate` and continue to body fetch. Do NOT run the classifier yet — it needs the body to extract ATS URLs and rejection signals.
+
+A single message matches at most one path because the sender sets are disjoint. Skip messages that match neither.
 
 ## Phase 2G — Gmail Metadata Scan (skip if `gmail_enabled = false`)
 
-Build search queries from sender domains in `references/email-patterns.md`.
+Build search queries from sender domains in `references/email-patterns.md`:
+
+- Job Alert Senders table → job alert query
+- Application Status Patterns → ATS Notification Senders → status query
+
+The two sets of senders are disjoint. Combine them into a single Gmail search:
+
+    from:(indeed.com OR indeedmail.com OR linkedin.com OR e.linkedin.com OR glassdoor.com OR mail.glassdoor.com OR remotehunter.com OR wellfound.com OR angel.co OR google.com OR otta.com OR ziprecruiter.com OR builtin.com OR hired.com OR greenhouse.io OR greenhouse-mail.io OR lever.co OR ashbyhq.com) newer_than:{lookback_days}d
+
 Execute via `[gmail_search_messages]`. Paginate if needed.
 
-Read `skills/scan-email/classification-rules.md` and execute for each result.
+Read `skills/scan-email/classification-rules.md` and execute BOTH paths for each record:
+
+1. **Job Alert Path**: the existing 4-step flow. If it classifies as a candidate, tag with `type: job-alert` and continue to body fetch.
+2. **Status Change Path**: if the sender matches an ATS notification domain, tag with `type: status-change-candidate` and continue to body fetch. Do NOT run the classifier yet — it needs the body to extract ATS URLs and rejection signals.
+
+A single message matches at most one path because the sender sets are disjoint. Skip messages that match neither.
 
 ## Phase 3 — Body Fetch (Apple Mail)
 
@@ -126,6 +144,29 @@ Read `skills/scan-email/body-extraction.md` and execute for Gmail candidates.
 After body fetch completes, cache extracted roles for resumption:
 `bun scripts/cache.js write scan-email body-fetch '<json>'`
 — include all extracted roles with URLs, company names, and source labels.
+
+The cached payload must include a `type` field per entry (`"job-alert"` or `"status-change"`) so resumption after interruption does not need to re-classify.
+
+## Phase 3.5 — Classify Status-Change Candidates
+
+Skip if no `status-change-candidate` tagged messages from Phase 2/2G.
+
+For each `status-change-candidate` message (body now available), run:
+
+```bash
+bun scripts/classify-status-email.js \
+  --email /tmp/scan-email-msg-{msgId-slug}.json \
+  --applications-dir {plugin_root}/output
+```
+
+Write the JSON result to a temp file for Phase 6:
+
+```bash
+# {classifier_result_path} = /tmp/scan-email-classifier-{msgId-slug}.json
+```
+
+- Non-null result → update the message tag to `type: status-change`, attach the classifier result path.
+- `null` result (non-ATS sender passed through by mistake) → drop the message from the batch.
 
 ## Phase 4 — Dedup, Filter, and Verify
 
@@ -156,20 +197,59 @@ For roles with no URL from body extraction:
 
 ## Phase 5 — Present Results
 
-Show a confirmation table:
+Two sequential gates. Gate 2 only appears if there are any status-change candidates.
 
-```
+### Gate 1 — Role adds (unchanged)
+
+Show the confirmation table for job-alert candidates:
+
 | # | Company | Role | Source | Location | Comp | Link | Status |
 |---|---------|------|--------|----------|------|------|--------|
 | 1 | TrueML | VP of Software Engineering | Indeed (Gmail) | Remote | $225K-$325K | [View](url) | Verified ✓ |
-```
 
-Source column: alert source with email channel in parentheses: `(Mail)`,
-`(Gmail)`, or `(both)`.
+Source column: `(Mail)`, `(Gmail)`, or `(both)`.
 
-Show: skipped counts, errors, sources scanned.
+Show skipped counts, errors, sources scanned, then ask:
 
-Ask for confirmation before writing state.
+> Add these N roles to seen-postings? [y/N/edit]
+
+### Gate 2 — Status changes (only if any HIGH or MEDIUM classifications exist)
+
+Partition status-change candidates by tier. LOW tier never appears in this gate — those go directly to Flagged for Review in Phase 6.
+
+Render the gate:
+
+    ⚠️  STATUS CHANGES DETECTED — review each carefully before accepting
+
+    [1] HIGH  ✓
+        Atlassian — VP Engineering
+        Current:   {entry.stage} ({entry.applied}, {days-since} days ago)
+        Detected:  {classifier.status}
+        Signal:    "{classifier.signal}"
+        Sender:    {email.sender}
+        Match:     URL ({matched-url})
+        Message:   {classifier.msgId}
+
+    [2] MEDIUM ⚠  name-only match — verify before accepting
+        Discord — Director of Engineering
+        Current:   Applied (2026-04-05, 8 days ago)
+        Detected:  Rejected
+        Signal:    "unfortunately"
+        Sender:    no-reply@greenhouse-mail.io
+        Match:     name
+        Message:   <fixture-discord-001@mail.gmail.com>
+
+    Apply status changes?
+      HIGH tier ([1]): accept all high-confidence? [y/N]
+      MEDIUM tier ([2]): select by number or N to skip all: _
+
+**Rules for Gate 2:**
+
+1. HIGH and MEDIUM are always prompted as **two separate questions**. Never combine them.
+2. HIGH tier accepts via `y/N` — a single keystroke accepts all HIGH entries.
+3. MEDIUM tier requires typing a number or comma-separated list (`1,3`) or `N` to skip all. There is no "accept all" for MEDIUM.
+4. If the user cancels Gate 2 (Ctrl-C or `N` to both), nothing is written. Since message-IDs are not yet in applications.md history, the next scan will re-detect these same emails.
+5. Gate 2 runs AFTER Gate 1 so the user processes the less-risky operation (appending roles) before the more-risky one (mutating pipeline state).
 
 ## Phase 6 — State Updates
 
@@ -182,6 +262,93 @@ Read `skills/_shared/state-io.md` and execute the append pattern for:
 ### Apple Notes sync (optional)
 Read `skills/_shared/apple-notes.md` and execute the update operation for
 the Seen Postings note.
+
+### Write status changes (from Gate 2 confirmations)
+
+For each accepted HIGH or MEDIUM status-change classification, write the entire classifier result object to a temp file first, then invoke `markStatusChanged` with it. The classifier's `matchedEntry` (including its `section` field) must be passed through verbatim — `markStatusChanged` fails closed if it's missing.
+
+```bash
+# Write the classifier result to a temp file (the classifier output itself
+# is a JSON object; capture it from the Phase 3.5 classify-status-email.js
+# invocation in /tmp/scan-email-classifier-{msgId-slug}.json).
+
+bun -e "
+const fs = require('fs');
+const { markStatusChanged } = require('./scripts/lib/applications');
+try {
+  const classifier = JSON.parse(fs.readFileSync('{classifier_result_path}', 'utf8'));
+  const r = markStatusChanged('{plugin_root}/output', {
+    msgId: classifier.msgId,
+    matchedEntry: classifier.matchedEntry,
+    status: classifier.status,
+    signal: classifier.signal,
+    atsSender: classifier.atsSender,
+    detectedAt: '{today}',
+  });
+  console.log(JSON.stringify({ ok: true, result: r }));
+} catch (e) {
+  console.log(JSON.stringify({ ok: false, error: e.message }));
+  process.exit(1);
+}
+"
+```
+
+**REQUIRED caller contract:** after every invocation, parse the stdout JSON and check `ok` first:
+
+- `{ok: false, error: ...}` — surface the error, do NOT silently continue the batch.
+- `{ok: true, result: {skipped: false}}` — success, applications.md was mutated.
+- `{ok: true, result: {skipped: true, reason: 'msg-id already processed'}}` — re-run idempotency; safe to ignore.
+- `{ok: true, result: {skipped: true, reason: 'matched closed entry'}}` — courtesy email for an already-closed app; safe to ignore, but log to the user so they know why Gate 2 approvals sometimes don't produce writes.
+- `{ok: true, result: {skipped: false}}` with a new flagged entry appearing in `## Flagged for Review` — the Active entry disappeared mid-batch; surface this to the user as a pipeline-integrity warning.
+
+### Write Flagged for Review entries (LOW tier)
+
+For each LOW tier status-change classification (from Phase 5 partitioning), call:
+
+```bash
+bun -e "
+const { flagForReview } = require('./scripts/lib/applications');
+try {
+  const r = flagForReview('{plugin_root}/output', {
+    company: '<classifier.matchedEntry?.company || extract-from-sender>',
+    title: '<classifier.matchedEntry?.title || \"Unknown role\">',
+    signal: '<classifier.signal>',
+    status: '<classifier.status>',
+    sender: '<email.sender>',
+    matchMethod: '<classifier.matchMethod>',
+    msgId: '<classifier.msgId>',
+    detectedAt: '{today}',
+  });
+  console.log(JSON.stringify({ ok: true, result: r }));
+} catch (e) {
+  console.log(JSON.stringify({ ok: false, error: e.message }));
+  process.exit(1);
+}
+"
+```
+
+LOW entries do not require user confirmation because they only append to the Flagged for Review section — they never mutate an existing Active/Closed entry. After all LOW writes, print a one-line informational summary:
+
+> 📋 Flagged for review: N entries appended to applications.md. See `## Flagged for Review` section to resolve.
+
+### Cleanup suggestions (Rejected path only)
+
+For each status-change whose `newStatus` was `Rejected` AND was accepted in Gate 2, after the applications.md write completes:
+
+1. Derive the output directory slug from the entry's company name: lowercase, replace non-alphanumeric runs with `-`, strip leading/trailing `-`. Example: `The New York Times` → `the-new-york-times`.
+2. Check if `{plugin_root}/output/{slug}/` exists and count files.
+3. Accumulate a cleanup-suggestion block and print it once at the very end of the scan run:
+
+    💡  Cleanup suggestions (copy and run if desired — scan-email will NOT delete these):
+
+      rm -rf output/atlassian/        # 14 files
+      rm -rf output/discord/          # 8 files
+
+If the slug cannot be resolved to an existing directory, print:
+
+> 💡 Could not auto-suggest cleanup for {company} — no matching output/ directory
+
+The skill MUST NOT run these `rm -rf` commands. The user executes them manually.
 
 ### Trash Apple Mail alerts
 Skip if `apple_mail_enabled = false`.
@@ -302,5 +469,4 @@ Report: "Trashed {N} Gmail messages." or "Trashed {N}/{total} Gmail messages
 
 > Not implemented. Documented for when the need arises.
 
-- Application status detection (Greenhouse/Lever/Ashby status change emails)
 - Recruiter outreach surfacing

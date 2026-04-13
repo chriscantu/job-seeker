@@ -9,7 +9,8 @@ const KEY_VALUE_RE = /^- \*\*(.+?)\*\*:\s*(.*)$/;
 const HISTORY_RE = /^- (\d{4}-\d{2}-\d{2}):\s*(.+?)\s*—\s*(.+)$/;
 const LAST_ACTIVITY_RE = /^(\d{4}-\d{2}-\d{2})\s*—\s*(.+)$/;
 const CLOSED_STAGE_RE = /^Closed\s*\((\w+)\)$/;
-const SECTION_RE = /^## (Active Applications|Closed Applications)$/;
+const SECTION_RE = /^## (Active Applications|Closed Applications|Flagged for Review)$/;
+const FLAGGED_HEADING_RE = /^### (.+?) — (.+?) — (\d{4}-\d{2}-\d{2})$/;
 
 function makeEntry(overrides) {
   return {
@@ -28,14 +29,29 @@ function makeEntry(overrides) {
   };
 }
 
+function makeFlaggedEntry(overrides) {
+  return {
+    company: null,
+    title: null,
+    detectedAt: null,
+    signal: null,
+    status: null,
+    sender: null,
+    matchMethod: null,
+    msgId: null,
+    action: null,
+    ...overrides,
+  };
+}
+
 function parseApplicationsContent(content) {
-  if (!content || !content.trim()) return { active: [], closed: [] };
+  if (!content || !content.trim()) return { active: [], closed: [], flagged: [] };
 
   const { body } = parseFrontmatter(content);
   const lines = body.split('\n');
-  const result = { active: [], closed: [] };
+  const result = { active: [], closed: [], flagged: [] };
 
-  let currentSection = null; // 'active' | 'closed'
+  let currentSection = null; // 'active' | 'closed' | 'flagged'
   let currentEntry = null;
   let inHistory = false;
   let closedDate = null;
@@ -54,7 +70,11 @@ function parseApplicationsContent(content) {
       };
     }
 
-    result[currentSection].push(currentEntry);
+    if (currentSection === 'flagged') {
+      result.flagged.push(currentEntry);
+    } else {
+      result[currentSection].push(currentEntry);
+    }
     currentEntry = null;
     inHistory = false;
     closedDate = null;
@@ -68,11 +88,66 @@ function parseApplicationsContent(content) {
     const sectionMatch = trimmed.match(SECTION_RE);
     if (sectionMatch) {
       finalizeEntry();
-      currentSection = sectionMatch[1] === 'Active Applications' ? 'active' : 'closed';
+      const name = sectionMatch[1];
+      currentSection = name === 'Active Applications'
+        ? 'active'
+        : name === 'Closed Applications'
+        ? 'closed'
+        : 'flagged';
       continue;
     }
 
     if (!currentSection) continue;
+
+    // Flagged section: parse flagged entries separately
+    if (currentSection === 'flagged') {
+      const fh = trimmed.match(FLAGGED_HEADING_RE);
+      if (fh) {
+        finalizeEntry();
+        currentEntry = makeFlaggedEntry({
+          company: fh[1].trim(),
+          title: fh[2].trim(),
+          detectedAt: fh[3].trim(),
+        });
+        continue;
+      }
+
+      if (!currentEntry) continue;
+      if (trimmed === '---') continue;
+
+      const kv = trimmed.match(KEY_VALUE_RE);
+      if (kv) {
+        const key = kv[1].trim().toLowerCase().replace(/\s+/g, '');
+        const value = kv[2].trim();
+        switch (key) {
+          case 'detectedsignal': {
+            const sigMatch = value.match(/^"(.+)"\s*→\s*(.+)$/);
+            if (sigMatch) {
+              currentEntry.signal = sigMatch[1];
+              currentEntry.status = sigMatch[2].trim();
+            } else {
+              currentEntry.signal = value;
+            }
+            break;
+          }
+          case 'sender':
+            currentEntry.sender = value || null;
+            break;
+          case 'matchmethod':
+            // value may include parenthetical detail; keep the first token
+            currentEntry.matchMethod = (value.split(/\s+/)[0] || value).toLowerCase() || null;
+            break;
+          case 'message-id':
+          case 'messageid':
+            currentEntry.msgId = value || null;
+            break;
+          case 'action':
+            currentEntry.action = value || null;
+            break;
+        }
+      }
+      continue;
+    }
 
     // Entry heading: ### Company — Title
     const headingMatch = trimmed.match(HEADING_RE);
@@ -165,10 +240,10 @@ function parseApplicationsFile(filePath) {
 }
 
 function parseApplications(dir) {
-  if (!fs.existsSync(dir)) return { active: [], closed: [] };
+  if (!fs.existsSync(dir)) return { active: [], closed: [], flagged: [] };
 
   const filePath = resolveStateFile(dir, 'applications');
-  if (!filePath) return { active: [], closed: [] };
+  if (!filePath) return { active: [], closed: [], flagged: [] };
 
   return parseApplicationsFile(filePath);
 }
@@ -206,8 +281,24 @@ function formatApplication(entry) {
   return lines.join('\n');
 }
 
-function formatApplicationsFile({ active, closed }) {
+function formatFlagged(entry) {
+  const lines = [];
+  lines.push(`### ${entry.company} — ${entry.title || 'Unknown role'} — ${entry.detectedAt}`);
+  lines.push('');
+  const sigText = entry.signal && entry.status
+    ? `"${entry.signal}" → ${entry.status}`
+    : (entry.signal || '');
+  lines.push(`- **Detected signal**: ${sigText}`);
+  lines.push(`- **Sender**: ${entry.sender || ''}`);
+  lines.push(`- **Match method**: ${entry.matchMethod || 'none'}`);
+  lines.push(`- **Message-ID**: ${entry.msgId || ''}`);
+  lines.push(`- **Action**: ${entry.action || 'Resolve manually — confirm which application this refers to, or dismiss if unrelated'}`);
+  return lines.join('\n');
+}
+
+function formatApplicationsFile({ active, closed, flagged }) {
   const today = new Date().toISOString().slice(0, 10);
+  const flaggedList = flagged || [];
   const parts = [];
 
   parts.push(`# Application Pipeline\n\nLast updated: ${today}\n`);
@@ -224,12 +315,19 @@ function formatApplicationsFile({ active, closed }) {
     parts.push('\n');
   }
 
+  if (flaggedList.length > 0) {
+    parts.push('\n## Flagged for Review\n');
+    parts.push(flaggedList.map(formatFlagged).join('\n\n---\n\n'));
+    parts.push('\n');
+  }
+
   const body = parts.join('\n') + '\n';
   const meta = {
     format_version: 1,
     last_updated: today,
     active_count: active.length,
     closed_count: closed.length,
+    flagged_count: flaggedList.length,
   };
   return serializeFrontmatter(meta, body);
 }
@@ -401,6 +499,170 @@ function reopenApplication(dir, { company, stage, detail }) {
   atomicWriteFileSync(filePath, formatApplicationsFile(data));
 }
 
+// Structured msg-id lookup: checks both storage locations (history entries
+// written by markStatusChanged, and the msgId field on flagged entries
+// written by flagForReview) so a msg-id recorded by one path prevents the
+// other from re-processing it. The history token includes the closing
+// parenthesis from the canonical detail format "(msg-id: <id>)" so a
+// shorter msg-id can't prefix-match a longer one.
+function hasMsgId(data, msgId) {
+  if (!msgId) return false;
+  const token = `(msg-id: ${msgId})`;
+  for (const entry of [...(data.active || []), ...(data.closed || [])]) {
+    for (const h of entry.history || []) {
+      if (h.detail && h.detail.includes(token)) return true;
+    }
+  }
+  for (const flagged of data.flagged || []) {
+    if (flagged.msgId === msgId) return true;
+  }
+  return false;
+}
+
+// Stages that already outrank Interview. A stray "interview scheduled" email
+// arriving after the user advanced the entry manually must not walk the
+// stage backwards.
+const STAGES_OUTRANKING_INTERVIEW = new Set(['Interview (2+)', 'Final Round', 'Offer', 'Decision']);
+
+// Maps a classifier status ('Applied' | 'Interview' | 'Offer') to the
+// closest valid VALID_STAGES value, taking the entry's current stage into
+// account so repeated interview signals advance the stage rather than
+// collapsing to (1). Rejected is handled separately by markStatusChanged
+// and never routes through this function.
+function classifierStatusToStage(classifierStatus, currentStage) {
+  switch (classifierStatus) {
+    case 'Applied':
+      return 'Applied';
+    case 'Offer':
+      return 'Offer';
+    case 'Interview':
+      if (STAGES_OUTRANKING_INTERVIEW.has(currentStage)) return currentStage;
+      if (currentStage === 'Interview (1)') return 'Interview (2+)';
+      return 'Interview (1)';
+    default:
+      return null;
+  }
+}
+
+function flagForReview(dir, opts) {
+  const filePath = resolveStateFile(dir, 'applications');
+  if (!filePath) throw new Error('No applications file found');
+
+  const data = parseApplicationsFile(filePath);
+  data.flagged = data.flagged || [];
+
+  if (opts.msgId && hasMsgId(data, opts.msgId)) return { skipped: true, reason: 'msg-id already processed' };
+
+  data.flagged.push({
+    company: opts.company || 'Unknown',
+    title: opts.title || 'Unknown role',
+    detectedAt: opts.detectedAt || new Date().toISOString().slice(0, 10),
+    signal: opts.signal || null,
+    status: opts.status || null,
+    sender: opts.sender || null,
+    matchMethod: opts.matchMethod || 'none',
+    msgId: opts.msgId || null,
+    action: opts.action || null,
+  });
+
+  atomicWriteFileSync(filePath, formatApplicationsFile(data));
+  return { skipped: false };
+}
+
+// Takes the classifier result's matchedEntry (required — {company, title, url,
+// stage, section}) plus the classifier-emitted status/signal/atsSender/msgId.
+// Single spelling; no backwards-compat shim. The caller (scan-email skill's
+// Phase 6 template) must pass the classifier's matchedEntry through verbatim.
+function markStatusChanged(dir, opts) {
+  const filePath = resolveStateFile(dir, 'applications');
+  if (!filePath) throw new Error('No applications file found');
+
+  if (!opts.matchedEntry) {
+    throw new Error('markStatusChanged: matchedEntry is required (pass classifier.matchedEntry verbatim)');
+  }
+  if (!opts.status) throw new Error('markStatusChanged: status is required');
+  if (!opts.msgId) throw new Error('markStatusChanged: msgId is required');
+  if (!opts.atsSender) throw new Error('markStatusChanged: atsSender is required');
+
+  const { matchedEntry } = opts;
+  const { company, section } = matchedEntry;
+  if (!company) throw new Error('markStatusChanged: matchedEntry.company is required');
+  if (!section) throw new Error('markStatusChanged: matchedEntry.section is required');
+
+  const status = opts.status;
+  const data = parseApplicationsFile(filePath);
+
+  if (hasMsgId(data, opts.msgId)) return { skipped: true, reason: 'msg-id already processed' };
+
+  // Matches against Closed or Flagged entries mean the user already handled
+  // this application (closed it manually, or we flagged it earlier). A
+  // courtesy follow-up email must not reopen anything. Silent skip.
+  if (section !== 'active') {
+    return { skipped: true, reason: `matched ${section} entry` };
+  }
+
+  const query = company.toLowerCase();
+  const detectedAt = opts.detectedAt || new Date().toISOString().slice(0, 10);
+  const detail = `scan-email detected ${opts.atsSender} ${status.toLowerCase()} (msg-id: ${opts.msgId})`;
+
+  if (status === 'Rejected') {
+    const idx = data.active.findIndex(e => e.company.toLowerCase() === query);
+    if (idx === -1) {
+      // Active entry disappeared between classify and write (race with a
+      // manual close, or batch reordering). Don't lose the signal — flag
+      // for review instead of throwing (which would crash the scan batch).
+      return flagForReview(dir, {
+        company,
+        title: matchedEntry.title || null,
+        signal: opts.signal,
+        status: 'Rejected',
+        sender: opts.sender || null,
+        matchMethod: 'none',
+        msgId: opts.msgId,
+        detectedAt,
+        action: `Active entry disappeared mid-processing — ${detail}`,
+      });
+    }
+    const entry = data.active[idx];
+    data.active.splice(idx, 1);
+
+    entry.stage = 'Closed (rejected)';
+    entry.closed = {
+      date: detectedAt,
+      reason: 'rejected',
+      summary: `scan-email detected ${opts.atsSender} rejection: "${opts.signal}"`,
+    };
+    entry.lastActivity = { date: detectedAt, detail: `Closed (rejected) — ${opts.signal}` };
+    entry.history.push({ date: detectedAt, stage: 'Closed (rejected)', detail });
+    data.closed.push(entry);
+  } else {
+    const entry = data.active.find(e => e.company.toLowerCase() === query);
+    if (!entry) {
+      return flagForReview(dir, {
+        company,
+        title: matchedEntry.title || null,
+        signal: opts.signal,
+        status,
+        sender: opts.sender || null,
+        matchMethod: 'none',
+        msgId: opts.msgId,
+        detectedAt,
+        action: `Active entry disappeared mid-processing — ${detail}`,
+      });
+    }
+    const mappedStage = classifierStatusToStage(status, entry.stage);
+    if (!mappedStage) {
+      throw new Error(`markStatusChanged: unknown classifier status "${status}"`);
+    }
+    entry.stage = mappedStage;
+    entry.lastActivity = { date: detectedAt, detail: `${mappedStage} — ${opts.signal}` };
+    entry.history.push({ date: detectedAt, stage: mappedStage, detail });
+  }
+
+  atomicWriteFileSync(filePath, formatApplicationsFile(data));
+  return { skipped: false };
+}
+
 function addNote(dir, { company, note }) {
   if (!note || typeof note !== 'string' || !note.trim()) {
     throw new Error('note is required and must be a non-empty string');
@@ -434,4 +696,6 @@ module.exports = {
   closeApplication,
   reopenApplication,
   addNote,
+  flagForReview,
+  markStatusChanged,
 };

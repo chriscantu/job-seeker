@@ -1,0 +1,7 @@
+{
+  "sender": "notifications@lever.co",
+  "senderName": "Atlassian via Lever",
+  "subject": "Application received",
+  "body": "Hi Chris,\n\nWe received your application. Our team is reviewing applications and will follow up with qualified candidates. This is an automated message.\n\n—The Lever team",
+  "msgId": "<fixture-ambiguous-001@mail.gmail.com>"
+}

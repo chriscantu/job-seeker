@@ -16,6 +16,8 @@ const {
   findApplication,
   closeApplication,
   reopenApplication,
+  flagForReview,
+  markStatusChanged,
 } = require('../scripts/lib/applications');
 
 const FIXTURES = path.join(__dirname, 'fixtures');
@@ -23,14 +25,14 @@ const FIXTURE_PATH = path.join(FIXTURES, 'applications.md');
 
 describe('applications parser', () => {
   describe('parseApplicationsContent — empty / header-only', () => {
-    it('returns { active: [], closed: [] } for empty content', () => {
+    it('returns { active: [], closed: [], flagged: [] } for empty content', () => {
       const result = parseApplicationsContent('');
-      assert.deepEqual(result, { active: [], closed: [] });
+      assert.deepEqual(result, { active: [], closed: [], flagged: [] });
     });
 
-    it('returns { active: [], closed: [] } for header-only content', () => {
+    it('returns { active: [], closed: [], flagged: [] } for header-only content', () => {
       const result = parseApplicationsContent('# Application Pipeline\n\nLast updated: 2026-04-08\n');
-      assert.deepEqual(result, { active: [], closed: [] });
+      assert.deepEqual(result, { active: [], closed: [], flagged: [] });
     });
   });
 
@@ -820,6 +822,54 @@ Last updated: 2026-04-09
     });
   });
 
+  describe('parseApplicationsContent — flagged for review', () => {
+    it('returns empty flagged array when no section present', () => {
+      const content = `---
+format_version: 1
+---
+# Application Pipeline
+
+## Active Applications
+
+## Closed Applications
+`;
+      const result = parseApplicationsContent(content);
+      assert.deepEqual(result.flagged, []);
+    });
+
+    it('parses a single flagged entry', () => {
+      const content = `---
+format_version: 1
+---
+# Application Pipeline
+
+## Active Applications
+
+## Closed Applications
+
+## Flagged for Review
+
+### Acme Corp — Unknown role — 2026-04-13
+
+- **Detected signal**: "unfortunately" → Rejected
+- **Sender**: no-reply@greenhouse-mail.io
+- **Match method**: none
+- **Message-ID**: <fixture-unknown-001@mail.gmail.com>
+- **Action**: Resolve manually
+`;
+      const result = parseApplicationsContent(content);
+      assert.equal(result.flagged.length, 1);
+      const entry = result.flagged[0];
+      assert.equal(entry.company, 'Acme Corp');
+      assert.equal(entry.title, 'Unknown role');
+      assert.equal(entry.detectedAt, '2026-04-13');
+      assert.equal(entry.status, 'Rejected');
+      assert.equal(entry.sender, 'no-reply@greenhouse-mail.io');
+      assert.equal(entry.matchMethod, 'none');
+      assert.equal(entry.msgId, '<fixture-unknown-001@mail.gmail.com>');
+    });
+  });
+
   describe('updateApplication — section guards', () => {
     let tmpDir;
 
@@ -848,6 +898,387 @@ Last updated: 2026-04-09
       assert.throws(
         () => updateApplication(tmpDir, { company: 'Maven', stage: 'Screen' }),
         /not found in active applications/
+      );
+    });
+  });
+
+  describe('formatApplicationsFile — flagged for review round-trip', () => {
+    it('writes flagged section and flagged_count frontmatter', () => {
+      const data = {
+        active: [],
+        closed: [],
+        flagged: [{
+          company: 'Acme Corp',
+          title: 'Unknown role',
+          detectedAt: '2026-04-13',
+          signal: 'unfortunately',
+          status: 'Rejected',
+          sender: 'no-reply@greenhouse-mail.io',
+          matchMethod: 'none',
+          msgId: '<fixture-unknown-001@mail.gmail.com>',
+          action: 'Resolve manually — confirm which application this refers to, or dismiss if unrelated',
+        }],
+      };
+
+      const output = formatApplicationsFile(data);
+      assert.match(output, /flagged_count:\s*1/);
+      assert.match(output, /## Flagged for Review/);
+      assert.match(output, /### Acme Corp — Unknown role — 2026-04-13/);
+      assert.match(output, /\*\*Detected signal\*\*: "unfortunately" → Rejected/);
+      assert.match(output, /\*\*Message-ID\*\*: <fixture-unknown-001@mail\.gmail\.com>/);
+
+      // Round-trip: parse the output, get back the same flagged entry
+      const reparsed = parseApplicationsContent(output);
+      assert.equal(reparsed.flagged.length, 1);
+      assert.equal(reparsed.flagged[0].company, 'Acme Corp');
+      assert.equal(reparsed.flagged[0].msgId, '<fixture-unknown-001@mail.gmail.com>');
+    });
+
+    it('omits flagged section when empty (but includes flagged_count: 0)', () => {
+      const data = { active: [], closed: [], flagged: [] };
+      const output = formatApplicationsFile(data);
+      assert.match(output, /flagged_count:\s*0/);
+      assert.doesNotMatch(output, /## Flagged for Review/);
+    });
+  });
+
+  describe('flagForReview / markStatusChanged', () => {
+    let dir;
+
+    beforeEach(() => {
+      dir = fs.mkdtempSync(path.join(os.tmpdir(), 'apps-status-'));
+      // Seed with fixture
+      const content = fs.readFileSync(path.join(__dirname, 'fixtures', 'status-emails', 'applications.md'), 'utf8');
+      fs.writeFileSync(path.join(dir, '2026-04-13-applications.md'), content);
+    });
+
+    afterEach(() => {
+      fs.rmSync(dir, { recursive: true, force: true });
+    });
+
+    it('flagForReview appends to Flagged section and bumps flagged_count', () => {
+      flagForReview(dir, {
+        company: 'Acme Corp',
+        title: 'Unknown role',
+        signal: 'unfortunately',
+        status: 'Rejected',
+        sender: 'no-reply@greenhouse-mail.io',
+        matchMethod: 'none',
+        msgId: '<fixture-unknown-001@mail.gmail.com>',
+        detectedAt: '2026-04-13',
+      });
+      const data = parseApplications(dir);
+      assert.equal(data.flagged.length, 1);
+      assert.equal(data.flagged[0].company, 'Acme Corp');
+
+      const raw = fs.readFileSync(path.join(dir, '2026-04-13-applications.md'), 'utf8');
+      assert.match(raw, /flagged_count:\s*1/);
+    });
+
+    const atlassianActive = {
+      company: 'Atlassian',
+      title: 'VP Engineering',
+      url: 'https://boards.greenhouse.io/atlassian/jobs/5123456',
+      stage: 'Applied',
+      section: 'active',
+    };
+
+    const realtorActive = {
+      company: 'Realtor.com',
+      title: 'Director, Software Engineering',
+      url: 'https://boards.greenhouse.io/realtor/jobs/5234567',
+      stage: 'Applied',
+      section: 'active',
+    };
+
+    it('markStatusChanged(Rejected) moves entry to Closed and appends history with msg-id', () => {
+      const result = markStatusChanged(dir, {
+        msgId: '<fixture-atlassian-001@mail.gmail.com>',
+        matchedEntry: atlassianActive,
+        status: 'Rejected',
+        signal: "we've decided not to move forward",
+        atsSender: 'greenhouse',
+        detectedAt: '2026-04-13',
+      });
+      assert.equal(result.skipped, false);
+
+      const data = parseApplications(dir);
+      assert.equal(data.active.find(e => e.company === 'Atlassian'), undefined);
+      const closed = data.closed.find(e => e.company === 'Atlassian');
+      assert.notEqual(closed, undefined);
+      assert.match(closed.stage, /Closed \(rejected\)/);
+
+      const raw = fs.readFileSync(path.join(dir, '2026-04-13-applications.md'), 'utf8');
+      assert.match(raw, /\(msg-id: <fixture-atlassian-001@mail\.gmail\.com>\)/);
+    });
+
+    it('markStatusChanged is idempotent by msg-id', () => {
+      markStatusChanged(dir, {
+        msgId: '<fixture-atlassian-001@mail.gmail.com>',
+        matchedEntry: atlassianActive,
+        status: 'Rejected',
+        signal: 'not moving forward',
+        atsSender: 'greenhouse',
+        detectedAt: '2026-04-13',
+      });
+      const second = markStatusChanged(dir, {
+        msgId: '<fixture-atlassian-001@mail.gmail.com>',
+        matchedEntry: atlassianActive,
+        status: 'Rejected',
+        signal: 'not moving forward',
+        atsSender: 'greenhouse',
+        detectedAt: '2026-04-13',
+      });
+      assert.equal(second.skipped, true);
+      assert.equal(second.reason, 'msg-id already processed');
+
+      const data = parseApplications(dir);
+      const closed = data.closed.filter(e => e.company === 'Atlassian');
+      assert.equal(closed.length, 1);
+    });
+
+    it('flagForReview is idempotent by msg-id', () => {
+      const opts = {
+        company: 'Realtor.com',
+        title: 'Dir, Software Engineering',
+        signal: null,
+        status: null,
+        sender: 'no-reply@greenhouse.io',
+        matchMethod: 'none',
+        msgId: '<fixture-realtor-reminder-001@mail.gmail.com>',
+        detectedAt: '2026-04-13',
+      };
+      const first = flagForReview(dir, opts);
+      assert.equal(first.skipped, false);
+
+      const second = flagForReview(dir, opts);
+      assert.equal(second.skipped, true);
+      assert.equal(second.reason, 'msg-id already processed');
+
+      const data = parseApplications(dir);
+      const matches = data.flagged.filter(e => e.msgId === opts.msgId);
+      assert.equal(matches.length, 1);
+    });
+
+    it('markStatusChanged(Interview) maps classifier "Interview" to valid "Interview (1)" stage', () => {
+      markStatusChanged(dir, {
+        msgId: '<fixture-realtor-001@mail.gmail.com>',
+        matchedEntry: realtorActive,
+        status: 'Interview',
+        signal: 'schedule your interview',
+        atsSender: 'greenhouse',
+        detectedAt: '2026-04-13',
+      });
+      const data = parseApplications(dir);
+      const entry = data.active.find(e => e.company === 'Realtor.com');
+      // Classifier emits 'Interview' but VALID_STAGES requires 'Interview (1)' or
+      // 'Interview (2+)'. Regression test for C1.
+      assert.equal(entry.stage, 'Interview (1)');
+      const last = entry.history[entry.history.length - 1];
+      assert.match(last.detail, /\(msg-id: <fixture-realtor-001@mail\.gmail\.com>\)/);
+    });
+
+    it('markStatusChanged(Interview) advances Interview (1) → Interview (2+) on repeat signal', () => {
+      markStatusChanged(dir, {
+        msgId: '<fixture-interview-first@mail>',
+        matchedEntry: realtorActive,
+        status: 'Interview',
+        signal: 'schedule your interview',
+        atsSender: 'greenhouse',
+        detectedAt: '2026-04-13',
+      });
+      markStatusChanged(dir, {
+        msgId: '<fixture-interview-second@mail>',
+        matchedEntry: { ...realtorActive, stage: 'Interview (1)' },
+        status: 'Interview',
+        signal: 'interview scheduled',
+        atsSender: 'greenhouse',
+        detectedAt: '2026-04-14',
+      });
+      const data = parseApplications(dir);
+      const entry = data.active.find(e => e.company === 'Realtor.com');
+      assert.equal(entry.stage, 'Interview (2+)');
+    });
+
+    it('markStatusChanged(Interview) does NOT walk Offer stage backwards', () => {
+      // C5 regression: stray interview reminder on an Offer-stage app used to
+      // downgrade to 'Interview (1)'. STAGES_OUTRANKING_INTERVIEW prevents it.
+      // Seed an Offer entry first.
+      const offerEntry = { ...realtorActive, stage: 'Offer' };
+      // Manually put Realtor at Offer stage by writing the file directly.
+      const raw = fs.readFileSync(path.join(dir, '2026-04-13-applications.md'), 'utf8');
+      fs.writeFileSync(
+        path.join(dir, '2026-04-13-applications.md'),
+        raw.replace(/(### Realtor\.com[\s\S]*?\*\*Stage\*\*): Applied/, '$1: Offer')
+      );
+
+      markStatusChanged(dir, {
+        msgId: '<fixture-stray-interview@mail>',
+        matchedEntry: offerEntry,
+        status: 'Interview',
+        signal: 'interview scheduled',
+        atsSender: 'greenhouse',
+        detectedAt: '2026-04-13',
+      });
+      const data = parseApplications(dir);
+      const entry = data.active.find(e => e.company === 'Realtor.com');
+      assert.equal(entry.stage, 'Offer');
+    });
+
+    it('cross-format idempotency: flagForReview then markStatusChanged with same msg-id skips', () => {
+      // Regression test for I5. msg-id previously stored by flagForReview as
+      // **Message-ID**: <id> was invisible to markStatusChanged's idempotency
+      // check, which only searched for `msg-id: <id>` in history entries.
+      const msgId = '<fixture-cross-format@mail>';
+      flagForReview(dir, {
+        company: 'Atlassian',
+        title: 'VP Engineering',
+        signal: 'unfortunately',
+        status: 'Rejected',
+        sender: 'no-reply@greenhouse-mail.io',
+        matchMethod: 'name',
+        msgId,
+        detectedAt: '2026-04-13',
+      });
+      const result = markStatusChanged(dir, {
+        msgId,
+        matchedEntry: atlassianActive,
+        status: 'Rejected',
+        signal: 'we\'ve decided to move forward',
+        atsSender: 'greenhouse',
+        detectedAt: '2026-04-13',
+      });
+      assert.equal(result.skipped, true);
+      assert.equal(result.reason, 'msg-id already processed');
+
+      const data = parseApplications(dir);
+      // Atlassian should still be Active (wasn't rejected because we skipped)
+      const active = data.active.find(e => e.company === 'Atlassian');
+      assert.notEqual(active, undefined);
+      assert.equal(active.stage, 'Applied');
+    });
+
+    it('cross-format idempotency: markStatusChanged then flagForReview with same msg-id skips', () => {
+      const msgId = '<fixture-cross-format-2@mail>';
+      markStatusChanged(dir, {
+        msgId,
+        matchedEntry: atlassianActive,
+        status: 'Rejected',
+        signal: 'we\'ve decided to move forward',
+        atsSender: 'greenhouse',
+        detectedAt: '2026-04-13',
+      });
+      const result = flagForReview(dir, {
+        company: 'Atlassian',
+        title: 'VP Engineering',
+        signal: 'something',
+        status: null,
+        sender: 'no-reply@greenhouse.io',
+        matchMethod: 'none',
+        msgId,
+        detectedAt: '2026-04-13',
+      });
+      assert.equal(result.skipped, true);
+      assert.equal(result.reason, 'msg-id already processed');
+
+      const data = parseApplications(dir);
+      // No flagged entry should have been appended
+      assert.equal((data.flagged || []).length, 0);
+    });
+
+    it('markStatusChanged with matchedEntry.section=closed is a silent skip (no throw, no mutation)', () => {
+      // Regression test for C2. A courtesy rejection email for an already-closed
+      // application used to throw `No active application matching "..."`.
+      const before = fs.readFileSync(path.join(dir, '2026-04-13-applications.md'), 'utf8');
+      const result = markStatusChanged(dir, {
+        msgId: '<fixture-closed-section@mail>',
+        matchedEntry: {
+          company: 'The New York Times',
+          title: 'VP Engineering',
+          url: null,
+          stage: 'Closed (rejected)',
+          section: 'closed',
+        },
+        status: 'Rejected',
+        signal: 'we regret to inform',
+        atsSender: 'greenhouse',
+        detectedAt: '2026-04-13',
+      });
+      assert.equal(result.skipped, true);
+      assert.match(result.reason, /closed/);
+      // File must be unchanged — no silent mutation of closed entries.
+      const after = fs.readFileSync(path.join(dir, '2026-04-13-applications.md'), 'utf8');
+      assert.equal(before, after);
+    });
+
+    it('markStatusChanged with matchedEntry.section=flagged is a silent skip', () => {
+      const result = markStatusChanged(dir, {
+        msgId: '<fixture-flagged-section@mail>',
+        matchedEntry: {
+          company: 'SomeCompany',
+          title: 'Unknown',
+          url: null,
+          stage: null,
+          section: 'flagged',
+        },
+        status: 'Rejected',
+        signal: 'not moving forward',
+        atsSender: 'greenhouse',
+        detectedAt: '2026-04-13',
+      });
+      assert.equal(result.skipped, true);
+      assert.match(result.reason, /flagged/);
+    });
+
+    it('markStatusChanged(Rejected) on disappeared Active entry flags for review instead of throwing', () => {
+      // Mid-batch race: entry was in Active at classify time, removed before
+      // write. Must not throw — scan-email batch would crash.
+      const result = markStatusChanged(dir, {
+        msgId: '<fixture-missing-entry@mail>',
+        matchedEntry: {
+          company: 'NonexistentCo',
+          title: 'VP Engineering',
+          url: null,
+          stage: 'Applied',
+          section: 'active',
+        },
+        status: 'Rejected',
+        signal: 'not moving forward',
+        atsSender: 'greenhouse',
+        detectedAt: '2026-04-13',
+      });
+      assert.equal(result.skipped, false);
+      const data = parseApplications(dir);
+      const flagged = data.flagged.find(e => e.msgId === '<fixture-missing-entry@mail>');
+      assert.notEqual(flagged, undefined);
+    });
+
+    it('markStatusChanged throws when matchedEntry is missing', () => {
+      // Fail-closed: no opts.matchedEntry is a programming error, not a
+      // fallback to 'active'.
+      assert.throws(
+        () => markStatusChanged(dir, {
+          msgId: '<fixture-no-match@mail>',
+          status: 'Rejected',
+          signal: 'not moving forward',
+          atsSender: 'greenhouse',
+          detectedAt: '2026-04-13',
+        }),
+        /matchedEntry is required/
+      );
+    });
+
+    it('markStatusChanged throws when matchedEntry.section is missing', () => {
+      assert.throws(
+        () => markStatusChanged(dir, {
+          msgId: '<fixture-no-section@mail>',
+          matchedEntry: { company: 'X', title: 'Y', url: null, stage: 'Applied' },
+          status: 'Rejected',
+          signal: 'not moving forward',
+          atsSender: 'greenhouse',
+          detectedAt: '2026-04-13',
+        }),
+        /matchedEntry\.section is required/
       );
     });
   });
