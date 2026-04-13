@@ -193,7 +193,8 @@ Read both auto-trash tables from `config/search.md`:
 - **"Marketing / Non-Job-Search Senders to Auto-Trash"** — the "Trash Sender Substring" column
 
 Concatenate every substring from both tables into a comma-separated list, then
-issue a single trash-by-sender call:
+issue a single trash-by-sender call. Substrings must NOT contain commas — the
+script splits the input on commas to build the pattern list.
 
 ```bash
 osascript {plugin_root}/scripts/apple_mail_trash_by_sender.applescript \
@@ -202,7 +203,16 @@ osascript {plugin_root}/scripts/apple_mail_trash_by_sender.applescript \
 
 The script uses Mail's `whose sender contains` query so matching is by sender
 substring, NOT by index — immune to mid-sequence shifts when new mail arrives.
-It returns `trashed: pattern1=N pattern2=M ...` per matched pattern.
+
+**Output format:** `trashed: pattern1=moved/matched pattern2=moved/matched ...`
+For example: `trashed: lensa.com=3/3 ladders.com=0/0 topresume.com=2/2`. If a
+move fails, the affected pattern gets an `(errors: ...)` suffix listing the
+last error message.
+
+**Surface every line of output to the user**, including patterns with 0 matches —
+a `pattern=0/0` row may be a quiet run OR a typo in `config/search.md`. Don't
+hide them. If any pattern reports `moved < matched`, surface the error string
+explicitly so the user knows messages were left behind.
 
 These messages should never accumulate in the inbox regardless of whether they
 were body-fetched. If the user reports a new sender that "shouldn't be there,"
@@ -226,8 +236,15 @@ of `apple_mail_trash.applescript` still exists for backward compatibility but
 should never be used in this skill. Always pass `--by-id "{message_id}"` from
 the scan output's 5th field.
 
-Handle: `MESSAGE_NOT_FOUND` (skip — message already moved or message-id not in
-mailbox), `TRASH_NOT_FOUND` (stop all trash calls — Trash mailbox is missing).
+**Output handling per return value:**
+
+| Return | Action |
+|--------|--------|
+| `trashed-by-id: {id}` | Success, continue |
+| `trashed-by-id-ambiguous: {id} (matched N, trashed first)` | **Surface to user.** N>1 messages share the same Message-ID (rare: resends, IMAP dupes). The script trashed the first match, but the user should know they may have a duplicate sitting in the inbox. |
+| `MESSAGE_NOT_FOUND` | Skip silently if the message_id was `MSGID_UNAVAILABLE` (the scan script couldn't read its Message-ID — this is a known limitation). Otherwise log: "Expected to trash {subject}, but the message-id was not found in the inbox — was it already moved?" |
+| `TRASH_NOT_FOUND` | **Stop all trash calls.** Trash mailbox is missing — surface to user, do not continue. |
+| `error: {message}` | **Stop all trash calls** for this run and surface the error to the user. Unknown failures should not be silently retried. |
 
 ### Gmail cleanup report
 Skip if `gmail_enabled = false` or no Gmail candidates body-fetched.

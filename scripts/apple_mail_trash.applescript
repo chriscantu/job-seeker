@@ -27,12 +27,20 @@
 --     4. message_id     -- RFC822 Message-ID (with or without angle brackets)
 --
 -- Returns (stdout):
---   "trashed: {index}"           -- by-index mode success
---   "trashed-by-id: {id}"        -- by-id mode success
+--   "trashed: {index}"                              -- by-index mode success
+--   "trashed-by-id: {id}"                           -- by-id mode, unique match
+--   "trashed-by-id-ambiguous: {id} (matched N, trashed first)"
+--                                                   -- by-id mode, N>1 matches;
+--                                                      first one moved. Caller
+--                                                      should surface this — it
+--                                                      means the supposedly
+--                                                      stable id is not unique.
 --   "ACCOUNT_NOT_FOUND"
 --   "MAILBOX_NOT_FOUND"
 --   "TRASH_NOT_FOUND"
---   "MESSAGE_NOT_FOUND"          -- index out of range OR message-id not found
+--   "MESSAGE_NOT_FOUND"  -- index out of range, msgid not found, OR msgid was
+--                          empty/MSGID_UNAVAILABLE (sentinel from scan script
+--                          meaning the message lacked a readable Message-ID)
 --   "error: {message}"
 --
 -- Usage:
@@ -122,22 +130,42 @@ on run argv
                 move msg to trashMailbox
                 return "trashed: " & msgIdx
             else
-                -- By-id mode: try with and without angle brackets, since callers may
-                -- pass either form. Mail's `message id` property includes the brackets.
+                -- Reject empty or sentinel ids upfront — these are signals from
+                -- apple_mail_scan that the message lacked a readable Message-ID,
+                -- and treating them as a lookup key would either crash on the
+                -- `text 2 thru -2` substring trick below or silently match the
+                -- wrong message.
+                if msgIdValue is "" or msgIdValue is "MSGID_UNAVAILABLE" then
+                    return "MESSAGE_NOT_FOUND"
+                end if
+                -- By-id mode: try with and without angle brackets, since callers
+                -- may pass either form. Mail's `message id` property typically
+                -- returns the bare form (no brackets), but some IMAP backends
+                -- include them — so we try both before giving up.
                 set normalizedId to msgIdValue
                 if normalizedId does not start with "<" then
                     set normalizedId to "<" & normalizedId & ">"
                 end if
-                set bareId to normalizedId
-                if bareId starts with "<" then set bareId to text 2 thru -2 of bareId
+                set bareId to msgIdValue
+                if bareId starts with "<" and (length of bareId) > 2 then
+                    set bareId to text 2 thru -2 of bareId
+                end if
                 set foundMsgs to (messages of targetMailbox whose message id is normalizedId)
                 if (count of foundMsgs) is 0 then
                     set foundMsgs to (messages of targetMailbox whose message id is bareId)
                 end if
-                if (count of foundMsgs) is 0 then
+                set foundCount to count of foundMsgs
+                if foundCount is 0 then
                     return "MESSAGE_NOT_FOUND"
                 end if
                 move (item 1 of foundMsgs) to trashMailbox
+                -- If multiple messages share the same Message-ID (rare: resends,
+                -- list dupes, IMAP weirdness), surface it so the caller knows
+                -- they trashed one of N rather than the unique target. Whole
+                -- point of by-id lookup is to NOT silently move the wrong msg.
+                if foundCount > 1 then
+                    return "trashed-by-id-ambiguous: " & msgIdValue & " (matched " & foundCount & ", trashed first)"
+                end if
                 return "trashed-by-id: " & msgIdValue
             end if
 

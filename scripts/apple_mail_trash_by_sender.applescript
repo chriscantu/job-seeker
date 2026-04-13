@@ -18,7 +18,12 @@
 --   3. sender_patterns   -- comma-separated sender substrings (e.g. "lensa.com,ladders.com")
 --
 -- Returns (stdout):
---   "trashed: lensa.com=3 ladders.com=2 ..."  -- per-pattern counts
+--   "trashed: lensa.com=3/3 ladders.com=2/2 ..."  -- per-pattern moved/matched
+--   The format `moved/matched` distinguishes a quiet run (pattern=0/0) from
+--   a partial failure (pattern=2/5 means 5 matched, only 2 actually moved).
+--   If any pattern has moved < matched, a `(errors: {last_error})` suffix is
+--   appended so the caller can surface the cause.
+--   Substrings must NOT contain commas (the script splits input on commas).
 --   "ACCOUNT_NOT_FOUND"
 --   "MAILBOX_NOT_FOUND"
 --   "TRASH_NOT_FOUND"
@@ -73,19 +78,33 @@ on run argv
             end repeat
             if trashMb is missing value then return "TRASH_NOT_FOUND"
 
-            -- Trash messages matching each pattern
+            -- Trash messages matching each pattern.
+            -- We track moved vs matched separately so a swallowed move failure
+            -- (permissions, mailbox lock, mid-loop conflict) shows up in the
+            -- output instead of being silently dropped — the whole point of
+            -- this script is to NOT silently lose messages.
             set resultParts to {}
             repeat with pat in patternList
                 set patStr to (contents of pat) as text
                 set matched to (messages of sourceMb whose sender contains patStr)
                 set matchCount to count of matched
-                -- Move in reverse order so the message references stay valid
+                set movedCount to 0
+                set lastError to ""
+                -- Reverse order: the matched list is a snapshot reference, so
+                -- moving from highest index down keeps lower indices valid.
                 repeat with i from matchCount to 1 by -1
                     try
                         move (item i of matched) to trashMb
+                        set movedCount to movedCount + 1
+                    on error errMsg
+                        set lastError to errMsg
                     end try
                 end repeat
-                set end of resultParts to (patStr & "=" & matchCount)
+                set partResult to patStr & "=" & movedCount & "/" & matchCount
+                if movedCount < matchCount then
+                    set partResult to partResult & " (errors: " & lastError & ")"
+                end if
+                set end of resultParts to partResult
             end repeat
 
             return "trashed: " & my joinList(resultParts, " ")

@@ -18,6 +18,10 @@
 --   Subject and sender are ASCII-safe filtered (codepoints 32-126, capped at 500 chars)
 --   message_id is the RFC822 Message-ID header — stable across mailbox reorders.
 --   Use this for follow-up trash/read calls when index might shift due to new mail.
+--   If a message lacks a readable Message-ID, the field is set to
+--   "MSGID_UNAVAILABLE" (NOT empty string) so downstream skill logic can
+--   distinguish "no id available" from "id is empty" and warn the user
+--   instead of silently calling --by-id "".
 --   "NO_MESSAGES"        — mailbox has fewer messages than start_index
 --   "ACCOUNT_NOT_FOUND"  — no matching account
 --   "MAILBOX_NOT_FOUND"  — inbox not found in account
@@ -94,14 +98,15 @@ on run argv
                     set msgSender to my sanitizeFlat(sender of msg)
                     set msgDate to (date received of msg) as string
                     set msgIndex to i as string
-                    set msgId to ""
+                    set msgId to "MSGID_UNAVAILABLE"
                     try
-                        set msgId to my sanitizeFlat(message id of msg)
+                        set rawMsgId to my sanitizeFlat(message id of msg)
+                        if rawMsgId is not "" then set msgId to rawMsgId
                     end try
                     set end of results to msgSubject & "|||" & msgSender & "|||" & msgDate & "|||" & msgIndex & "|||" & msgId
                 on error errMsg
                     -- Skip unreadable messages but preserve the error reason for diagnostics
-                    set end of results to "(unreadable: " & errMsg & ")|||unknown|||unknown|||" & (i as string) & "|||"
+                    set end of results to "(unreadable: " & errMsg & ")|||unknown|||unknown|||" & (i as string) & "|||MSGID_UNAVAILABLE"
                 end try
             end repeat
 
