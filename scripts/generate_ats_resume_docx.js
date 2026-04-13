@@ -71,6 +71,8 @@ function parseResume(md) {
 
   let i = 0;
 
+  while (i < lines.length && !lines[i].trim()) i++;
+
   // Name
   if (lines[i] && lines[i].startsWith("# ")) {
     result.name = lines[i].slice(2).trim();
