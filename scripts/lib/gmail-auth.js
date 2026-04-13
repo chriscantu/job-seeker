@@ -35,11 +35,15 @@ function createOAuth2Client(clientSecretPath) {
     throw new Error(`Client secret file not found: ${clientSecretPath}`);
   }
   const content = JSON.parse(fs.readFileSync(clientSecretPath, 'utf8'));
-  const { client_id, client_secret, redirect_uris } = content.installed || content.web || {};
+  const { client_id, client_secret } = content.installed || content.web || {};
   if (!client_id || !client_secret) {
     throw new Error('Invalid client secret file: missing client_id or client_secret');
   }
-  return new google.auth.OAuth2(client_id, client_secret, redirect_uris?.[0] || REDIRECT_URI);
+  // Always use our loopback redirect URI. Google's Desktop app OAuth clients
+  // ship with `redirect_uris: ["http://localhost"]` (no port), but the OAuth
+  // server accepts any `http://localhost:PORT` for Desktop type clients — so
+  // we hardcode the port our callback server listens on.
+  return new google.auth.OAuth2(client_id, client_secret, REDIRECT_URI);
 }
 
 function getAuthenticatedClient(projectRoot) {
