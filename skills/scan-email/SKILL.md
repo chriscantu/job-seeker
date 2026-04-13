@@ -242,6 +242,71 @@ Read `skills/_shared/state-io.md` and execute the append pattern for:
 Read `skills/_shared/apple-notes.md` and execute the update operation for
 the Seen Postings note.
 
+### Write status changes (from Gate 2 confirmations)
+
+For each accepted HIGH or MEDIUM status-change classification, call:
+
+```bash
+bun -e "
+const { markStatusChanged } = require('./scripts/lib/applications');
+const r = markStatusChanged('{plugin_root}/output', {
+  msgId: '<classifier.msgId>',
+  matchedCompany: '<classifier.matchedEntry.company>',
+  newStatus: '<classifier.status>',
+  signal: '<classifier.signal>',
+  atsSender: '<classifier.atsSender>',
+  detectedAt: '{today}',
+});
+console.log(JSON.stringify(r));
+"
+```
+
+Expected output: `{"skipped": false}` on success. `{"skipped": true}` means the msg-id was already in applications.md history — a silent no-op, which is correct.
+
+### Write Flagged for Review entries (LOW tier)
+
+For each LOW tier status-change classification (from Phase 5 partitioning), call:
+
+```bash
+bun -e "
+const { flagForReview } = require('./scripts/lib/applications');
+const r = flagForReview('{plugin_root}/output', {
+  company: '<classifier.matchedEntry?.company || extract-from-sender>',
+  title: '<classifier.matchedEntry?.title || \"Unknown role\">',
+  signal: '<classifier.signal>',
+  status: '<classifier.status>',
+  sender: '<email.sender>',
+  matchMethod: '<classifier.matchMethod>',
+  msgId: '<classifier.msgId>',
+  detectedAt: '{today}',
+});
+console.log(JSON.stringify(r));
+"
+```
+
+LOW entries do not require user confirmation because they only append to the Flagged for Review section — they never mutate an existing Active/Closed entry. After all LOW writes, print a one-line informational summary:
+
+> 📋 Flagged for review: N entries appended to applications.md. See `## Flagged for Review` section to resolve.
+
+### Cleanup suggestions (Rejected path only)
+
+For each status-change whose `newStatus` was `Rejected` AND was accepted in Gate 2, after the applications.md write completes:
+
+1. Derive the output directory slug from the entry's company name: lowercase, replace non-alphanumeric runs with `-`, strip leading/trailing `-`. Example: `The New York Times` → `the-new-york-times`.
+2. Check if `{plugin_root}/output/{slug}/` exists and count files.
+3. Accumulate a cleanup-suggestion block and print it once at the very end of the scan run:
+
+    💡  Cleanup suggestions (copy and run if desired — scan-email will NOT delete these):
+
+      rm -rf output/atlassian/        # 14 files
+      rm -rf output/discord/          # 8 files
+
+If the slug cannot be resolved to an existing directory, print:
+
+> 💡 Could not auto-suggest cleanup for {company} — no matching output/ directory
+
+The skill MUST NOT run these `rm -rf` commands. The user executes them manually.
+
 ### Trash Apple Mail alerts
 Skip if `apple_mail_enabled = false`.
 
@@ -361,5 +426,4 @@ Report: "Trashed {N} Gmail messages." or "Trashed {N}/{total} Gmail messages
 
 > Not implemented. Documented for when the need arises.
 
-- Application status detection (Greenhouse/Lever/Ashby status change emails)
 - Recruiter outreach surfacing
