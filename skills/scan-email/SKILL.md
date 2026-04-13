@@ -184,14 +184,67 @@ Read `skills/_shared/apple-notes.md` and execute the update operation for
 the Seen Postings note.
 
 ### Trash Apple Mail alerts
-Skip if `apple_mail_enabled = false` or no Apple Mail candidates body-fetched.
+Skip if `apple_mail_enabled = false`.
 
-Trash in **descending index order** (highest first to prevent index shifting):
+**Step 1: Trash aggregator + marketing senders by sender pattern (atomic).**
+
+Read both auto-trash tables from `config/search.md`:
+- **"Staffing/Aggregator Company Exclusions"** — the "Trash Sender Substring" column
+- **"Marketing / Non-Job-Search Senders to Auto-Trash"** — the "Trash Sender Substring" column
+
+Concatenate every substring from both tables into a comma-separated list, then
+issue a single trash-by-sender call. Substrings must NOT contain commas — the
+script splits the input on commas to build the pattern list.
+
 ```bash
-osascript {plugin_root}/scripts/apple_mail_trash.applescript "{account_name}" "{inbox_name}" {index}
+osascript {plugin_root}/scripts/apple_mail_trash_by_sender.applescript \
+  "{account_name}" "{inbox_name}" "{comma_separated_substrings}"
 ```
 
-Handle: `MESSAGE_NOT_FOUND` (skip), `TRASH_NOT_FOUND` (stop all trash calls).
+The script uses Mail's `whose sender contains` query so matching is by sender
+substring, NOT by index — immune to mid-sequence shifts when new mail arrives.
+
+**Output format:** `trashed: pattern1=moved/matched pattern2=moved/matched ...`
+For example: `trashed: lensa.com=3/3 ladders.com=0/0 topresume.com=2/2`. If a
+move fails, the affected pattern gets an `(errors: ...)` suffix listing the
+last error message.
+
+**Surface every line of output to the user**, including patterns with 0 matches —
+a `pattern=0/0` row may be a quiet run OR a typo in `config/search.md`. Don't
+hide them. If any pattern reports `moved < matched`, surface the error string
+explicitly so the user knows messages were left behind.
+
+These messages should never accumulate in the inbox regardless of whether they
+were body-fetched. If the user reports a new sender that "shouldn't be there,"
+add it to one of the two `config/search.md` tables — do not handle ad-hoc.
+
+**Step 2: Trash body-fetched candidate alerts by message-ID.**
+
+For each Apple Mail message that was body-fetched as a legitimate candidate
+(whether ultimately confirmed or excluded post-classification), use the
+`message_id` field captured during Phase 2 scan and pass it via `--by-id`:
+
+```bash
+osascript {plugin_root}/scripts/apple_mail_trash.applescript "{account_name}" "{inbox_name}" --by-id "{message_id}"
+```
+
+The script uses Mail's `whose message id is` query — also immune to index shifts.
+
+⚠️ **Do NOT trash by index.** Indices shift when new mail arrives between scan
+and trash, which causes silent wrong-message trashes. The legacy by-index mode
+of `apple_mail_trash.applescript` still exists for backward compatibility but
+should never be used in this skill. Always pass `--by-id "{message_id}"` from
+the scan output's 5th field.
+
+**Output handling per return value:**
+
+| Return | Action |
+|--------|--------|
+| `trashed-by-id: {id}` | Success, continue |
+| `trashed-by-id-ambiguous: {id} (matched N, trashed first)` | **Surface to user.** N>1 messages share the same Message-ID (rare: resends, IMAP dupes). The script trashed the first match, but the user should know they may have a duplicate sitting in the inbox. |
+| `MESSAGE_NOT_FOUND` | Skip silently if the message_id was `MSGID_UNAVAILABLE` (the scan script couldn't read its Message-ID — this is a known limitation). Otherwise log: "Expected to trash {subject}, but the message-id was not found in the inbox — was it already moved?" |
+| `TRASH_NOT_FOUND` | **Stop all trash calls.** Trash mailbox is missing — surface to user, do not continue. |
+| `error: {message}` | **Stop all trash calls** for this run and surface the error to the user. Unknown failures should not be silently retried. |
 
 ### Gmail cleanup report
 Skip if `gmail_enabled = false` or no Gmail candidates body-fetched.

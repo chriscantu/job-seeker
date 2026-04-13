@@ -9,6 +9,14 @@ For each Apple Mail candidate, use the `message_index` stored during
 classification. **Do NOT re-derive the index** — always use the stored
 value. Indices can shift if new mail arrives between phases.
 
+Also store the `message_id` (5th field in scan output) alongside the index.
+This is used in Phase 6 to trash the message via `--by-id`, which is immune
+to index shifts. The body-fetch step itself still uses index because
+`apple_mail_read.applescript` does not yet support `--by-id` lookup; this
+is acceptable because body-fetch is a read-only operation and a wrong-index
+read just returns the wrong body, which is recoverable. Trash, by contrast,
+is destructive and MUST use `--by-id`.
+
 ```bash
 osascript {plugin_root}/scripts/apple_mail_read.applescript "{account_name}" "{inbox_name}" {message_index}
 ```
