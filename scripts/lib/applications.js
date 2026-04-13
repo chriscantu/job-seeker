@@ -9,7 +9,8 @@ const KEY_VALUE_RE = /^- \*\*(.+?)\*\*:\s*(.*)$/;
 const HISTORY_RE = /^- (\d{4}-\d{2}-\d{2}):\s*(.+?)\s*—\s*(.+)$/;
 const LAST_ACTIVITY_RE = /^(\d{4}-\d{2}-\d{2})\s*—\s*(.+)$/;
 const CLOSED_STAGE_RE = /^Closed\s*\((\w+)\)$/;
-const SECTION_RE = /^## (Active Applications|Closed Applications)$/;
+const SECTION_RE = /^## (Active Applications|Closed Applications|Flagged for Review)$/;
+const FLAGGED_HEADING_RE = /^### (.+?) — (.+?) — (\d{4}-\d{2}-\d{2})$/;
 
 function makeEntry(overrides) {
   return {
@@ -28,14 +29,29 @@ function makeEntry(overrides) {
   };
 }
 
+function makeFlaggedEntry(overrides) {
+  return {
+    company: null,
+    title: null,
+    detectedAt: null,
+    signal: null,
+    status: null,
+    sender: null,
+    matchMethod: null,
+    msgId: null,
+    action: null,
+    ...overrides,
+  };
+}
+
 function parseApplicationsContent(content) {
-  if (!content || !content.trim()) return { active: [], closed: [] };
+  if (!content || !content.trim()) return { active: [], closed: [], flagged: [] };
 
   const { body } = parseFrontmatter(content);
   const lines = body.split('\n');
-  const result = { active: [], closed: [] };
+  const result = { active: [], closed: [], flagged: [] };
 
-  let currentSection = null; // 'active' | 'closed'
+  let currentSection = null; // 'active' | 'closed' | 'flagged'
   let currentEntry = null;
   let inHistory = false;
   let closedDate = null;
@@ -54,7 +70,11 @@ function parseApplicationsContent(content) {
       };
     }
 
-    result[currentSection].push(currentEntry);
+    if (currentSection === 'flagged') {
+      result.flagged.push(currentEntry);
+    } else {
+      result[currentSection].push(currentEntry);
+    }
     currentEntry = null;
     inHistory = false;
     closedDate = null;
@@ -68,11 +88,66 @@ function parseApplicationsContent(content) {
     const sectionMatch = trimmed.match(SECTION_RE);
     if (sectionMatch) {
       finalizeEntry();
-      currentSection = sectionMatch[1] === 'Active Applications' ? 'active' : 'closed';
+      const name = sectionMatch[1];
+      currentSection = name === 'Active Applications'
+        ? 'active'
+        : name === 'Closed Applications'
+        ? 'closed'
+        : 'flagged';
       continue;
     }
 
     if (!currentSection) continue;
+
+    // Flagged section: parse flagged entries separately
+    if (currentSection === 'flagged') {
+      const fh = trimmed.match(FLAGGED_HEADING_RE);
+      if (fh) {
+        finalizeEntry();
+        currentEntry = makeFlaggedEntry({
+          company: fh[1].trim(),
+          title: fh[2].trim(),
+          detectedAt: fh[3].trim(),
+        });
+        continue;
+      }
+
+      if (!currentEntry) continue;
+      if (trimmed === '---') continue;
+
+      const kv = trimmed.match(KEY_VALUE_RE);
+      if (kv) {
+        const key = kv[1].trim().toLowerCase().replace(/\s+/g, '');
+        const value = kv[2].trim();
+        switch (key) {
+          case 'detectedsignal': {
+            const sigMatch = value.match(/^"(.+)"\s*→\s*(.+)$/);
+            if (sigMatch) {
+              currentEntry.signal = sigMatch[1];
+              currentEntry.status = sigMatch[2].trim();
+            } else {
+              currentEntry.signal = value;
+            }
+            break;
+          }
+          case 'sender':
+            currentEntry.sender = value || null;
+            break;
+          case 'matchmethod':
+            // value may include parenthetical detail; keep the first token
+            currentEntry.matchMethod = (value.split(/\s+/)[0] || value).toLowerCase() || null;
+            break;
+          case 'message-id':
+          case 'messageid':
+            currentEntry.msgId = value || null;
+            break;
+          case 'action':
+            currentEntry.action = value || null;
+            break;
+        }
+      }
+      continue;
+    }
 
     // Entry heading: ### Company — Title
     const headingMatch = trimmed.match(HEADING_RE);

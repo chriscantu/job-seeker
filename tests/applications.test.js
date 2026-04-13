@@ -23,14 +23,14 @@ const FIXTURE_PATH = path.join(FIXTURES, 'applications.md');
 
 describe('applications parser', () => {
   describe('parseApplicationsContent — empty / header-only', () => {
-    it('returns { active: [], closed: [] } for empty content', () => {
+    it('returns { active: [], closed: [], flagged: [] } for empty content', () => {
       const result = parseApplicationsContent('');
-      assert.deepEqual(result, { active: [], closed: [] });
+      assert.deepEqual(result, { active: [], closed: [], flagged: [] });
     });
 
-    it('returns { active: [], closed: [] } for header-only content', () => {
+    it('returns { active: [], closed: [], flagged: [] } for header-only content', () => {
       const result = parseApplicationsContent('# Application Pipeline\n\nLast updated: 2026-04-08\n');
-      assert.deepEqual(result, { active: [], closed: [] });
+      assert.deepEqual(result, { active: [], closed: [], flagged: [] });
     });
   });
 
@@ -817,6 +817,54 @@ Last updated: 2026-04-09
         assert.equal(meta.active_count, '2');
         assert.equal(meta.closed_count, '0');
       });
+    });
+  });
+
+  describe('parseApplicationsContent — flagged for review', () => {
+    it('returns empty flagged array when no section present', () => {
+      const content = `---
+format_version: 1
+---
+# Application Pipeline
+
+## Active Applications
+
+## Closed Applications
+`;
+      const result = parseApplicationsContent(content);
+      assert.deepEqual(result.flagged, []);
+    });
+
+    it('parses a single flagged entry', () => {
+      const content = `---
+format_version: 1
+---
+# Application Pipeline
+
+## Active Applications
+
+## Closed Applications
+
+## Flagged for Review
+
+### Acme Corp — Unknown role — 2026-04-13
+
+- **Detected signal**: "unfortunately" → Rejected
+- **Sender**: no-reply@greenhouse-mail.io
+- **Match method**: none
+- **Message-ID**: <fixture-unknown-001@mail.gmail.com>
+- **Action**: Resolve manually
+`;
+      const result = parseApplicationsContent(content);
+      assert.equal(result.flagged.length, 1);
+      const entry = result.flagged[0];
+      assert.equal(entry.company, 'Acme Corp');
+      assert.equal(entry.title, 'Unknown role');
+      assert.equal(entry.detectedAt, '2026-04-13');
+      assert.equal(entry.status, 'Rejected');
+      assert.equal(entry.sender, 'no-reply@greenhouse-mail.io');
+      assert.equal(entry.matchMethod, 'none');
+      assert.equal(entry.msgId, '<fixture-unknown-001@mail.gmail.com>');
     });
   });
 
