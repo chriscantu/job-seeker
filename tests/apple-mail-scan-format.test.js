@@ -12,6 +12,13 @@
 // falls back to index-based lookup, which is the silent-wrong-message bug
 // PR #56 fixes. So the format isn't decorative — it is the contract that
 // makes the trash race fix possible.
+//
+// Known constraint: AppleScript has no escaping for the ||| delimiter. A
+// subject containing the literal "|||" would corrupt the format. Real-world
+// email subjects almost never contain this string, but if it ever happens
+// the scan output will silently produce >5 fields and downstream parsers
+// will misalign. Document, don't enforce — escaping in AppleScript would
+// add more complexity than the failure mode justifies.
 
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
@@ -57,6 +64,20 @@ test("scan format: index field is a positive integer", () => {
       `Index must be a positive integer, got: ${index}`
     );
   }
+});
+
+test("scan format: indices are unique within a batch", () => {
+  // If a future edit causes the scan to reuse an index (e.g. starting from 0,
+  // or emitting duplicates due to a loop bug), downstream `--by-index` fallback
+  // would silently mis-target. Pin uniqueness to catch that regression.
+  const fixture = fs.readFileSync(FIXTURE_PATH, "utf8").trim();
+  const indices = fixture.split("\n").map((line) => parseScanLine(line).index);
+  const unique = [...new Set(indices)];
+  assert.deepEqual(
+    unique,
+    indices,
+    `Indices must be unique within a batch, got duplicates: ${indices.join(",")}`
+  );
 });
 
 test("scan format: message_id is non-empty (sentinel MSGID_UNAVAILABLE for unreadable)", () => {
