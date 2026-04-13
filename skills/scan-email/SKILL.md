@@ -176,20 +176,59 @@ For roles with no URL from body extraction:
 
 ## Phase 5 — Present Results
 
-Show a confirmation table:
+Two sequential gates. Gate 2 only appears if there are any status-change candidates.
 
-```
+### Gate 1 — Role adds (unchanged)
+
+Show the confirmation table for job-alert candidates:
+
 | # | Company | Role | Source | Location | Comp | Link | Status |
 |---|---------|------|--------|----------|------|------|--------|
 | 1 | TrueML | VP of Software Engineering | Indeed (Gmail) | Remote | $225K-$325K | [View](url) | Verified ✓ |
-```
 
-Source column: alert source with email channel in parentheses: `(Mail)`,
-`(Gmail)`, or `(both)`.
+Source column: `(Mail)`, `(Gmail)`, or `(both)`.
 
-Show: skipped counts, errors, sources scanned.
+Show skipped counts, errors, sources scanned, then ask:
 
-Ask for confirmation before writing state.
+> Add these N roles to seen-postings? [y/N/edit]
+
+### Gate 2 — Status changes (only if any HIGH or MEDIUM classifications exist)
+
+Partition status-change candidates by tier. LOW tier never appears in this gate — those go directly to Flagged for Review in Phase 6.
+
+Render the gate:
+
+    ⚠️  STATUS CHANGES DETECTED — review each carefully before accepting
+
+    [1] HIGH  ✓
+        Atlassian — VP Engineering
+        Current:   {entry.stage} ({entry.applied}, {days-since} days ago)
+        Detected:  {classifier.status}
+        Signal:    "{classifier.signal}"
+        Sender:    {email.sender}
+        Match:     URL ({matched-url})
+        Message:   {classifier.msgId}
+
+    [2] MEDIUM ⚠  name-only match — verify before accepting
+        Discord — Director of Engineering
+        Current:   Applied (2026-04-05, 8 days ago)
+        Detected:  Rejected
+        Signal:    "unfortunately"
+        Sender:    no-reply@greenhouse-mail.io
+        Match:     name
+        Message:   <fixture-discord-001@mail.gmail.com>
+
+    Apply status changes?
+      HIGH tier ([1]): accept all high-confidence? [y/N]
+      MEDIUM tier ([2]): select by number or N to skip all: _
+
+**Rules for Gate 2:**
+
+1. HIGH and MEDIUM are always prompted as **two separate questions**. Never combine them.
+2. HIGH tier accepts via `y/N` — a single keystroke accepts all HIGH entries.
+3. MEDIUM tier requires typing a number or comma-separated list (`1,3`) or `N` to skip all. There is no "accept all" for MEDIUM.
+4. If the user cancels Gate 2 (Ctrl-C or `N` to both), nothing is written. Since message-IDs are not yet in applications.md history, the next scan will re-detect these same emails.
+5. Gate 2 runs AFTER Gate 1 so the user processes the less-risky operation (appending roles) before the more-risky one (mutating pipeline state).
 
 ## Phase 6 — State Updates
 
