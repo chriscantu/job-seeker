@@ -79,7 +79,7 @@ job-seeker/
 │   └── scripts/
 │       └── pii-guard.js     ← PII blocking script for Write/Edit
 │
-├── scripts/                 ← Executable scripts only (AppleScript, Swift, shell)
+├── scripts/                 ← Executable scripts only (AppleScript, Swift, JS)
 │   ├── apple_notes_create.applescript
 │   ├── apple_notes_read.applescript
 │   ├── apple_notes_update.applescript
@@ -87,9 +87,13 @@ job-seeker/
 │   ├── apple_mail_scan.applescript
 │   ├── apple_mail_read.applescript
 │   ├── apple_mail_trash.applescript
+│   ├── apple_calendar_search.applescript
+│   ├── gmail.js             ← Gmail CLI (auth, profile, search, create-draft, trash)
 │   ├── generate_resume_docx.js
 │   ├── generate_coverletter_docx.js
-│   └── docx-styles.js
+│   ├── docx-styles.js
+│   └── lib/                 ← Script-local modules
+│       └── gmail-auth.js    ← OAuth2 client + token persistence for gmail.js
 │
 ├── integrations/            ← Everything related to external system connections
 │   ├── config/              ← Per-integration config files (gitignored) + .example templates

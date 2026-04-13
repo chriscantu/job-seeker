@@ -6,18 +6,21 @@ resume, and configure it for their own search. Runs in Claude Code CLI.
 
 ## What It Does
 
-Nine skills that cover the full arc of a senior engineering leadership job search:
+Twelve skills that cover the full arc of a senior engineering leadership job search:
 
 | Skill | Status | What it does |
-|-------|--------|--------------|
+| ----- | ------ | ------------ |
 | `setup` | Active | First-time configuration wizard and ongoing health check — run this first |
-| `daily-digest` | Active | Searches executive job boards (TheirStack API + web search fallback) and writes a deduplicated digest to Apple Notes |
-| `why-this-company` | Active | Generates a "Why did you apply?" response for a specific company, grounded in real career history |
+| `daily-digest` | Active | Searches executive job boards (TheirStack API + web search fallback) and writes a deduplicated digest to `output/` (and Apple Notes if configured) |
+| `scan-email` | Active | Scans Apple Mail for job alert emails (Indeed, LinkedIn, Wellfound, etc.), extracts postings, and trashes processed alerts |
+| `company-research` | Active | Deep-dive research on a target company from a job posting URL, producing a positioning-focused brief consumed by other skills |
+| `resume-tailor` | Active | Reorders and emphasizes resume bullets for a specific posting, exports to docx |
 | `cover-letter` | Active | Produces a tailored cover letter that maps accomplishments to role requirements |
-| `resume-tailor` | Active | Reorders and emphasizes resume bullets for a specific posting |
-| `company-research` | Planned | Deep dive on a target company before applying or interviewing |
-| `interview-prep` | Planned | Behavioral and technical interview prep with STAR story mapping |
-| `application-tracker` | Planned | Pipeline management across all opportunities |
+| `why-this-company` | Active | Generates a "Why did you apply?" response for a specific company, grounded in real career history |
+| `interview-prep` | Active | Behavioral and technical interview prep with STAR story mapping, backed by Apple Calendar interview lookup |
+| `follow-up` | Active | Drafts follow-up emails for stale applications and creates Gmail drafts via `scripts/gmail.js` |
+| `application-tracker` | Active | Pipeline management across all opportunities — add, update, and view stages with staleness alerts |
+| `linkedin-article` | Active | Drafts LinkedIn posts and articles in the candidate's voice, backed by data and voice-rule audits |
 | `networking-outreach` | Planned | Outreach messages for target companies and contacts |
 
 ## Prerequisites
@@ -44,11 +47,13 @@ git clone https://github.com/chriscantu/job-seeker.git
 ```
 
 Then run `/setup` — it walks you through everything:
+
 - `config/candidate.md` — your profile (name, role, strengths, accomplishments)
 - `config/search.md` — target roles, location, comp floor, companies to skip
 - `references/resume.pdf` — your canonical resume
 - Optional: TheirStack API key for richer job discovery
 - Optional: Apple Notes integration for native digest delivery
+- Optional: Gmail OAuth for `follow-up` (see [Gmail Integration](#gmail-integration) below)
 
 See `config/candidate.md.example` and `config/search.md.example` for templates.
 
@@ -62,9 +67,39 @@ invoked in Claude Code, the skill reads the candidate profile from
 ### State Management
 
 State (which roles have been seen, what interests me, where I've applied)
-defaults to **Apple Notes**, read and written via `osascript`. If Apple Notes
-is not configured, skills fall back to markdown files in `output/`
-(e.g., `output/2026-03-20-seen-postings.md`).
+persists in date-prefixed markdown files in `output/` (gitignored) —
+`output/*-seen-postings.md`, `output/*-preferences.md`, and
+`output/*-applications.md`. Skills glob for the most recent file of each
+type.
+
+Apple Notes is an optional secondary layer: when
+`integrations/config/notes-config.md` is present, `daily-digest` also writes
+the digest to an Apple Notes note via `osascript`. It is not required for
+the plugin to function.
+
+### Gmail Integration
+
+The `follow-up` skill creates Gmail drafts via `scripts/gmail.js`, a thin
+CLI built on the `googleapis` package. It uses a single OAuth2 flow that
+lives in `credentials/` (gitignored):
+
+```shell
+# One-time setup — opens a browser window for Google consent
+bun scripts/gmail.js auth
+```
+
+Prerequisites:
+
+- A Google Cloud project with the Gmail API enabled
+- An OAuth 2.0 client (Desktop app type), downloaded as
+  `credentials/gmail-client-secret.json`
+- Your Google account added as a **test user** on the OAuth consent screen
+  (the app stays in Testing mode — restricted scopes like `gmail.modify`
+  are not suitable for Production verification for a personal tool)
+
+Commands: `auth`, `profile`, `search`, `create-draft`, `trash`. Run
+`bun scripts/gmail.js` with no arguments for full usage. Testing-mode OAuth
+tokens expire after 7 days — re-run `auth` weekly.
 
 ## Project Structure
 

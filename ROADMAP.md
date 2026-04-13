@@ -57,12 +57,14 @@ Skills stubbed in `plugin.json` with placeholder SKILL.md files. Activate in
 priority order:
 
 | Skill | Status | Why Now |
-|-------|--------|---------|
+| ----- | ------ | ------- |
 | `application-tracker` | **Shipped** | Pipeline tracking in structured markdown — replaced manual Apple Notes tracking |
 | `company-research` | **Shipped** | Force multiplier — research briefs feed into cover-letter, why-this-company, interview-prep, and resume-tailor |
 | `resume-tailor` | **Shipped** | Cover letters are live; resume customization is the natural next step |
 | `scan-email` | **Shipped** | Surfaces job alerts from Apple Mail that board searches miss — adapted from eisenhower scan-email pattern |
-| `interview-prep` | Planned | Needed before any screens begin |
+| `interview-prep` | **Shipped** | STAR story mapping + Apple Calendar adapter for interview lookup (PR #15/#54) |
+| `follow-up` | **Shipped** | Drafts stale-application follow-ups via `scripts/gmail.js` — Gmail CLI replaces MCP for a single OAuth2 flow (PR #55) |
+| `linkedin-article` | **Shipped** | Drafts LinkedIn posts and articles in the candidate's voice with voice-rule audits |
 | `networking-outreach` | Planned | Lower priority until applications are flowing |
 
 Each skill requires a spec in `integrations/specs/` before implementation.
