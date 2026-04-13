@@ -551,7 +551,7 @@ function flagForReview(dir, opts) {
   const data = parseApplicationsFile(filePath);
   data.flagged = data.flagged || [];
 
-  if (opts.msgId && hasMsgId(data, opts.msgId)) return { skipped: true };
+  if (opts.msgId && hasMsgId(data, opts.msgId)) return { skipped: true, reason: 'msg-id already processed' };
 
   data.flagged.push({
     company: opts.company || 'Unknown',

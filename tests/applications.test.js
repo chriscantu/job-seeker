@@ -1030,6 +1030,7 @@ format_version: 1
         detectedAt: '2026-04-13',
       });
       assert.equal(second.skipped, true);
+      assert.equal(second.reason, 'msg-id already processed');
 
       const data = parseApplications(dir);
       const closed = data.closed.filter(e => e.company === 'Atlassian');
@@ -1052,6 +1053,7 @@ format_version: 1
 
       const second = flagForReview(dir, opts);
       assert.equal(second.skipped, true);
+      assert.equal(second.reason, 'msg-id already processed');
 
       const data = parseApplications(dir);
       const matches = data.flagged.filter(e => e.msgId === opts.msgId);
@@ -1147,6 +1149,7 @@ format_version: 1
         detectedAt: '2026-04-13',
       });
       assert.equal(result.skipped, true);
+      assert.equal(result.reason, 'msg-id already processed');
 
       const data = parseApplications(dir);
       // Atlassian should still be Active (wasn't rejected because we skipped)
@@ -1176,6 +1179,7 @@ format_version: 1
         detectedAt: '2026-04-13',
       });
       assert.equal(result.skipped, true);
+      assert.equal(result.reason, 'msg-id already processed');
 
       const data = parseApplications(dir);
       // No flagged entry should have been appended

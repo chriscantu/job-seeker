@@ -103,7 +103,7 @@ If `NO_MESSAGES`, stop scanning.
 Read `skills/scan-email/classification-rules.md` and execute BOTH paths for each record:
 
 1. **Job Alert Path**: the existing 4-step flow. If it classifies as a candidate, tag with `type: job-alert` and continue to body fetch.
-2. **Status Change Path**: if the sender matches an ATS notification domain, run `bun scripts/classify-status-email.js` and tag the result with `type: status-change`. Status emails are always body-fetched (the classifier needs the body to extract URLs and signals).
+2. **Status Change Path**: if the sender matches an ATS notification domain, tag with `type: status-change-candidate` and continue to body fetch. Do NOT run the classifier yet — it needs the body to extract ATS URLs and rejection signals.
 
 A single message matches at most one path because the sender sets are disjoint. Skip messages that match neither.
 
@@ -123,7 +123,7 @@ Execute via `[gmail_search_messages]`. Paginate if needed.
 Read `skills/scan-email/classification-rules.md` and execute BOTH paths for each record:
 
 1. **Job Alert Path**: the existing 4-step flow. If it classifies as a candidate, tag with `type: job-alert` and continue to body fetch.
-2. **Status Change Path**: if the sender matches an ATS notification domain, run `bun scripts/classify-status-email.js` and tag the result with `type: status-change`. Status emails are always body-fetched (the classifier needs the body to extract URLs and signals).
+2. **Status Change Path**: if the sender matches an ATS notification domain, tag with `type: status-change-candidate` and continue to body fetch. Do NOT run the classifier yet — it needs the body to extract ATS URLs and rejection signals.
 
 A single message matches at most one path because the sender sets are disjoint. Skip messages that match neither.
 
@@ -146,6 +146,27 @@ After body fetch completes, cache extracted roles for resumption:
 — include all extracted roles with URLs, company names, and source labels.
 
 The cached payload must include a `type` field per entry (`"job-alert"` or `"status-change"`) so resumption after interruption does not need to re-classify.
+
+## Phase 3.5 — Classify Status-Change Candidates
+
+Skip if no `status-change-candidate` tagged messages from Phase 2/2G.
+
+For each `status-change-candidate` message (body now available), run:
+
+```bash
+bun scripts/classify-status-email.js \
+  --email /tmp/scan-email-msg-{msgId-slug}.json \
+  --applications-dir {plugin_root}/output
+```
+
+Write the JSON result to a temp file for Phase 6:
+
+```bash
+# {classifier_result_path} = /tmp/scan-email-classifier-{msgId-slug}.json
+```
+
+- Non-null result → update the message tag to `type: status-change`, attach the classifier result path.
+- `null` result (non-ATS sender passed through by mistake) → drop the message from the batch.
 
 ## Phase 4 — Dedup, Filter, and Verify
 
@@ -248,33 +269,37 @@ For each accepted HIGH or MEDIUM status-change classification, write the entire 
 
 ```bash
 # Write the classifier result to a temp file (the classifier output itself
-# is a JSON object; capture it from the Phase 2 classify-status-email.js
-# invocation in ~/.tmp/scan-email-classifier-{msgId-slug}.json).
+# is a JSON object; capture it from the Phase 3.5 classify-status-email.js
+# invocation in /tmp/scan-email-classifier-{msgId-slug}.json).
 
 bun -e "
 const fs = require('fs');
 const { markStatusChanged } = require('./scripts/lib/applications');
-const classifier = JSON.parse(fs.readFileSync('{classifier_result_path}', 'utf8'));
-const r = markStatusChanged('{plugin_root}/output', {
-  msgId: classifier.msgId,
-  matchedEntry: classifier.matchedEntry,
-  status: classifier.status,
-  signal: classifier.signal,
-  atsSender: classifier.atsSender,
-  detectedAt: '{today}',
-});
-console.log(JSON.stringify(r));
+try {
+  const classifier = JSON.parse(fs.readFileSync('{classifier_result_path}', 'utf8'));
+  const r = markStatusChanged('{plugin_root}/output', {
+    msgId: classifier.msgId,
+    matchedEntry: classifier.matchedEntry,
+    status: classifier.status,
+    signal: classifier.signal,
+    atsSender: classifier.atsSender,
+    detectedAt: '{today}',
+  });
+  console.log(JSON.stringify({ ok: true, result: r }));
+} catch (e) {
+  console.log(JSON.stringify({ ok: false, error: e.message }));
+  process.exit(1);
+}
 "
 ```
 
-**REQUIRED caller contract:** after every invocation, parse the stdout JSON and inspect the result:
+**REQUIRED caller contract:** after every invocation, parse the stdout JSON and check `ok` first:
 
-- `{skipped: false}` — success, applications.md was mutated.
-- `{skipped: true, reason: 'msg-id already processed'}` — re-run idempotency; safe to ignore.
-- `{skipped: true, reason: 'matched closed entry'}` — courtesy email for an already-closed app; safe to ignore, but log to the user so they know why Gate 2 approvals sometimes don't produce writes.
-- `{skipped: true, reason: 'matched flagged entry'}` — classifier shouldn't produce this since flagged entries are excluded from matching, but log if it appears.
-- `{skipped: false}` with a new flagged entry appearing in `## Flagged for Review` — the Active entry disappeared mid-batch; surface this to the user as a pipeline-integrity warning.
-- Any throw — surface the error, do NOT silently continue the batch.
+- `{ok: false, error: ...}` — surface the error, do NOT silently continue the batch.
+- `{ok: true, result: {skipped: false}}` — success, applications.md was mutated.
+- `{ok: true, result: {skipped: true, reason: 'msg-id already processed'}}` — re-run idempotency; safe to ignore.
+- `{ok: true, result: {skipped: true, reason: 'matched closed entry'}}` — courtesy email for an already-closed app; safe to ignore, but log to the user so they know why Gate 2 approvals sometimes don't produce writes.
+- `{ok: true, result: {skipped: false}}` with a new flagged entry appearing in `## Flagged for Review` — the Active entry disappeared mid-batch; surface this to the user as a pipeline-integrity warning.
 
 ### Write Flagged for Review entries (LOW tier)
 
@@ -283,17 +308,22 @@ For each LOW tier status-change classification (from Phase 5 partitioning), call
 ```bash
 bun -e "
 const { flagForReview } = require('./scripts/lib/applications');
-const r = flagForReview('{plugin_root}/output', {
-  company: '<classifier.matchedEntry?.company || extract-from-sender>',
-  title: '<classifier.matchedEntry?.title || \"Unknown role\">',
-  signal: '<classifier.signal>',
-  status: '<classifier.status>',
-  sender: '<email.sender>',
-  matchMethod: '<classifier.matchMethod>',
-  msgId: '<classifier.msgId>',
-  detectedAt: '{today}',
-});
-console.log(JSON.stringify(r));
+try {
+  const r = flagForReview('{plugin_root}/output', {
+    company: '<classifier.matchedEntry?.company || extract-from-sender>',
+    title: '<classifier.matchedEntry?.title || \"Unknown role\">',
+    signal: '<classifier.signal>',
+    status: '<classifier.status>',
+    sender: '<email.sender>',
+    matchMethod: '<classifier.matchMethod>',
+    msgId: '<classifier.msgId>',
+    detectedAt: '{today}',
+  });
+  console.log(JSON.stringify({ ok: true, result: r }));
+} catch (e) {
+  console.log(JSON.stringify({ ok: false, error: e.message }));
+  process.exit(1);
+}
 "
 ```
 

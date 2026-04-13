@@ -83,16 +83,21 @@ describe('classify-status-email.js CLI — error handling', () => {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  it('exits 2 with usage message when args are missing', () => {
+  it('exits 2 with structured error when args are missing', () => {
     const r = runExpectError('');
     assert.equal(r.exitCode, 2);
-    assert.match(r.stderr, /Usage:/);
+    const parsed = JSON.parse(r.stderr);
+    assert.equal(parsed.error, 'usage_error');
+    assert.match(parsed.usage, /classify-status-email/);
+    assert.equal(parsed.detail, null);
   });
 
-  it('exits 2 when --email flag is followed by another flag', () => {
+  it('exits 2 with structured error when --email flag is followed by another flag', () => {
     const r = runExpectError(`--email --applications-dir ${tmpDir}`);
     assert.equal(r.exitCode, 2);
-    assert.match(r.stderr, /missing value for --email/);
+    const parsed = JSON.parse(r.stderr);
+    assert.equal(parsed.error, 'usage_error');
+    assert.match(parsed.detail, /missing value for --email/);
   });
 
   it('exits 3 with structured error when email file does not exist', () => {

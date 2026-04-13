@@ -36,7 +36,11 @@ function parseArgs(argv) {
 }
 
 function usageError(detail) {
-  console.error(`Usage: classify-status-email.js --email <file.json> --applications-dir <dir>${detail ? `\n  ${detail}` : ''}`);
+  console.error(JSON.stringify({
+    error: 'usage_error',
+    usage: 'classify-status-email.js --email <file.json> --applications-dir <dir>',
+    detail: detail || null,
+  }));
   process.exit(EXIT_USAGE);
 }
 

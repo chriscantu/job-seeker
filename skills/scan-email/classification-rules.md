@@ -87,15 +87,17 @@ Check the sender domain against ATS Notification Senders in `references/email-pa
 
 No match → skip (may still be classified by the Job Alert Path).
 
-### Step 2: Invoke the Classifier Script
+### Step 2: Tag for Body Fetch
 
-For each ATS-sender match, run:
+Tag the message with `type: status-change-candidate`. Do NOT invoke the classifier script here — the classifier requires the email body to extract ATS URLs and rejection signals, and the body is not yet available during metadata scan (Phase 2/2G).
 
-```bash
-bun scripts/classify-status-email.js --email {email.json} --applications-dir {plugin_root}/output
-```
+The classifier is invoked in Phase 3.5, after body fetch completes.
 
-The script returns one JSON object per call:
+Candidates from the Status Change Path are NOT subject to the same early-stop rule as job alerts — process all ATS matches in the batch.
+
+### Step 3: Classifier Output (reference — populated in Phase 3.5)
+
+After body fetch and Phase 3.5 classification, each `status-change-candidate` is updated to `type: status-change` with the following classifier result attached:
 
 ```json
 {
@@ -115,12 +117,8 @@ The script returns one JSON object per call:
 }
 ```
 
-Or `null` if the sender did not match an ATS domain (should not happen after Step 1, but the CLI is defensive).
+Or `null` if the sender did not match an ATS domain after all (drop the message).
 
 The classifier matches against `active` and `closed` entries only — flagged entries are excluded so status signals don't silently collide with unresolved previous flags. The `section` field on `matchedEntry` is REQUIRED by `markStatusChanged` — it uses it to decide whether to mutate the entry (active) or silently skip (closed, already-handled application). Callers must pass the full `matchedEntry` verbatim through to `markStatusChanged`.
 
-### Step 3: Persist Candidate Records
-
-Tag each classified record with `type: status-change` and the full JSON result. These records flow into Phase 5 Gate 2 (HIGH/MEDIUM) or Phase 6 Flagged for Review append (LOW).
-
-Candidates from the Status Change Path are NOT subject to the same early-stop rule as job alerts — process all ATS matches in the batch.
+These records flow into Phase 5 Gate 2 (HIGH/MEDIUM) or Phase 6 Flagged for Review append (LOW).
