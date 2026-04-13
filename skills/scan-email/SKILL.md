@@ -100,14 +100,32 @@ osascript {plugin_root}/scripts/apple_mail_scan.applescript "{account_name}" "{i
 
 If `NO_MESSAGES`, stop scanning.
 
-Read `skills/scan-email/classification-rules.md` and execute for each record.
+Read `skills/scan-email/classification-rules.md` and execute BOTH paths for each record:
+
+1. **Job Alert Path**: the existing 4-step flow. If it classifies as a candidate, tag with `type: job-alert` and continue to body fetch.
+2. **Status Change Path**: if the sender matches an ATS notification domain, run `bun scripts/classify-status-email.js` and tag the result with `type: status-change`. Status emails are always body-fetched (the classifier needs the body to extract URLs and signals).
+
+A single message matches at most one path because the sender sets are disjoint. Skip messages that match neither.
 
 ## Phase 2G — Gmail Metadata Scan (skip if `gmail_enabled = false`)
 
-Build search queries from sender domains in `references/email-patterns.md`.
+Build search queries from sender domains in `references/email-patterns.md`:
+
+- Job Alert Senders table → job alert query
+- Application Status Patterns → ATS Notification Senders → status query
+
+The two sets of senders are disjoint. Combine them into a single Gmail search:
+
+    from:(indeed.com OR indeedmail.com OR linkedin.com OR e.linkedin.com OR glassdoor.com OR mail.glassdoor.com OR remotehunter.com OR wellfound.com OR angel.co OR google.com OR otta.com OR ziprecruiter.com OR builtin.com OR hired.com OR greenhouse.io OR greenhouse-mail.io OR lever.co OR ashbyhq.com) newer_than:{lookback_days}d
+
 Execute via `[gmail_search_messages]`. Paginate if needed.
 
-Read `skills/scan-email/classification-rules.md` and execute for each result.
+Read `skills/scan-email/classification-rules.md` and execute BOTH paths for each record:
+
+1. **Job Alert Path**: the existing 4-step flow. If it classifies as a candidate, tag with `type: job-alert` and continue to body fetch.
+2. **Status Change Path**: if the sender matches an ATS notification domain, run `bun scripts/classify-status-email.js` and tag the result with `type: status-change`. Status emails are always body-fetched (the classifier needs the body to extract URLs and signals).
+
+A single message matches at most one path because the sender sets are disjoint. Skip messages that match neither.
 
 ## Phase 3 — Body Fetch (Apple Mail)
 
@@ -126,6 +144,8 @@ Read `skills/scan-email/body-extraction.md` and execute for Gmail candidates.
 After body fetch completes, cache extracted roles for resumption:
 `bun scripts/cache.js write scan-email body-fetch '<json>'`
 — include all extracted roles with URLs, company names, and source labels.
+
+The cached payload must include a `type` field per entry (`"job-alert"` or `"status-change"`) so resumption after interruption does not need to re-classify.
 
 ## Phase 4 — Dedup, Filter, and Verify
 
