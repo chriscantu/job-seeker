@@ -56,6 +56,7 @@ requirements_matched: 3
 `;
 
 const RESUME_WITH_FRONTMATTER = FRONTMATTER_BLOCK + RESUME_NO_FRONTMATTER;
+const RESUME_WITH_FRONTMATTER_AND_BLANK_LINE = FRONTMATTER_BLOCK + "\n" + RESUME_NO_FRONTMATTER;
 
 const COVER_LETTER_WITH_FRONTMATTER = `---
 skill: cover-letter
@@ -129,6 +130,39 @@ test("resume docx: with frontmatter succeeds and produces similar-sized file (wi
     assert.ok(
       pct <= 0.01,
       `File sizes differ by ${(pct * 100).toFixed(2)}% (no-fm: ${sizeNoFm}, with-fm: ${sizeWithFm}) — expected within 1%`
+    );
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("resume docx: blank line between frontmatter and # heading produces same output as no-blank-line variant", () => {
+  const dir = makeTempDir();
+  try {
+    const noBlankInput = writeFile(dir, "resume-no-blank.md", RESUME_WITH_FRONTMATTER);
+    const noBlankOutput = path.join(dir, "resume-no-blank.docx");
+    execSync(
+      `bun "${path.join(SCRIPTS_DIR, "generate_resume_docx.js")}" "${noBlankInput}" "${noBlankOutput}"`,
+      { stdio: "pipe" }
+    );
+
+    const withBlankInput = writeFile(dir, "resume-with-blank.md", RESUME_WITH_FRONTMATTER_AND_BLANK_LINE);
+    const withBlankOutput = path.join(dir, "resume-with-blank.docx");
+    execSync(
+      `bun "${path.join(SCRIPTS_DIR, "generate_resume_docx.js")}" "${withBlankInput}" "${withBlankOutput}"`,
+      { stdio: "pipe" }
+    );
+
+    const sizeNoBlank = fs.statSync(noBlankOutput).size;
+    const sizeWithBlank = fs.statSync(withBlankOutput).size;
+
+    const diff = Math.abs(sizeNoBlank - sizeWithBlank);
+    const maxSize = Math.max(sizeNoBlank, sizeWithBlank);
+    const pct = diff / maxSize;
+
+    assert.ok(
+      pct <= 0.01,
+      `File sizes differ by ${(pct * 100).toFixed(2)}% (no-blank: ${sizeNoBlank}, with-blank: ${sizeWithBlank}) — header block likely dropped when blank line precedes # heading`
     );
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
