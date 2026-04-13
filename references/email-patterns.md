@@ -106,9 +106,7 @@ not, use the resolved URL as-is.
 
 ---
 
-## Future: Application Status Patterns (v2)
-
-> Not implemented in v1. Documented for future enhancement.
+## Application Status Patterns
 
 ### ATS Notification Senders
 
@@ -120,13 +118,17 @@ not, use the resolved URL as-is.
 
 ### Status Signals (subject or body)
 
-| Signal | Interpretation |
-|--------|---------------|
-| "application received", "thank you for applying" | Applied |
-| "we'd like to", "move forward", "next steps" | Screen / Interview |
-| "interview scheduled", "schedule your interview" | Interview |
-| "unfortunately", "we've decided", "not moving forward" | Rejected |
-| "offer", "we're excited to extend" | Offer |
+Higher priority signals win when multiple match. Signal extraction is case-insensitive.
+
+| Priority | Phrases | Status |
+| --- | --- | --- |
+| 1 | "offer", "we're excited to extend" | Offer |
+| 2 | "interview scheduled", "schedule your interview" | Interview |
+| 3 | "we'd like to", "move forward with you", "next steps" | Interview |
+| 4 | "unfortunately", "we've decided", "not moving forward", "will not be moving forward", "other candidates" | Rejected |
+| 5 | "application received", "thank you for applying", "received your application" | Applied |
+
+These patterns drive the Status Change Path in `skills/scan-email/classification-rules.md`. The deterministic classifier lives at `scripts/lib/status-classifier.js`; any edits to the patterns above should be mirrored in `SIGNAL_RULES` in that file, and both changes should be covered by a fixture in `tests/fixtures/status-emails/`.
 
 ---
 
