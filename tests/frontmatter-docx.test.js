@@ -56,6 +56,7 @@ requirements_matched: 3
 `;
 
 const RESUME_WITH_FRONTMATTER = FRONTMATTER_BLOCK + RESUME_NO_FRONTMATTER;
+const RESUME_WITH_FRONTMATTER_AND_BLANK_LINE = FRONTMATTER_BLOCK + "\n" + RESUME_NO_FRONTMATTER;
 
 const COVER_LETTER_WITH_FRONTMATTER = `---
 skill: cover-letter
@@ -82,6 +83,13 @@ function writeFile(dir, name, content) {
   const filePath = path.join(dir, name);
   fs.writeFileSync(filePath, content, "utf8");
   return filePath;
+}
+
+// A .docx is a zip; word/document.xml holds the visible body text. Extracting
+// it lets tests assert on actual rendered content (e.g. "is the candidate name
+// present?") instead of relying on file-size heuristics.
+function extractDocumentXml(docxPath) {
+  return execSync(`unzip -p "${docxPath}" word/document.xml`, { encoding: "utf8" });
 }
 
 test("resume docx: no frontmatter succeeds and produces a non-empty file", () => {
@@ -130,6 +138,46 @@ test("resume docx: with frontmatter succeeds and produces similar-sized file (wi
       pct <= 0.01,
       `File sizes differ by ${(pct * 100).toFixed(2)}% (no-fm: ${sizeNoFm}, with-fm: ${sizeWithFm}) — expected within 1%`
     );
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("resume docx: blank line between frontmatter and # heading preserves header block", () => {
+  const dir = makeTempDir();
+  try {
+    const withBlankInput = writeFile(dir, "resume-with-blank.md", RESUME_WITH_FRONTMATTER_AND_BLANK_LINE);
+    const withBlankOutput = path.join(dir, "resume-with-blank.docx");
+    execSync(
+      `bun "${path.join(SCRIPTS_DIR, "generate_resume_docx.js")}" "${withBlankInput}" "${withBlankOutput}"`,
+      { stdio: "pipe" }
+    );
+
+    const documentXml = extractDocumentXml(withBlankOutput);
+    assert.ok(documentXml.includes("Chris Cantu"), "Candidate name missing from document body — header block was dropped");
+    assert.ok(documentXml.includes("Engineering Leader"), "Tagline missing from document body");
+    assert.ok(documentXml.includes("chris@example.com"), "Contact line missing from document body");
+    assert.ok(documentXml.includes("Experienced engineering leader"), "Summary missing from document body");
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("ATS resume docx: blank line between frontmatter and # heading preserves header block", () => {
+  const dir = makeTempDir();
+  try {
+    const withBlankInput = writeFile(dir, "ats-resume-with-blank.md", RESUME_WITH_FRONTMATTER_AND_BLANK_LINE);
+    const withBlankOutput = path.join(dir, "ats-resume-with-blank.docx");
+    execSync(
+      `bun "${path.join(SCRIPTS_DIR, "generate_ats_resume_docx.js")}" "${withBlankInput}" "${withBlankOutput}"`,
+      { stdio: "pipe" }
+    );
+
+    const documentXml = extractDocumentXml(withBlankOutput);
+    assert.ok(documentXml.includes("Chris Cantu"), "Candidate name missing from ATS document body — header block was dropped");
+    assert.ok(documentXml.includes("Engineering Leader"), "Tagline missing from ATS document body");
+    assert.ok(documentXml.includes("chris@example.com"), "Contact line missing from ATS document body");
+    assert.ok(documentXml.includes("Experienced engineering leader"), "Summary missing from ATS document body");
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
