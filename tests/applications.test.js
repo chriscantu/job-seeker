@@ -1020,6 +1020,28 @@ format_version: 1
       assert.equal(closed.length, 1);
     });
 
+    it('flagForReview is idempotent by msg-id', () => {
+      const opts = {
+        company: 'Realtor.com',
+        title: 'Dir, Software Engineering',
+        signal: null,
+        status: null,
+        sender: 'no-reply@greenhouse.io',
+        matchMethod: 'none',
+        msgId: '<fixture-realtor-reminder-001@mail.gmail.com>',
+        detectedAt: '2026-04-13',
+      };
+      const first = flagForReview(dir, opts);
+      assert.equal(first.skipped, false);
+
+      const second = flagForReview(dir, opts);
+      assert.equal(second.skipped, true);
+
+      const data = parseApplications(dir);
+      const matches = data.flagged.filter(e => e.msgId === opts.msgId);
+      assert.equal(matches.length, 1);
+    });
+
     it('markStatusChanged(Interview) updates stage on Active entry with msg-id history', () => {
       markStatusChanged(dir, {
         msgId: '<fixture-realtor-001@mail.gmail.com>',

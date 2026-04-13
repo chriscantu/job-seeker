@@ -509,15 +509,15 @@ function flagForReview(dir, opts) {
   const filePath = resolveStateFile(dir, 'applications');
   if (!filePath) throw new Error('No applications file found');
 
-  if (hasMsgIdInHistory(filePath, opts.msgId)) {
-    // Check flagged section too via parse
-    const existing = parseApplicationsFile(filePath);
-    const dup = (existing.flagged || []).find(e => e.msgId === opts.msgId);
-    if (dup) return { skipped: true };
-  }
-
   const data = parseApplicationsFile(filePath);
   data.flagged = data.flagged || [];
+
+  if (opts.msgId) {
+    const dupFlagged = data.flagged.find(e => e.msgId === opts.msgId);
+    if (dupFlagged) return { skipped: true };
+    if (hasMsgIdInHistory(filePath, opts.msgId)) return { skipped: true };
+  }
+
   data.flagged.push({
     company: opts.company || 'Unknown',
     title: opts.title || 'Unknown role',
