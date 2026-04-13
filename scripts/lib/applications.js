@@ -281,8 +281,24 @@ function formatApplication(entry) {
   return lines.join('\n');
 }
 
-function formatApplicationsFile({ active, closed }) {
+function formatFlagged(entry) {
+  const lines = [];
+  lines.push(`### ${entry.company} — ${entry.title || 'Unknown role'} — ${entry.detectedAt}`);
+  lines.push('');
+  const sigText = entry.signal && entry.status
+    ? `"${entry.signal}" → ${entry.status}`
+    : (entry.signal || '');
+  lines.push(`- **Detected signal**: ${sigText}`);
+  lines.push(`- **Sender**: ${entry.sender || ''}`);
+  lines.push(`- **Match method**: ${entry.matchMethod || 'none'}`);
+  lines.push(`- **Message-ID**: ${entry.msgId || ''}`);
+  lines.push(`- **Action**: ${entry.action || 'Resolve manually — confirm which application this refers to, or dismiss if unrelated'}`);
+  return lines.join('\n');
+}
+
+function formatApplicationsFile({ active, closed, flagged }) {
   const today = new Date().toISOString().slice(0, 10);
+  const flaggedList = flagged || [];
   const parts = [];
 
   parts.push(`# Application Pipeline\n\nLast updated: ${today}\n`);
@@ -299,12 +315,19 @@ function formatApplicationsFile({ active, closed }) {
     parts.push('\n');
   }
 
+  if (flaggedList.length > 0) {
+    parts.push('\n## Flagged for Review\n');
+    parts.push(flaggedList.map(formatFlagged).join('\n\n---\n\n'));
+    parts.push('\n');
+  }
+
   const body = parts.join('\n') + '\n';
   const meta = {
     format_version: 1,
     last_updated: today,
     active_count: active.length,
     closed_count: closed.length,
+    flagged_count: flaggedList.length,
   };
   return serializeFrontmatter(meta, body);
 }

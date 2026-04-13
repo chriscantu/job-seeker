@@ -899,4 +899,44 @@ format_version: 1
       );
     });
   });
+
+  describe('formatApplicationsFile — flagged for review round-trip', () => {
+    it('writes flagged section and flagged_count frontmatter', () => {
+      const data = {
+        active: [],
+        closed: [],
+        flagged: [{
+          company: 'Acme Corp',
+          title: 'Unknown role',
+          detectedAt: '2026-04-13',
+          signal: 'unfortunately',
+          status: 'Rejected',
+          sender: 'no-reply@greenhouse-mail.io',
+          matchMethod: 'none',
+          msgId: '<fixture-unknown-001@mail.gmail.com>',
+          action: 'Resolve manually — confirm which application this refers to, or dismiss if unrelated',
+        }],
+      };
+
+      const output = formatApplicationsFile(data);
+      assert.match(output, /flagged_count:\s*1/);
+      assert.match(output, /## Flagged for Review/);
+      assert.match(output, /### Acme Corp — Unknown role — 2026-04-13/);
+      assert.match(output, /\*\*Detected signal\*\*: "unfortunately" → Rejected/);
+      assert.match(output, /\*\*Message-ID\*\*: <fixture-unknown-001@mail\.gmail\.com>/);
+
+      // Round-trip: parse the output, get back the same flagged entry
+      const reparsed = parseApplicationsContent(output);
+      assert.equal(reparsed.flagged.length, 1);
+      assert.equal(reparsed.flagged[0].company, 'Acme Corp');
+      assert.equal(reparsed.flagged[0].msgId, '<fixture-unknown-001@mail.gmail.com>');
+    });
+
+    it('omits flagged section when empty (but includes flagged_count: 0)', () => {
+      const data = { active: [], closed: [], flagged: [] };
+      const output = formatApplicationsFile(data);
+      assert.match(output, /flagged_count:\s*0/);
+      assert.doesNotMatch(output, /## Flagged for Review/);
+    });
+  });
 });
