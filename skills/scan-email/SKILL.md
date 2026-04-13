@@ -244,24 +244,37 @@ the Seen Postings note.
 
 ### Write status changes (from Gate 2 confirmations)
 
-For each accepted HIGH or MEDIUM status-change classification, call:
+For each accepted HIGH or MEDIUM status-change classification, write the entire classifier result object to a temp file first, then invoke `markStatusChanged` with it. The classifier's `matchedEntry` (including its `section` field) must be passed through verbatim — `markStatusChanged` fails closed if it's missing.
 
 ```bash
+# Write the classifier result to a temp file (the classifier output itself
+# is a JSON object; capture it from the Phase 2 classify-status-email.js
+# invocation in ~/.tmp/scan-email-classifier-{msgId-slug}.json).
+
 bun -e "
+const fs = require('fs');
 const { markStatusChanged } = require('./scripts/lib/applications');
+const classifier = JSON.parse(fs.readFileSync('{classifier_result_path}', 'utf8'));
 const r = markStatusChanged('{plugin_root}/output', {
-  msgId: '<classifier.msgId>',
-  matchedCompany: '<classifier.matchedEntry.company>',
-  newStatus: '<classifier.status>',
-  signal: '<classifier.signal>',
-  atsSender: '<classifier.atsSender>',
+  msgId: classifier.msgId,
+  matchedEntry: classifier.matchedEntry,
+  status: classifier.status,
+  signal: classifier.signal,
+  atsSender: classifier.atsSender,
   detectedAt: '{today}',
 });
 console.log(JSON.stringify(r));
 "
 ```
 
-Expected output: `{"skipped": false}` on success. `{"skipped": true}` means the msg-id was already in applications.md history — a silent no-op, which is correct.
+**REQUIRED caller contract:** after every invocation, parse the stdout JSON and inspect the result:
+
+- `{skipped: false}` — success, applications.md was mutated.
+- `{skipped: true, reason: 'msg-id already processed'}` — re-run idempotency; safe to ignore.
+- `{skipped: true, reason: 'matched closed entry'}` — courtesy email for an already-closed app; safe to ignore, but log to the user so they know why Gate 2 approvals sometimes don't produce writes.
+- `{skipped: true, reason: 'matched flagged entry'}` — classifier shouldn't produce this since flagged entries are excluded from matching, but log if it appears.
+- `{skipped: false}` with a new flagged entry appearing in `## Flagged for Review` — the Active entry disappeared mid-batch; surface this to the user as a pipeline-integrity warning.
+- Any throw — surface the error, do NOT silently continue the batch.
 
 ### Write Flagged for Review entries (LOW tier)
 

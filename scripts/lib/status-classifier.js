@@ -92,19 +92,23 @@ function extractUrls(body) {
   return matches.map(normalizeUrl).filter(Boolean);
 }
 
-// Iterates entries with their section label so callers can tell active from
-// closed/flagged hits. Order matters: active is preferred when the same URL
-// or company name appears in multiple sections.
-function* entriesWithSection(applicationsData) {
+// Iterates active and closed entries with their section label. Flagged
+// entries are NOT yielded: a flagged entry is "we don't know what this
+// is", so matching against one creates a silent-skip loop (classifier
+// matches the old flagged entry, markStatusChanged skips because section
+// isn't active, the new signal is lost). Real applications live in active
+// or closed; match only against those. Order matters: active is preferred
+// so a follow-up email to an active-but-also-previously-closed company
+// picks the active entry first.
+function* entriesForMatching(applicationsData) {
   for (const e of applicationsData.active || []) yield { entry: e, section: 'active' };
   for (const e of applicationsData.closed || []) yield { entry: e, section: 'closed' };
-  for (const e of applicationsData.flagged || []) yield { entry: e, section: 'flagged' };
 }
 
 function matchByUrl(body, applicationsData) {
   const bodyUrls = new Set(extractUrls(body));
   if (bodyUrls.size === 0) return null;
-  for (const pair of entriesWithSection(applicationsData)) {
+  for (const pair of entriesForMatching(applicationsData)) {
     const entryUrl = normalizeUrl(pair.entry.url);
     if (entryUrl && bodyUrls.has(entryUrl)) return pair;
   }
@@ -157,7 +161,7 @@ function matchByName({ sender, senderName, subject }, applicationsData) {
   const normalized = normalizeName(rawName);
   if (!normalized) return null;
 
-  for (const pair of entriesWithSection(applicationsData)) {
+  for (const pair of entriesForMatching(applicationsData)) {
     if (normalizeName(pair.entry.company) === normalized) return pair;
   }
   return null;
@@ -178,7 +182,16 @@ function projectMatch(pair) {
 }
 
 function classifyStatusEmail(input) {
+  if (!input || typeof input !== 'object') {
+    throw new TypeError('classifyStatusEmail: input must be an object');
+  }
   const { sender, senderName, subject, body, msgId, applicationsData } = input;
+  // Missing sender is a programming error (upstream parser dropped the
+  // header), not a classification result. Throw loudly so the CLI surfaces
+  // it as classifier_failed instead of conflating it with a non-ATS null.
+  if (typeof sender !== 'string' || !sender) {
+    throw new TypeError('classifyStatusEmail: input.sender must be a non-empty string');
+  }
   const atsSender = matchAtsSender(sender);
   if (!atsSender) return null;
 

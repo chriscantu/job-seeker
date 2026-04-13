@@ -975,11 +975,27 @@ format_version: 1
       assert.match(raw, /flagged_count:\s*1/);
     });
 
+    const atlassianActive = {
+      company: 'Atlassian',
+      title: 'VP Engineering',
+      url: 'https://boards.greenhouse.io/atlassian/jobs/5123456',
+      stage: 'Applied',
+      section: 'active',
+    };
+
+    const realtorActive = {
+      company: 'Realtor.com',
+      title: 'Director, Software Engineering',
+      url: 'https://boards.greenhouse.io/realtor/jobs/5234567',
+      stage: 'Applied',
+      section: 'active',
+    };
+
     it('markStatusChanged(Rejected) moves entry to Closed and appends history with msg-id', () => {
       const result = markStatusChanged(dir, {
         msgId: '<fixture-atlassian-001@mail.gmail.com>',
-        matchedCompany: 'Atlassian',
-        newStatus: 'Rejected',
+        matchedEntry: atlassianActive,
+        status: 'Rejected',
         signal: "we've decided not to move forward",
         atsSender: 'greenhouse',
         detectedAt: '2026-04-13',
@@ -993,23 +1009,23 @@ format_version: 1
       assert.match(closed.stage, /Closed \(rejected\)/);
 
       const raw = fs.readFileSync(path.join(dir, '2026-04-13-applications.md'), 'utf8');
-      assert.match(raw, /msg-id: <fixture-atlassian-001@mail\.gmail\.com>/);
+      assert.match(raw, /\(msg-id: <fixture-atlassian-001@mail\.gmail\.com>\)/);
     });
 
     it('markStatusChanged is idempotent by msg-id', () => {
       markStatusChanged(dir, {
         msgId: '<fixture-atlassian-001@mail.gmail.com>',
-        matchedCompany: 'Atlassian',
-        newStatus: 'Rejected',
-        signal: 'unfortunately',
+        matchedEntry: atlassianActive,
+        status: 'Rejected',
+        signal: 'not moving forward',
         atsSender: 'greenhouse',
         detectedAt: '2026-04-13',
       });
       const second = markStatusChanged(dir, {
         msgId: '<fixture-atlassian-001@mail.gmail.com>',
-        matchedCompany: 'Atlassian',
-        newStatus: 'Rejected',
-        signal: 'unfortunately',
+        matchedEntry: atlassianActive,
+        status: 'Rejected',
+        signal: 'not moving forward',
         atsSender: 'greenhouse',
         detectedAt: '2026-04-13',
       });
@@ -1045,8 +1061,8 @@ format_version: 1
     it('markStatusChanged(Interview) maps classifier "Interview" to valid "Interview (1)" stage', () => {
       markStatusChanged(dir, {
         msgId: '<fixture-realtor-001@mail.gmail.com>',
-        matchedCompany: 'Realtor.com',
-        newStatus: 'Interview',
+        matchedEntry: realtorActive,
+        status: 'Interview',
         signal: 'schedule your interview',
         atsSender: 'greenhouse',
         detectedAt: '2026-04-13',
@@ -1057,24 +1073,22 @@ format_version: 1
       // 'Interview (2+)'. Regression test for C1.
       assert.equal(entry.stage, 'Interview (1)');
       const last = entry.history[entry.history.length - 1];
-      assert.match(last.detail, /msg-id: <fixture-realtor-001@mail\.gmail\.com>/);
+      assert.match(last.detail, /\(msg-id: <fixture-realtor-001@mail\.gmail\.com>\)/);
     });
 
     it('markStatusChanged(Interview) advances Interview (1) → Interview (2+) on repeat signal', () => {
-      // First interview invite
       markStatusChanged(dir, {
         msgId: '<fixture-interview-first@mail>',
-        matchedCompany: 'Realtor.com',
-        newStatus: 'Interview',
+        matchedEntry: realtorActive,
+        status: 'Interview',
         signal: 'schedule your interview',
         atsSender: 'greenhouse',
         detectedAt: '2026-04-13',
       });
-      // Second interview invite for same app, different msg-id
       markStatusChanged(dir, {
         msgId: '<fixture-interview-second@mail>',
-        matchedCompany: 'Realtor.com',
-        newStatus: 'Interview',
+        matchedEntry: { ...realtorActive, stage: 'Interview (1)' },
+        status: 'Interview',
         signal: 'interview scheduled',
         atsSender: 'greenhouse',
         detectedAt: '2026-04-14',
@@ -1082,6 +1096,31 @@ format_version: 1
       const data = parseApplications(dir);
       const entry = data.active.find(e => e.company === 'Realtor.com');
       assert.equal(entry.stage, 'Interview (2+)');
+    });
+
+    it('markStatusChanged(Interview) does NOT walk Offer stage backwards', () => {
+      // C5 regression: stray interview reminder on an Offer-stage app used to
+      // downgrade to 'Interview (1)'. STAGES_OUTRANKING_INTERVIEW prevents it.
+      // Seed an Offer entry first.
+      const offerEntry = { ...realtorActive, stage: 'Offer' };
+      // Manually put Realtor at Offer stage by writing the file directly.
+      const raw = fs.readFileSync(path.join(dir, '2026-04-13-applications.md'), 'utf8');
+      fs.writeFileSync(
+        path.join(dir, '2026-04-13-applications.md'),
+        raw.replace(/(### Realtor\.com[\s\S]*?\*\*Stage\*\*): Applied/, '$1: Offer')
+      );
+
+      markStatusChanged(dir, {
+        msgId: '<fixture-stray-interview@mail>',
+        matchedEntry: offerEntry,
+        status: 'Interview',
+        signal: 'interview scheduled',
+        atsSender: 'greenhouse',
+        detectedAt: '2026-04-13',
+      });
+      const data = parseApplications(dir);
+      const entry = data.active.find(e => e.company === 'Realtor.com');
+      assert.equal(entry.stage, 'Offer');
     });
 
     it('cross-format idempotency: flagForReview then markStatusChanged with same msg-id skips', () => {
@@ -1101,8 +1140,8 @@ format_version: 1
       });
       const result = markStatusChanged(dir, {
         msgId,
-        matchedCompany: 'Atlassian',
-        newStatus: 'Rejected',
+        matchedEntry: atlassianActive,
+        status: 'Rejected',
         signal: 'we\'ve decided to move forward',
         atsSender: 'greenhouse',
         detectedAt: '2026-04-13',
@@ -1120,8 +1159,8 @@ format_version: 1
       const msgId = '<fixture-cross-format-2@mail>';
       markStatusChanged(dir, {
         msgId,
-        matchedCompany: 'Atlassian',
-        newStatus: 'Rejected',
+        matchedEntry: atlassianActive,
+        status: 'Rejected',
         signal: 'we\'ve decided to move forward',
         atsSender: 'greenhouse',
         detectedAt: '2026-04-13',
@@ -1143,15 +1182,12 @@ format_version: 1
       assert.equal((data.flagged || []).length, 0);
     });
 
-    it('markStatusChanged with matchedSection=closed is a silent skip', () => {
+    it('markStatusChanged with matchedEntry.section=closed is a silent skip (no throw, no mutation)', () => {
       // Regression test for C2. A courtesy rejection email for an already-closed
       // application used to throw `No active application matching "..."`.
+      const before = fs.readFileSync(path.join(dir, '2026-04-13-applications.md'), 'utf8');
       const result = markStatusChanged(dir, {
         msgId: '<fixture-closed-section@mail>',
-        company: 'The New York Times',
-        status: 'Rejected',
-        signal: 'we regret to inform',
-        atsSender: 'greenhouse',
         matchedEntry: {
           company: 'The New York Times',
           title: 'VP Engineering',
@@ -1159,19 +1195,50 @@ format_version: 1
           stage: 'Closed (rejected)',
           section: 'closed',
         },
+        status: 'Rejected',
+        signal: 'we regret to inform',
+        atsSender: 'greenhouse',
         detectedAt: '2026-04-13',
       });
-      // Throws would crash the scan batch; silent skip preserves continuity.
       assert.equal(result.skipped, true);
+      assert.match(result.reason, /closed/);
+      // File must be unchanged — no silent mutation of closed entries.
+      const after = fs.readFileSync(path.join(dir, '2026-04-13-applications.md'), 'utf8');
+      assert.equal(before, after);
     });
 
-    it('markStatusChanged(Rejected) on missing Active entry flags for review instead of throwing', () => {
+    it('markStatusChanged with matchedEntry.section=flagged is a silent skip', () => {
+      const result = markStatusChanged(dir, {
+        msgId: '<fixture-flagged-section@mail>',
+        matchedEntry: {
+          company: 'SomeCompany',
+          title: 'Unknown',
+          url: null,
+          stage: null,
+          section: 'flagged',
+        },
+        status: 'Rejected',
+        signal: 'not moving forward',
+        atsSender: 'greenhouse',
+        detectedAt: '2026-04-13',
+      });
+      assert.equal(result.skipped, true);
+      assert.match(result.reason, /flagged/);
+    });
+
+    it('markStatusChanged(Rejected) on disappeared Active entry flags for review instead of throwing', () => {
       // Mid-batch race: entry was in Active at classify time, removed before
       // write. Must not throw — scan-email batch would crash.
       const result = markStatusChanged(dir, {
         msgId: '<fixture-missing-entry@mail>',
-        matchedCompany: 'NonexistentCo',
-        newStatus: 'Rejected',
+        matchedEntry: {
+          company: 'NonexistentCo',
+          title: 'VP Engineering',
+          url: null,
+          stage: 'Applied',
+          section: 'active',
+        },
+        status: 'Rejected',
         signal: 'not moving forward',
         atsSender: 'greenhouse',
         detectedAt: '2026-04-13',
@@ -1180,6 +1247,35 @@ format_version: 1
       const data = parseApplications(dir);
       const flagged = data.flagged.find(e => e.msgId === '<fixture-missing-entry@mail>');
       assert.notEqual(flagged, undefined);
+    });
+
+    it('markStatusChanged throws when matchedEntry is missing', () => {
+      // Fail-closed: no opts.matchedEntry is a programming error, not a
+      // fallback to 'active'.
+      assert.throws(
+        () => markStatusChanged(dir, {
+          msgId: '<fixture-no-match@mail>',
+          status: 'Rejected',
+          signal: 'not moving forward',
+          atsSender: 'greenhouse',
+          detectedAt: '2026-04-13',
+        }),
+        /matchedEntry is required/
+      );
+    });
+
+    it('markStatusChanged throws when matchedEntry.section is missing', () => {
+      assert.throws(
+        () => markStatusChanged(dir, {
+          msgId: '<fixture-no-section@mail>',
+          matchedEntry: { company: 'X', title: 'Y', url: null, stage: 'Applied' },
+          status: 'Rejected',
+          signal: 'not moving forward',
+          atsSender: 'greenhouse',
+          detectedAt: '2026-04-13',
+        }),
+        /matchedEntry\.section is required/
+      );
     });
   });
 });

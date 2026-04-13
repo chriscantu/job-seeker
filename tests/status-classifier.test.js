@@ -36,6 +36,35 @@ describe('classifyStatusEmail — sender matching', () => {
     assert.notEqual(result, null);
     assert.equal(result.atsSender, 'lever');
   });
+
+  it('matches @ashbyhq.com as ashby', () => {
+    const email = {
+      sender: 'no-reply@ashbyhq.com',
+      senderName: 'Ashby',
+      subject: 'Your application',
+      body: 'Thank you for applying.',
+      msgId: '<test-ashby@mail>',
+    };
+    const result = classifyStatusEmail({ ...email, applicationsData: loadApplications() });
+    assert.notEqual(result, null);
+    assert.equal(result.atsSender, 'ashby');
+  });
+
+  it('throws on missing sender — does not conflate programming error with non-ATS', () => {
+    // C4 regression: used to return `null` on undefined sender, masking
+    // upstream parser bugs as legitimate non-ATS classifications.
+    assert.throws(
+      () => classifyStatusEmail({ subject: 'x', body: 'y', msgId: '<z@m>', applicationsData: loadApplications() }),
+      /input\.sender must be a non-empty string/
+    );
+  });
+
+  it('throws on empty-string sender', () => {
+    assert.throws(
+      () => classifyStatusEmail({ sender: '', subject: 'x', body: 'y', msgId: '<z@m>', applicationsData: loadApplications() }),
+      /input\.sender must be a non-empty string/
+    );
+  });
 });
 
 describe('classifyStatusEmail — signal extraction', () => {
@@ -46,16 +75,19 @@ describe('classifyStatusEmail — signal extraction', () => {
     assert.match(result.signal, /not to move forward/i);
   });
 
-  it('extracts Rejected signal from "unfortunately" + "moving forward"', () => {
+  it('extracts Rejected signal from "will not be moving forward"', () => {
     const email = loadEmail('discord-rejection-greenhouse.json');
     const result = classifyStatusEmail({ ...email, applicationsData: loadApplications() });
     assert.equal(result.status, 'Rejected');
+    // Pin the specific pattern — catches regressions if the rule is removed.
+    assert.match(result.signal, /will not be moving forward/i);
   });
 
-  it('extracts Interview signal from "next steps" + "schedule your interview"', () => {
+  it('extracts Interview signal from "schedule your interview"', () => {
     const email = loadEmail('realtor-interview-greenhouse.json');
     const result = classifyStatusEmail({ ...email, applicationsData: loadApplications() });
     assert.equal(result.status, 'Interview');
+    assert.match(result.signal, /schedule your interview/i);
   });
 
   it('extracts Applied signal from "application received"', () => {
@@ -296,5 +328,27 @@ describe('classifyStatusEmail — matchedEntry projection and section', () => {
     const result = classifyStatusEmail({ ...email, applicationsData });
     assert.equal(result.matchMethod, 'url');
     assert.equal(result.matchedEntry.section, 'closed');
+  });
+
+  it('does NOT match against flagged entries — flagged are "unknown", matching them creates silent-skip loops', () => {
+    // Round 2 concern: matching a flagged entry then silently skipping it in
+    // markStatusChanged drops the signal entirely. Flagged entries are
+    // excluded from classifier matching outright.
+    const applicationsData = {
+      active: [],
+      closed: [],
+      flagged: [{
+        company: 'Atlassian',
+        title: 'VP Engineering',
+        url: 'https://boards.greenhouse.io/atlassian/jobs/5123456',
+        stage: null,
+      }],
+    };
+    const email = loadEmail('atlassian-rejection-greenhouse.json');
+    const result = classifyStatusEmail({ ...email, applicationsData });
+    // URL matches a flagged entry but classifier ignores flagged → LOW / none.
+    assert.equal(result.matchMethod, 'none');
+    assert.equal(result.matchedEntry, null);
+    assert.equal(result.tier, 'LOW');
   });
 });

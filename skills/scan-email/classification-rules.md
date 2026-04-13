@@ -100,16 +100,24 @@ The script returns one JSON object per call:
 ```json
 {
   "tier": "HIGH" | "MEDIUM" | "LOW",
-  "status": "Applied" | "Screen/Interview" | "Interview" | "Rejected" | "Offer" | null,
+  "status": "Applied" | "Interview" | "Rejected" | "Offer" | null,
   "matchMethod": "url" | "name" | "none",
   "signal": "...",
-  "atsSender": "greenhouse",
-  "matchedEntry": { "company": "...", "title": "...", "url": "...", "stage": "..." } | null,
+  "atsSender": "greenhouse" | "lever" | "ashby",
+  "matchedEntry": {
+    "company": "...",
+    "title": "...",
+    "url": "..." | null,
+    "stage": "...",
+    "section": "active" | "closed"
+  } | null,
   "msgId": "<...>"
 }
 ```
 
 Or `null` if the sender did not match an ATS domain (should not happen after Step 1, but the CLI is defensive).
+
+The classifier matches against `active` and `closed` entries only — flagged entries are excluded so status signals don't silently collide with unresolved previous flags. The `section` field on `matchedEntry` is REQUIRED by `markStatusChanged` — it uses it to decide whether to mutate the entry (active) or silently skip (closed, already-handled application). Callers must pass the full `matchedEntry` verbatim through to `markStatusChanged`.
 
 ### Step 3: Persist Candidate Records
 
