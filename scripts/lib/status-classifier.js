@@ -66,22 +66,83 @@ function extractSignal({ subject, body }) {
   return best;
 }
 
+const URL_RE = /https?:\/\/[^\s<>"')]+/gi;
+
+function normalizeUrl(url) {
+  if (!url) return null;
+  try {
+    const u = new URL(url);
+    const host = u.host.toLowerCase();
+    const pathname = u.pathname.replace(/\/+$/, '');
+    return `${u.protocol}//${host}${pathname}`;
+  } catch {
+    return null;
+  }
+}
+
+function extractUrls(body) {
+  if (!body) return [];
+  const matches = body.match(URL_RE) || [];
+  return matches.map(normalizeUrl).filter(Boolean);
+}
+
+function allEntries(applicationsData) {
+  return [
+    ...(applicationsData.active || []),
+    ...(applicationsData.closed || []),
+    ...(applicationsData.flagged || []),
+  ];
+}
+
+function matchByUrl(body, applicationsData) {
+  const bodyUrls = new Set(extractUrls(body));
+  if (bodyUrls.size === 0) return null;
+  for (const entry of allEntries(applicationsData)) {
+    const entryUrl = normalizeUrl(entry.url);
+    if (entryUrl && bodyUrls.has(entryUrl)) {
+      return entry;
+    }
+  }
+  return null;
+}
+
 function classifyStatusEmail(input) {
-  const { sender, subject, body, msgId } = input;
+  const { sender, subject, body, msgId, applicationsData } = input;
   const atsSender = matchAtsSender(sender);
   if (!atsSender) return null;
 
   const sig = extractSignal({ subject, body });
 
+  const urlMatch = matchByUrl(body, applicationsData || { active: [], closed: [], flagged: [] });
+
+  let tier = 'LOW';
+  let matchMethod = 'none';
+  let matchedEntry = null;
+
+  if (urlMatch) {
+    matchMethod = 'url';
+    matchedEntry = urlMatch;
+    if (sig) tier = 'HIGH';
+  }
+
   return {
-    tier: 'LOW',
+    tier,
     status: sig ? sig.status : null,
-    matchMethod: 'none',
+    matchMethod,
     signal: sig ? sig.signal : null,
     atsSender,
-    matchedEntry: null,
+    matchedEntry,
     msgId,
   };
 }
 
-module.exports = { classifyStatusEmail, ATS_SENDERS, SIGNAL_RULES, matchAtsSender, extractSignal };
+module.exports = {
+  classifyStatusEmail,
+  ATS_SENDERS,
+  SIGNAL_RULES,
+  matchAtsSender,
+  extractSignal,
+  normalizeUrl,
+  extractUrls,
+  matchByUrl,
+};

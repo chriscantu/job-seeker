@@ -89,3 +89,44 @@ describe('classifyStatusEmail — signal extraction', () => {
     assert.equal(result.status, 'Rejected');
   });
 });
+
+describe('classifyStatusEmail — URL matching', () => {
+  it('HIGH tier when body URL matches applications.md entry URL', () => {
+    const email = loadEmail('atlassian-rejection-greenhouse.json');
+    const result = classifyStatusEmail({ ...email, applicationsData: loadApplications() });
+    assert.equal(result.tier, 'HIGH');
+    assert.equal(result.matchMethod, 'url');
+    assert.equal(result.matchedEntry.company, 'Atlassian');
+  });
+
+  it('HIGH tier for interview URL match', () => {
+    const email = loadEmail('realtor-interview-greenhouse.json');
+    const result = classifyStatusEmail({ ...email, applicationsData: loadApplications() });
+    assert.equal(result.tier, 'HIGH');
+    assert.equal(result.matchMethod, 'url');
+    assert.equal(result.matchedEntry.company, 'Realtor.com');
+  });
+
+  it('URL normalization: strips query params and trailing slash', () => {
+    const applicationsData = {
+      active: [{
+        company: 'Test',
+        title: 'Role',
+        url: 'https://boards.greenhouse.io/test/jobs/999',
+        stage: 'Applied',
+      }],
+      closed: [],
+      flagged: [],
+    };
+    const email = {
+      sender: 'no-reply@greenhouse-mail.io',
+      senderName: 'Test',
+      subject: 'Update',
+      body: 'Unfortunately https://boards.greenhouse.io/test/jobs/999/?utm=foo we have decided.',
+      msgId: '<test-norm@mail>',
+    };
+    const result = classifyStatusEmail({ ...email, applicationsData });
+    assert.equal(result.matchMethod, 'url');
+    assert.equal(result.matchedEntry.company, 'Test');
+  });
+});
