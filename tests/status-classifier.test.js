@@ -37,3 +37,55 @@ describe('classifyStatusEmail — sender matching', () => {
     assert.equal(result.atsSender, 'lever');
   });
 });
+
+describe('classifyStatusEmail — signal extraction', () => {
+  it('extracts Rejected signal from "we\'ve decided not to move forward"', () => {
+    const email = loadEmail('atlassian-rejection-greenhouse.json');
+    const result = classifyStatusEmail({ ...email, applicationsData: loadApplications() });
+    assert.equal(result.status, 'Rejected');
+    assert.match(result.signal, /not to move forward/i);
+  });
+
+  it('extracts Rejected signal from "unfortunately" + "moving forward"', () => {
+    const email = loadEmail('discord-rejection-greenhouse.json');
+    const result = classifyStatusEmail({ ...email, applicationsData: loadApplications() });
+    assert.equal(result.status, 'Rejected');
+  });
+
+  it('extracts Interview signal from "next steps" + "schedule your interview"', () => {
+    const email = loadEmail('realtor-interview-greenhouse.json');
+    const result = classifyStatusEmail({ ...email, applicationsData: loadApplications() });
+    assert.equal(result.status, 'Interview');
+  });
+
+  it('extracts Applied signal from "application received"', () => {
+    const email = loadEmail('ambiguous-no-signal.json');
+    const result = classifyStatusEmail({ ...email, applicationsData: loadApplications() });
+    // NB: fixture body says "We received your application" — normalize test expectations
+    assert.equal(result.status, 'Applied');
+  });
+
+  it('status is null when no signal phrases match', () => {
+    const email = {
+      sender: 'notifications@lever.co',
+      senderName: 'Test',
+      subject: 'Generic update',
+      body: 'Hello, this is just a status email with no specific signal phrases.',
+      msgId: '<test-no-signal@mail>',
+    };
+    const result = classifyStatusEmail({ ...email, applicationsData: loadApplications() });
+    assert.equal(result.status, null);
+  });
+
+  it('priority: Rejected beats Applied when both phrases present', () => {
+    const email = {
+      sender: 'no-reply@greenhouse-mail.io',
+      senderName: 'Test',
+      subject: 'Application update',
+      body: 'Thank you for applying. After review, we\'ve decided not to move forward.',
+      msgId: '<test-priority@mail>',
+    };
+    const result = classifyStatusEmail({ ...email, applicationsData: loadApplications() });
+    assert.equal(result.status, 'Rejected');
+  });
+});
