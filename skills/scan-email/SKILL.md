@@ -184,14 +184,50 @@ Read `skills/_shared/apple-notes.md` and execute the update operation for
 the Seen Postings note.
 
 ### Trash Apple Mail alerts
-Skip if `apple_mail_enabled = false` or no Apple Mail candidates body-fetched.
+Skip if `apple_mail_enabled = false`.
 
-Trash in **descending index order** (highest first to prevent index shifting):
+**Step 1: Trash aggregator + marketing senders by sender pattern (atomic).**
+
+Read both auto-trash tables from `config/search.md`:
+- **"Staffing/Aggregator Company Exclusions"** — the "Trash Sender Substring" column
+- **"Marketing / Non-Job-Search Senders to Auto-Trash"** — the "Trash Sender Substring" column
+
+Concatenate every substring from both tables into a comma-separated list, then
+issue a single trash-by-sender call:
+
 ```bash
-osascript {plugin_root}/scripts/apple_mail_trash.applescript "{account_name}" "{inbox_name}" {index}
+osascript {plugin_root}/scripts/apple_mail_trash_by_sender.applescript \
+  "{account_name}" "{inbox_name}" "{comma_separated_substrings}"
 ```
 
-Handle: `MESSAGE_NOT_FOUND` (skip), `TRASH_NOT_FOUND` (stop all trash calls).
+The script uses Mail's `whose sender contains` query so matching is by sender
+substring, NOT by index — immune to mid-sequence shifts when new mail arrives.
+It returns `trashed: pattern1=N pattern2=M ...` per matched pattern.
+
+These messages should never accumulate in the inbox regardless of whether they
+were body-fetched. If the user reports a new sender that "shouldn't be there,"
+add it to one of the two `config/search.md` tables — do not handle ad-hoc.
+
+**Step 2: Trash body-fetched candidate alerts by message-ID.**
+
+For each Apple Mail message that was body-fetched as a legitimate candidate
+(whether ultimately confirmed or excluded post-classification), use the
+`message_id` field captured during Phase 2 scan and pass it via `--by-id`:
+
+```bash
+osascript {plugin_root}/scripts/apple_mail_trash.applescript "{account_name}" "{inbox_name}" --by-id "{message_id}"
+```
+
+The script uses Mail's `whose message id is` query — also immune to index shifts.
+
+⚠️ **Do NOT trash by index.** Indices shift when new mail arrives between scan
+and trash, which causes silent wrong-message trashes. The legacy by-index mode
+of `apple_mail_trash.applescript` still exists for backward compatibility but
+should never be used in this skill. Always pass `--by-id "{message_id}"` from
+the scan output's 5th field.
+
+Handle: `MESSAGE_NOT_FOUND` (skip — message already moved or message-id not in
+mailbox), `TRASH_NOT_FOUND` (stop all trash calls — Trash mailbox is missing).
 
 ### Gmail cleanup report
 Skip if `gmail_enabled = false` or no Gmail candidates body-fetched.
