@@ -240,10 +240,10 @@ function parseApplicationsFile(filePath) {
 }
 
 function parseApplications(dir) {
-  if (!fs.existsSync(dir)) return { active: [], closed: [] };
+  if (!fs.existsSync(dir)) return { active: [], closed: [], flagged: [] };
 
   const filePath = resolveStateFile(dir, 'applications');
-  if (!filePath) return { active: [], closed: [] };
+  if (!filePath) return { active: [], closed: [], flagged: [] };
 
   return parseApplicationsFile(filePath);
 }
@@ -499,10 +499,45 @@ function reopenApplication(dir, { company, stage, detail }) {
   atomicWriteFileSync(filePath, formatApplicationsFile(data));
 }
 
-function hasMsgIdInHistory(filePath, msgId) {
+// Structured msg-id lookup: checks both storage locations (history entries
+// written by markStatusChanged, and the msgId field on flagged entries
+// written by flagForReview) so a msg-id recorded by one path prevents the
+// other from re-processing it. Replaces the older substring-based scan,
+// which missed cross-format idempotency and was vulnerable to msg-id prefix
+// collisions.
+function hasMsgId(data, msgId) {
   if (!msgId) return false;
-  const content = fs.readFileSync(filePath, 'utf8');
-  return content.includes(`msg-id: ${msgId}`);
+  const token = `msg-id: ${msgId}`;
+  for (const entry of [...(data.active || []), ...(data.closed || [])]) {
+    for (const h of entry.history || []) {
+      if (h.detail && h.detail.includes(token)) return true;
+    }
+  }
+  for (const flagged of data.flagged || []) {
+    if (flagged.msgId === msgId) return true;
+  }
+  return false;
+}
+
+// Maps a classifier status ('Applied' | 'Interview' | 'Offer') to the
+// closest valid VALID_STAGES value, taking the entry's current stage into
+// account so repeated interview signals advance the stage rather than
+// collapsing to (1). Rejected is handled separately by markStatusChanged
+// and never routes through this function.
+function classifierStatusToStage(classifierStatus, currentStage) {
+  switch (classifierStatus) {
+    case 'Applied':
+      return 'Applied';
+    case 'Offer':
+      return 'Offer';
+    case 'Interview':
+      if (currentStage === 'Interview (1)') return 'Interview (2+)';
+      if (currentStage === 'Interview (2+)') return 'Interview (2+)';
+      if (currentStage === 'Final Round') return 'Final Round';
+      return 'Interview (1)';
+    default:
+      return null;
+  }
 }
 
 function flagForReview(dir, opts) {
@@ -512,11 +547,7 @@ function flagForReview(dir, opts) {
   const data = parseApplicationsFile(filePath);
   data.flagged = data.flagged || [];
 
-  if (opts.msgId) {
-    const dupFlagged = data.flagged.find(e => e.msgId === opts.msgId);
-    if (dupFlagged) return { skipped: true };
-    if (hasMsgIdInHistory(filePath, opts.msgId)) return { skipped: true };
-  }
+  if (opts.msgId && hasMsgId(data, opts.msgId)) return { skipped: true };
 
   data.flagged.push({
     company: opts.company || 'Unknown',
@@ -534,22 +565,54 @@ function flagForReview(dir, opts) {
   return { skipped: false };
 }
 
+// Accepts either legacy flat opts or the classifier result directly. Legacy
+// callers still pass { matchedCompany, newStatus, ... }; new callers can
+// pass the classifier result's fields via { company, status, ... } — the
+// function accepts both spellings for backward compatibility.
 function markStatusChanged(dir, opts) {
   const filePath = resolveStateFile(dir, 'applications');
   if (!filePath) throw new Error('No applications file found');
 
-  if (hasMsgIdInHistory(filePath, opts.msgId)) {
-    return { skipped: true };
-  }
+  const company = opts.company || opts.matchedCompany;
+  const newStatus = opts.newStatus || opts.status;
+  const matchedSection = opts.matchedSection || (opts.matchedEntry && opts.matchedEntry.section) || 'active';
+
+  if (!company) throw new Error('markStatusChanged: company is required');
+  if (!newStatus) throw new Error('markStatusChanged: newStatus is required');
 
   const data = parseApplicationsFile(filePath);
-  const query = opts.matchedCompany.toLowerCase();
-  const detectedAt = opts.detectedAt || new Date().toISOString().slice(0, 10);
-  const detail = `scan-email detected ${opts.atsSender} ${opts.newStatus.toLowerCase()} (msg-id: ${opts.msgId})`;
 
-  if (opts.newStatus === 'Rejected') {
+  if (opts.msgId && hasMsgId(data, opts.msgId)) return { skipped: true };
+
+  // Match against a Closed or Flagged entry means the user already handled
+  // this application; a courtesy follow-up email shouldn't reopen anything.
+  // Record the no-op and move on.
+  if (matchedSection !== 'active') {
+    return { skipped: true, reason: `matched ${matchedSection} entry` };
+  }
+
+  const query = company.toLowerCase();
+  const detectedAt = opts.detectedAt || new Date().toISOString().slice(0, 10);
+  const detail = `scan-email detected ${opts.atsSender} ${newStatus.toLowerCase()} (msg-id: ${opts.msgId})`;
+
+  if (newStatus === 'Rejected') {
     const idx = data.active.findIndex(e => e.company.toLowerCase() === query);
-    if (idx === -1) throw new Error(`No active application matching "${opts.matchedCompany}"`);
+    if (idx === -1) {
+      // Active entry disappeared between classify and write. Don't lose the
+      // signal — flag for review instead of throwing (which would crash the
+      // enclosing scan-email batch).
+      return flagForReview(dir, {
+        company,
+        title: (opts.matchedEntry && opts.matchedEntry.title) || null,
+        signal: opts.signal,
+        status: 'Rejected',
+        sender: opts.sender || null,
+        matchMethod: 'none',
+        msgId: opts.msgId,
+        detectedAt,
+        action: 'Active entry disappeared mid-processing — verify pipeline state',
+      });
+    }
     const entry = data.active[idx];
     data.active.splice(idx, 1);
 
@@ -564,10 +627,26 @@ function markStatusChanged(dir, opts) {
     data.closed.push(entry);
   } else {
     const entry = data.active.find(e => e.company.toLowerCase() === query);
-    if (!entry) throw new Error(`No active application matching "${opts.matchedCompany}"`);
-    entry.stage = opts.newStatus;
-    entry.lastActivity = { date: detectedAt, detail: `${opts.newStatus} — ${opts.signal}` };
-    entry.history.push({ date: detectedAt, stage: opts.newStatus, detail });
+    if (!entry) {
+      return flagForReview(dir, {
+        company,
+        title: (opts.matchedEntry && opts.matchedEntry.title) || null,
+        signal: opts.signal,
+        status: newStatus,
+        sender: opts.sender || null,
+        matchMethod: 'none',
+        msgId: opts.msgId,
+        detectedAt,
+        action: 'Active entry disappeared mid-processing — verify pipeline state',
+      });
+    }
+    const mappedStage = classifierStatusToStage(newStatus, entry.stage);
+    if (!mappedStage) {
+      throw new Error(`Unknown classifier status: ${newStatus}`);
+    }
+    entry.stage = mappedStage;
+    entry.lastActivity = { date: detectedAt, detail: `${mappedStage} — ${opts.signal}` };
+    entry.history.push({ date: detectedAt, stage: mappedStage, detail });
   }
 
   atomicWriteFileSync(filePath, formatApplicationsFile(data));
