@@ -46,8 +46,9 @@ State mutations go through a second confirmation gate distinct from the existing
 | `skills/scan-email/classification-rules.md` | New "Status Change Path" section parallel to existing "Job Alert Path" |
 | `references/email-patterns.md` | Promote "Future: Application Status Patterns (v2)" to active section with expanded signal table |
 | `output/*-applications.md` schema | New `## Flagged for Review` section; frontmatter gains `flagged_count:`; History entries gain `msg-id:` suffix |
-| `skills/scan-email/test-fixtures/status/` | New directory with fixture emails and applications.md fixture |
-| `scripts/test-status-classifier.js` | New bun test runner (manual/CI invocation, not preflight) |
+| `tests/fixtures/status-emails/` | New directory with fixture emails and applications.md fixture |
+| `tests/status-classifier.test.js` | Unit tests for the classifier, run via `bun test` |
+| `tests/classify-status-email-cli.test.js` | CLI integration tests, run via `bun test` |
 
 ### Gmail query
 
@@ -296,26 +297,26 @@ If the slug cannot be resolved to an existing directory: print `💡 Could not a
 
 ### Fixtures
 
-New directory: `skills/scan-email/test-fixtures/status/`
+New directory: `tests/fixtures/status-emails/`
 
 | File | Expected tier | Expected status | Expected match_method |
 |---|---|---|---|
-| `atlassian-rejection-greenhouse.txt` | HIGH | Rejected | url |
-| `schwab-rejection-direct.txt` | MEDIUM | Rejected | name |
-| `nyt-rejection-talent-acquisition.txt` | MEDIUM | Rejected | name |
-| `realtor-interview-greenhouse.txt` | HIGH | Interview | url |
-| `ambiguous-unfortunately.txt` | LOW | (no status) | n/a |
-| `unknown-company.txt` | LOW | Rejected | none |
+| `atlassian-rejection-greenhouse.json` | HIGH | Rejected | url |
+| `discord-rejection-greenhouse.json` | MEDIUM | Rejected | name |
+| `realtor-interview-greenhouse.json` | HIGH | Interview | url |
+| `unknown-company-greenhouse.json` | LOW | Rejected | none |
+| `ambiguous-no-signal.json` | LOW | Applied | none |
+| `non-ats-sender.json` | (classifier returns null — not a status email) | n/a | n/a |
 
-Plus `skills/scan-email/test-fixtures/applications-fixture.md` — a minimal applications.md used as the resolution target.
+Plus `tests/fixtures/status-emails/applications.md` — a minimal applications.md used as the resolution target.
 
-All fixtures sanitized of personal information. Real posting URLs are preserved because URL matching is the HIGH-tier load-bearing path.
+All fixtures sanitized of personal information. Real posting URL patterns are preserved because URL matching is the HIGH-tier load-bearing path.
 
 ### Test runner
 
-`scripts/test-status-classifier.js` (bun). Reads each fixture, runs the Status Change Path against the fixture applications.md, asserts expected `{tier, status, slug, match_method}`. Exits non-zero on mismatch.
+Tests live in `tests/status-classifier.test.js` (pure classifier logic, 16 tests) and `tests/classify-status-email-cli.test.js` (CLI integration, 4 tests). Both use `node:test` + `node:assert/strict` and run via `bun test`.
 
-**Not wired into preflight.** Preflight stays lean. Runs manually (`bun scripts/test-status-classifier.js`) or via CI if/when CI exists for this repo.
+**Not wired into preflight.** Preflight stays lean. Tests run manually (`bun test`) or via the GitHub Actions `validate` workflow.
 
 ## Open questions resolved during design
 
