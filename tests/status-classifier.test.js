@@ -130,3 +130,67 @@ describe('classifyStatusEmail — URL matching', () => {
     assert.equal(result.matchedEntry.company, 'Test');
   });
 });
+
+describe('classifyStatusEmail — name matching', () => {
+  it('MEDIUM tier when sender name matches entry without URL', () => {
+    const email = loadEmail('discord-rejection-greenhouse.json');
+    const result = classifyStatusEmail({ ...email, applicationsData: loadApplications() });
+    assert.equal(result.tier, 'MEDIUM');
+    assert.equal(result.matchMethod, 'name');
+    assert.equal(result.matchedEntry.company, 'Discord');
+  });
+
+  it('LOW tier when ATS sender + signal but no entry matches', () => {
+    const email = loadEmail('unknown-company-greenhouse.json');
+    const result = classifyStatusEmail({ ...email, applicationsData: loadApplications() });
+    assert.equal(result.tier, 'LOW');
+    assert.equal(result.matchMethod, 'none');
+    assert.equal(result.matchedEntry, null);
+    // Status still extracted — this is a LOW-with-status case
+    assert.equal(result.status, 'Rejected');
+  });
+
+  it('name normalization strips "Inc" / "LLC" / punctuation', () => {
+    const applicationsData = {
+      active: [{
+        company: 'Realtor.com',
+        title: 'Director',
+        url: null,
+        stage: 'Applied',
+      }],
+      closed: [],
+      flagged: [],
+    };
+    const email = {
+      sender: 'no-reply@greenhouse-mail.io',
+      senderName: 'Realtor com Inc',
+      subject: 'Update',
+      body: 'Unfortunately, we will not be moving forward.',
+      msgId: '<test-norm-name@mail>',
+    };
+    const result = classifyStatusEmail({ ...email, applicationsData });
+    assert.equal(result.matchMethod, 'name');
+    assert.equal(result.matchedEntry.company, 'Realtor.com');
+  });
+
+  it('URL match takes precedence over name match', () => {
+    const applicationsData = {
+      active: [
+        { company: 'Alpha', title: 'VP', url: 'https://boards.greenhouse.io/alpha/jobs/1', stage: 'Applied' },
+        { company: 'Beta', title: 'VP', url: null, stage: 'Applied' },
+      ],
+      closed: [],
+      flagged: [],
+    };
+    const email = {
+      sender: 'no-reply@greenhouse-mail.io',
+      senderName: 'Beta',
+      subject: 'Update',
+      body: 'Unfortunately, check https://boards.greenhouse.io/alpha/jobs/1 for the posting.',
+      msgId: '<test-precedence@mail>',
+    };
+    const result = classifyStatusEmail({ ...email, applicationsData });
+    assert.equal(result.matchMethod, 'url');
+    assert.equal(result.matchedEntry.company, 'Alpha');
+  });
+});

@@ -106,14 +106,59 @@ function matchByUrl(body, applicationsData) {
   return null;
 }
 
+function normalizeName(name) {
+  if (!name) return null;
+  return name
+    .toLowerCase()
+    .replace(/\b(inc|llc|corp|corporation|ltd|limited)\b/g, '')
+    .replace(/[^a-z0-9]+/g, '')
+    .trim();
+}
+
+function extractCompanyFromSender({ sender, senderName, subject }) {
+  // Prefer senderName display (strip "via Lever" / "Talent Acquisition" / etc.)
+  if (senderName) {
+    const cleaned = senderName
+      .replace(/\s+via\s+(lever|greenhouse|ashby)/i, '')
+      .replace(/\s+(talent acquisition|recruiting|careers|talent team)\s*$/i, '')
+      .trim();
+    if (cleaned) return cleaned;
+  }
+  // Greenhouse pattern: {company}@greenhouse-mail.io
+  if (sender) {
+    const m = sender.match(/^([^@]+)@greenhouse-mail\.io$/i);
+    if (m && m[1] !== 'no-reply') return m[1];
+  }
+  // Subject pattern: "Your application to {company}"
+  if (subject) {
+    const m = subject.match(/application to (.+?)(?:\s*[-—]|\s*$)/i);
+    if (m) return m[1];
+  }
+  return null;
+}
+
+function matchByName({ sender, senderName, subject }, applicationsData) {
+  const rawName = extractCompanyFromSender({ sender, senderName, subject });
+  if (!rawName) return null;
+  const normalized = normalizeName(rawName);
+  if (!normalized) return null;
+
+  for (const entry of allEntries(applicationsData)) {
+    if (normalizeName(entry.company) === normalized) return entry;
+  }
+  return null;
+}
+
 function classifyStatusEmail(input) {
-  const { sender, subject, body, msgId, applicationsData } = input;
+  const { sender, senderName, subject, body, msgId, applicationsData } = input;
   const atsSender = matchAtsSender(sender);
   if (!atsSender) return null;
 
   const sig = extractSignal({ subject, body });
+  const data = applicationsData || { active: [], closed: [], flagged: [] };
 
-  const urlMatch = matchByUrl(body, applicationsData || { active: [], closed: [], flagged: [] });
+  const urlMatch = matchByUrl(body, data);
+  const nameMatch = urlMatch ? null : matchByName({ sender, senderName, subject }, data);
 
   let tier = 'LOW';
   let matchMethod = 'none';
@@ -123,6 +168,10 @@ function classifyStatusEmail(input) {
     matchMethod = 'url';
     matchedEntry = urlMatch;
     if (sig) tier = 'HIGH';
+  } else if (nameMatch) {
+    matchMethod = 'name';
+    matchedEntry = nameMatch;
+    if (sig) tier = 'MEDIUM';
   }
 
   return {
@@ -145,4 +194,7 @@ module.exports = {
   normalizeUrl,
   extractUrls,
   matchByUrl,
+  normalizeName,
+  extractCompanyFromSender,
+  matchByName,
 };
