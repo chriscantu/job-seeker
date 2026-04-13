@@ -177,6 +177,7 @@ test("ATS resume docx: blank line between frontmatter and # heading preserves he
     assert.ok(documentXml.includes("Chris Cantu"), "Candidate name missing from ATS document body — header block was dropped");
     assert.ok(documentXml.includes("Engineering Leader"), "Tagline missing from ATS document body");
     assert.ok(documentXml.includes("chris@example.com"), "Contact line missing from ATS document body");
+    assert.ok(documentXml.includes("Experienced engineering leader"), "Summary missing from ATS document body");
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
