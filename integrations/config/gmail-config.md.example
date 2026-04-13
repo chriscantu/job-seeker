@@ -51,10 +51,10 @@ are ignored. Default 7 matches the Apple Mail age filter.
 ## Scope Restriction
 
 Only job alert emails matching known sender patterns are processed.
-The skill reads and classifies emails but cannot currently trash or
-archive Gmail messages — the Gmail MCP does not yet support message
-modification. After scanning, the skill reports which messages were
-processed so you can bulk-clean them manually.
+After scanning, processed Gmail messages are automatically trashed via
+`scripts/gmail.js` if Gmail API credentials are configured in
+`credentials/`. Without credentials, a manual cleanup report is shown
+instead.
 
 ## MCP Prerequisite
 

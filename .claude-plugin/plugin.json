@@ -17,7 +17,8 @@
     { "file": "skills/networking-outreach/SKILL.md" },
     { "file": "skills/setup/SKILL.md" },
     { "file": "skills/linkedin-article/SKILL.md" },
-    { "file": "skills/scan-email/SKILL.md" }
+    { "file": "skills/scan-email/SKILL.md" },
+    { "file": "skills/follow-up/SKILL.md" }
   ],
   "hooks": "./hooks/hooks.json"
 }

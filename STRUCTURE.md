@@ -58,6 +58,8 @@ job-seeker/
 │   │   └── pipeline-schema.md
 │   ├── networking-outreach/
 │   │   └── SKILL.md
+│   ├── follow-up/
+│   │   └── SKILL.md
 │   ├── setup/
 │   │   └── SKILL.md
 │   ├── linkedin-article/

@@ -34,3 +34,6 @@ default.profraw
 
 # OS files
 .DS_Store
+
+# Gmail API credentials (OAuth2 tokens — personal)
+credentials/

@@ -39,6 +39,8 @@ doing anything else so the user sees the full picture.
    does it contain a non-placeholder `api_key` (i.e., not `tsk_xxxxxxxxxxxxxxxx`)?
 5. **integrations/config/notes-config.md** — does it exist? If yes, does
    `plugin_root` point to a real directory?
+6. **credentials/gmail-client-secret.json** — does it exist? If yes, does
+   `credentials/gmail-tokens.json` also exist (authenticated)?
 
 ### Output format
 
@@ -175,6 +177,29 @@ If yes:
 4. Generate `integrations/config/notes-config.md` with their values
 
 If no, move on.
+
+### 2f — credentials/gmail-client-secret.json (optional)
+
+Explain what Gmail API credentials provide:
+> "The Gmail API integration lets scan-email automatically trash processed
+> job alert emails instead of requiring manual cleanup. It requires a
+> Google Cloud project with the Gmail API enabled.
+>
+> Want to set it up?"
+
+If yes:
+1. Guide the user through Google Cloud Console:
+   - Go to https://console.cloud.google.com/
+   - Create a project (or select existing)
+   - Enable the Gmail API
+   - Create OAuth 2.0 credentials (Desktop application type)
+   - Download the JSON file
+2. Ask the user to save it as `credentials/gmail-client-secret.json`
+3. Run `bun scripts/gmail.js auth` to complete the OAuth flow
+4. Verify: check that `credentials/gmail-tokens.json` was created
+
+If no, move on. This is optional — scan-email falls back to manual
+cleanup reports without it.
 
 ---
 

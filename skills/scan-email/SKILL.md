@@ -4,8 +4,8 @@ description: >
   Scan Apple Mail and/or Gmail for job alert emails from Indeed, LinkedIn,
   Glassdoor, and other sources. Extracts role URLs, deduplicates against
   seen-postings (and cross-deduplicates between sources), verifies via ATS
-  APIs, and presents new roles for confirmation. Processed Apple Mail alerts
-  are trashed; Gmail alerts are reported for manual cleanup (MCP limitation).
+  APIs, and presents new roles for confirmation. Processed alerts are trashed
+  from both Apple Mail and Gmail.
   Output appended to seen-postings and preferences.
   Triggers: "scan my email", "check mail for jobs", "any job emails", "scan inbox"
 allowed-tools: Read, Write, Edit, Bash, WebSearch, WebFetch, Glob
@@ -246,10 +246,30 @@ the scan output's 5th field.
 | `TRASH_NOT_FOUND` | **Stop all trash calls.** Trash mailbox is missing — surface to user, do not continue. |
 | `error: {message}` | **Stop all trash calls** for this run and surface the error to the user. Unknown failures should not be silently retried. |
 
-### Gmail cleanup report
+### Trash Gmail alerts
 Skip if `gmail_enabled = false` or no Gmail candidates body-fetched.
 
-Report processed messages for manual cleanup (Gmail MCP cannot trash).
+Collect all `messageId`s from Gmail candidates that were body-fetched AND
+presented in the Phase 5 confirmation table.
+
+**Check credentials first:**
+```bash
+test -f {plugin_root}/credentials/gmail-client-secret.json && test -f {plugin_root}/credentials/gmail-tokens.json && echo "ready" || echo "not-configured"
+```
+
+If `not-configured`, fall back to manual cleanup report:
+> "Gmail trash not configured. Run `bun scripts/gmail.js auth` to enable
+> automatic cleanup. Processed Gmail messages for manual review:
+> {list messageIds}"
+
+If `ready`, trash in one call:
+```bash
+bun {plugin_root}/scripts/gmail.js trash {id1} {id2} ...
+```
+
+Parse output: count `trashed:` lines for success, surface any `error:` lines.
+Report: "Trashed {N} Gmail messages." or "Trashed {N}/{total} Gmail messages
+({errors} failed — check manually)."
 
 ## Error Handling
 
@@ -270,7 +290,7 @@ Report processed messages for manual cleanup (Gmail MCP cannot trash).
 ## Key Constraints
 
 - At least one source required
-- Apple Mail: read + trash; Gmail: read only
+- Apple Mail: read + trash; Gmail: read + trash (via scripts/gmail.js)
 - Cross-source dedup — same role counted once
 - 10-message batches (Apple Mail osascript limit)
 - 50-message cap per source
@@ -284,4 +304,3 @@ Report processed messages for manual cleanup (Gmail MCP cannot trash).
 
 - Application status detection (Greenhouse/Lever/Ashby status change emails)
 - Recruiter outreach surfacing
-- Gmail trash support (when MCP adds message modification)

@@ -20,6 +20,7 @@ const ignoredPrefixes = [
   'references/',
   'integrations/config/',
   '.claude/',
+  'credentials/',
 ];
 
 // Directories to skip when scanning for markdown source files.
