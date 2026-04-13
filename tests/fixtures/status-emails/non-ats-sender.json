@@ -1,0 +1,7 @@
+{
+  "sender": "talent@randomcompany.com",
+  "senderName": "Random Company Talent",
+  "subject": "Your application status",
+  "body": "Unfortunately we've decided not to proceed.",
+  "msgId": "<fixture-nonats-001@mail.gmail.com>"
+}

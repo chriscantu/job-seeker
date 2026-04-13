@@ -1,0 +1,7 @@
+{
+  "sender": "no-reply@greenhouse-mail.io",
+  "senderName": "Acme Corp Recruiting",
+  "subject": "Update on your application",
+  "body": "Hi Chris,\n\nThank you for your interest in Acme Corp. Unfortunately, we've decided to move forward with other candidates.\n\nhttps://boards.greenhouse.io/acme/jobs/1111111\n\nBest,\nAcme Recruiting",
+  "msgId": "<fixture-unknown-001@mail.gmail.com>"
+}
