@@ -1,9 +1,9 @@
 # Scan Email — Classification Rules
 
 Rules for classifying email messages as job alerts vs non-job-related email.
-Applied to both Apple Mail and Gmail messages.
+Applied to both Apple Mail and Gmail messages. Each message is evaluated against both paths; the two are disjoint by sender so a single message can only match one.
 
-## Classification Pipeline
+## Job Alert Path
 
 For each message (using subject, sender email, date_received):
 
@@ -72,3 +72,47 @@ many matching emails.
   ```
   from:google.com subject:"Google Alert" newer_than:{lookback_days}d
   ```
+
+## Status Change Path
+
+Runs in parallel to the Job Alert Path. A message either matches this path (ATS status email) or the Job Alert Path (job posting alert) — never both, because the sender sets are disjoint.
+
+### Step 1: ATS Sender Match
+
+Check the sender domain against ATS Notification Senders in `references/email-patterns.md` → Application Status Patterns. Currently recognized:
+
+- `@greenhouse.io`, `@greenhouse-mail.io`, `no-reply@greenhouse.io`
+- `@lever.co`, `notifications@lever.co`
+- `@ashbyhq.com`
+
+No match → skip (may still be classified by the Job Alert Path).
+
+### Step 2: Invoke the Classifier Script
+
+For each ATS-sender match, run:
+
+```bash
+bun scripts/classify-status-email.js --email {email.json} --applications-dir {plugin_root}/output
+```
+
+The script returns one JSON object per call:
+
+```json
+{
+  "tier": "HIGH" | "MEDIUM" | "LOW",
+  "status": "Applied" | "Screen/Interview" | "Interview" | "Rejected" | "Offer" | null,
+  "matchMethod": "url" | "name" | "none",
+  "signal": "...",
+  "atsSender": "greenhouse",
+  "matchedEntry": { "company": "...", "title": "...", "url": "...", "stage": "..." } | null,
+  "msgId": "<...>"
+}
+```
+
+Or `null` if the sender did not match an ATS domain (should not happen after Step 1, but the CLI is defensive).
+
+### Step 3: Persist Candidate Records
+
+Tag each classified record with `type: status-change` and the full JSON result. These records flow into Phase 5 Gate 2 (HIGH/MEDIUM) or Phase 6 Flagged for Review append (LOW).
+
+Candidates from the Status Change Path are NOT subject to the same early-stop rule as job alerts — process all ATS matches in the batch.
