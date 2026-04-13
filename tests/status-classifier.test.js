@@ -88,6 +88,43 @@ describe('classifyStatusEmail — signal extraction', () => {
     const result = classifyStatusEmail({ ...email, applicationsData: loadApplications() });
     assert.equal(result.status, 'Rejected');
   });
+
+  it('polite rejection: Rejected beats Interview when both phrases present', () => {
+    // Real rejection template: "we'd like to thank you" + "decided to move forward
+    // with other candidates". Old P3 /we'?d like to/i Interview beat P4 /other
+    // candidates/i Rejected, silently inverting status. Regression test for C3.
+    const email = loadEmail('polite-rejection-greenhouse.json');
+    const result = classifyStatusEmail({ ...email, applicationsData: loadApplications() });
+    assert.equal(result.status, 'Rejected');
+  });
+
+  it('reschedule interview phrasing does NOT classify as Rejected', () => {
+    // Old lone /unfortunately/i fired Rejected on this message, auto-closing a
+    // live interview thread. Regression test for C4.
+    const email = {
+      sender: 'no-reply@greenhouse-mail.io',
+      senderName: 'Test',
+      subject: 'Interview reschedule',
+      body: 'Unfortunately, the hiring manager is traveling this week — can we reschedule your interview for next Monday?',
+      msgId: '<test-reschedule@mail>',
+    };
+    const result = classifyStatusEmail({ ...email, applicationsData: loadApplications() });
+    assert.notEqual(result.status, 'Rejected');
+  });
+
+  it('drops soft Interview phrases — "next steps" alone no longer classifies', () => {
+    // Soft Interview phrases collide with rejection templates. They are now
+    // absent from SIGNAL_RULES; emails with only soft phrases go to LOW.
+    const email = {
+      sender: 'no-reply@greenhouse-mail.io',
+      senderName: 'Test',
+      subject: 'Next steps',
+      body: 'We\'d like to share next steps for your application.',
+      msgId: '<test-soft-interview@mail>',
+    };
+    const result = classifyStatusEmail({ ...email, applicationsData: loadApplications() });
+    assert.equal(result.status, null);
+  });
 });
 
 describe('classifyStatusEmail — URL matching', () => {
@@ -186,11 +223,78 @@ describe('classifyStatusEmail — name matching', () => {
       sender: 'no-reply@greenhouse-mail.io',
       senderName: 'Beta',
       subject: 'Update',
-      body: 'Unfortunately, check https://boards.greenhouse.io/alpha/jobs/1 for the posting.',
+      body: 'We will not be moving forward. Check https://boards.greenhouse.io/alpha/jobs/1 for the posting.',
       msgId: '<test-precedence@mail>',
     };
     const result = classifyStatusEmail({ ...email, applicationsData });
     assert.equal(result.matchMethod, 'url');
     assert.equal(result.matchedEntry.company, 'Alpha');
+  });
+
+  it('subject extraction preserves hyphenated company names', () => {
+    // Old regex /application to (.+?)(?:\s*[-—]|\s*$)/ stopped at ASCII hyphen,
+    // truncating "Acme-Corp" to "Acme". Regression test for I8.
+    const applicationsData = {
+      active: [{ company: 'Acme-Corp', title: 'VP', url: null, stage: 'Applied' }],
+      closed: [],
+      flagged: [],
+    };
+    const email = {
+      sender: 'no-reply@greenhouse-mail.io',
+      senderName: 'Greenhouse',
+      subject: 'Your application to Acme-Corp has been received',
+      body: 'Thank you for applying.',
+      msgId: '<test-hyphen@mail>',
+    };
+    const result = classifyStatusEmail({ ...email, applicationsData });
+    assert.equal(result.matchMethod, 'name');
+    assert.equal(result.matchedEntry.company, 'Acme-Corp');
+  });
+});
+
+describe('classifyStatusEmail — matchedEntry projection and section', () => {
+  it('matchedEntry is projected to {company, title, url, stage, section} only', () => {
+    const email = loadEmail('atlassian-rejection-greenhouse.json');
+    const result = classifyStatusEmail({ ...email, applicationsData: loadApplications() });
+    assert.deepEqual(
+      Object.keys(result.matchedEntry).sort(),
+      ['company', 'section', 'stage', 'title', 'url']
+    );
+  });
+
+  it('matchedEntry and result are frozen — callers cannot mutate pipeline through the classifier result', () => {
+    const email = loadEmail('atlassian-rejection-greenhouse.json');
+    const result = classifyStatusEmail({ ...email, applicationsData: loadApplications() });
+    assert.equal(Object.isFrozen(result), true);
+    assert.equal(Object.isFrozen(result.matchedEntry), true);
+    // Silent-fail mutation in non-strict mode leaves values unchanged.
+    const originalCompany = result.matchedEntry.company;
+    try { result.matchedEntry.company = 'Hacked'; } catch {}
+    assert.equal(result.matchedEntry.company, originalCompany);
+  });
+
+  it('section === "active" for a URL match against an Active entry', () => {
+    const email = loadEmail('atlassian-rejection-greenhouse.json');
+    const result = classifyStatusEmail({ ...email, applicationsData: loadApplications() });
+    assert.equal(result.matchedEntry.section, 'active');
+  });
+
+  it('section === "closed" for a URL match against a Closed entry', () => {
+    // C2 regression: classifier used to return closed entries without signaling
+    // the section, causing markStatusChanged to throw.
+    const applicationsData = {
+      active: [],
+      closed: [{
+        company: 'Atlassian',
+        title: 'VP Engineering',
+        url: 'https://boards.greenhouse.io/atlassian/jobs/5123456',
+        stage: 'Closed (rejected)',
+      }],
+      flagged: [],
+    };
+    const email = loadEmail('atlassian-rejection-greenhouse.json');
+    const result = classifyStatusEmail({ ...email, applicationsData });
+    assert.equal(result.matchMethod, 'url');
+    assert.equal(result.matchedEntry.section, 'closed');
   });
 });
