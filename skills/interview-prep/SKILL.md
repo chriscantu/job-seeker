@@ -237,31 +237,61 @@ Read `Departure Context` from `config/candidate.md`.
 
 ### Section 3: STAR Story Bank
 
-Generate 6-8 stories using `config/candidate.md` accomplishments and
-`references/resume.pdf` for detailed context. Each story must follow
-this format:
+Using the `bankByTag` and `bankByTitle` maps built in Phase 3, generate 6-8 stories
+for this session. The goal is to **surface existing stories first** and only generate
+new ones for themes not yet covered.
+
+**Required theme coverage** (select based on round type):
+
+| Round type | Required themes (in priority order) |
+|------------|--------------------------------------|
+| `behavioral` | team-scaling, conflict-resolution, delivery-transformation, cross-functional-influence, failure-learning, org-design |
+| `technical` | ci-cd, platform-modernization, dx, technical-strategy, architecture |
+| `hiring-manager` | team-scaling, cross-functional-influence, org-design, strategic-alignment |
+| `culture-fit` | values-alignment, team-building, cross-functional-influence, failure-learning |
+| `executive-panel` | team-scaling, delivery-transformation, technical-strategy, org-change |
+| `recruiter-screen` | team-scaling, delivery-transformation, cross-functional-influence |
+| `unknown` | team-scaling, delivery-transformation, cross-functional-influence, technical-strategy |
+
+**For each required theme:**
+
+1. Look up the theme in `bankByTag`.
+2. **If a match exists:** Look up the story body in `bankByTitle`. Output the full story
+   using the format below, marking it **[existing]**. Add a one-line framing note
+   specific to this company and round type.
+3. **If no match:** Generate a new story from `config/candidate.md` accomplishments
+   and `references/resume.pdf`. Mark it **[new]**. Use the bank format (with Reflection
+   and Tags — see below). Track it in a `newStories` list for write-back in Phase 5.5.
+
+Aim for 6-8 stories total. If existing stories cover all required themes, surface the
+best 6-8 by relevance (most recently used or highest tag overlap with JD). Do not
+generate new stories just to hit the count if the bank already covers the themes.
+
+**Story format** (for both existing and new):
 
 ```markdown
-### {Label}
+### {Story Title}
 
-**Situation:** {1-2 sentences of context — the company, the problem, the stakes}
+**Situation:** {1-2 sentences — company, problem, stakes}
 
-**Task:** {Your specific responsibility — what were you asked/expected to do}
+**Task:** {Your specific responsibility}
 
-**Action:** {What you actually did — concrete methods, decisions, leadership moves}
+**Action:** {What you did — concrete methods, decisions, leadership moves}
 
-**Result:** {Quantified outcome — numbers, percentages, dollar amounts, timeline improvements}
+**Result:** {Quantified outcome}
 
-**Best for:** {Comma-separated list of question types this story answers, e.g., "scaling teams, delivery transformation, cross-functional influence"}
+**Reflection:** {What this signals about your leadership / what you'd do differently}
+
+**Tags:** [{theme1}] [{theme2}] [{theme3}]
+
+_{Source: existing | new — {one-line framing note for this round/company}}_
 ```
 
-Story selection criteria:
-- Cover the breadth of accomplishments in `config/candidate.md`
-- Each story should map to 2-3 different question types
-- Prefer stories with strong quantified results
-- Include at least one story about: team scaling, delivery/velocity
-  improvement, cross-functional collaboration, technical strategy,
-  and navigating organizational challenge
+**For new stories**, include a **Reflection** that answers "what does this story signal
+about my leadership at VP level?" — not just "what went well." This is what separates
+VP-level storytelling from manager-level. Example: "This signals I prioritize system
+reliability over feature velocity when there's a conflict — and that I can make that
+call without needing executive air cover."
 
 ### Section 4: Behavioral Questions
 
