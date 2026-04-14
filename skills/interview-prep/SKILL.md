@@ -463,12 +463,15 @@ For each **existing** story that was surfaced in Section 3 (i.e., marked `[exist
 
 1. Find the story in `output/story-bank.md` by its `## {Story Title}` heading
 2. Find its `**used_for:**` line
-3. If the current company+date is not already in the list, append it — preserving
-   all existing entries. For an empty array: `**used_for:** []` →
-   `**used_for:** ["{Company} — {YYYY-MM-DD}"]`. For a non-empty array, append to
-   the end: `**used_for:** ["Acme — 2026-01-10"]` →
-   `**used_for:** ["Acme — 2026-01-10", "{Company} — {YYYY-MM-DD}"]`. If `**used_for:**`
-   is missing or unparseable, treat it as `[]` and rewrite the line in canonical form.
+3. Parse the existing `used_for` value. Entries may be in two formats — accept both:
+   - Quoted em-dash: `["Acme — 2026-01-10"]` (canonical format)
+   - Bare slug: `[snyk-2026-04-14]` (legacy format written by evaluate)
+   If the current company+date is not already represented, append a new entry in
+   canonical quoted em-dash format and rewrite the full line. Examples:
+   - Empty: `**used_for:** []` → `**used_for:** ["{Company} — {YYYY-MM-DD}"]`
+   - One legacy entry: `**used_for:** [snyk-2026-04-14]` → `**used_for:** [snyk-2026-04-14, "{Company} — {YYYY-MM-DD}"]`
+   - One canonical entry: `**used_for:** ["Acme — 2026-01-10"]` → `**used_for:** ["Acme — 2026-01-10", "{Company} — {YYYY-MM-DD}"]`
+   If `**used_for:**` is missing or unparseable, treat it as `[]` and rewrite in canonical form.
 4. Write the updated file
 
 ### Show bank summary and flag core stories
