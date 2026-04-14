@@ -188,7 +188,9 @@ Check if `output/story-bank.md` exists.
     as empty `[]`)
 
   Build two lookup structures for use in Phase 4, Section 3:
-  - `bankByTag`: map of `tag → [story titles]` (e.g., `"ci-cd" → ["CI/CD Transformation at Procore"]`)
+  - `bankByTag`: map of `tag → [story titles]`, ordered within each list by descending
+    use count (length of `used_for` array), then most recent use date descending.
+    Example: `"ci-cd" → ["CI/CD Transformation at Procore", "Platform Adoption at Babylon"]`
   - `bankByTitle`: map of `title → full story text` (for surfacing the story body)
 
   Then show the user:
@@ -273,12 +275,14 @@ start of this section.
    write-back in Phase 5.5.
 
 Aim for 6-8 stories total. If existing stories cover all required themes, surface the
-best 6-8 by relevance: highest use count first, then most recent use (parse the
-YYYY-MM-DD after the em-dash in each `used_for` entry), then highest tag overlap with
+best 6-8 by relevance: highest use count first, then most recent use (for canonical
+entries parse the YYYY-MM-DD after the em-dash; for bare-slug entries extract the
+trailing `YYYY-MM-DD` token after the last hyphen pair), then highest tag overlap with
 the round type. Do not generate new stories just to hit the count if the bank already
 covers the themes.
 
-**Story format** (for both existing and new):
+**Story format** (for both existing and new). Note: the `_{Source: ...}_` line below
+is **display only** — omit it when writing to the story bank in Phase 5.5.
 
 ```markdown
 ### {Story Title}
@@ -290,9 +294,6 @@ covers the themes.
 **Tags:** [{theme1}] [{theme2}] [{theme3}]
 _{Source: existing | new — {one-line framing note for this round/company}}_
 ```
-
-Note: the `_{Source: ...}_` framing line is for display only — it is not persisted
-to the story bank.
 
 **For new stories**, include a **Reflection** that answers "what does this story signal
 about my leadership at VP level?" — not just "what went well." This is what separates
@@ -466,8 +467,12 @@ For each **existing** story that was surfaced in Section 3 (i.e., marked `[exist
 3. Parse the existing `used_for` value. Entries may be in two formats — accept both:
    - Quoted em-dash: `["Acme — 2026-01-10"]` (canonical format)
    - Bare slug: `[snyk-2026-04-14]` (legacy format written by evaluate)
-   If the current company+date is not already represented, append a new entry in
-   canonical quoted em-dash format and rewrite the full line. Examples:
+   To check whether the current session is already recorded, **normalize** each existing
+   entry before comparing: lowercase the company name, replace spaces with hyphens,
+   strip the em-dash separator. This produces a `{slug}-{YYYY-MM-DD}` token for both
+   formats (e.g., `acme-2026-01-10` from either `"Acme — 2026-01-10"` or
+   `acme-2026-01-10`). Compare the normalized current company+date against normalized
+   existing entries. If no match, append a new entry in canonical quoted em-dash format.
    - Empty: `**used_for:** []` → `**used_for:** ["{Company} — {YYYY-MM-DD}"]`
    - One legacy entry: `**used_for:** [snyk-2026-04-14]` → `**used_for:** [snyk-2026-04-14, "{Company} — {YYYY-MM-DD}"]`
    - One canonical entry: `**used_for:** ["Acme — 2026-01-10"]` → `**used_for:** ["Acme — 2026-01-10", "{Company} — {YYYY-MM-DD}"]`
