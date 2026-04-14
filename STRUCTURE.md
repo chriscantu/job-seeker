@@ -64,10 +64,14 @@ job-seeker/
 │   │   └── SKILL.md
 │   ├── linkedin-article/
 │   │   └── SKILL.md
-│   └── scan-email/
+│   ├── scan-email/
+│   │   ├── SKILL.md
+│   │   ├── classification-rules.md
+│   │   └── body-extraction.md
+│   └── evaluate/
 │       ├── SKILL.md
-│       ├── classification-rules.md
-│       └── body-extraction.md
+│       ├── scoring-rules.md
+│       └── archetypes.md
 │
 ├── commands/                ← Slash command definitions (one .md per command)
 │   ├── pipeline.md

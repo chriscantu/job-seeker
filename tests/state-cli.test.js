@@ -166,6 +166,18 @@ describe('state.js CLI', () => {
       assert.ok(entry.notes.includes('Cover letter generated'));
     });
 
+    it('add-note round-trips evaluation note format (em dash, slash, special chars)', () => {
+      run(`create applications '${APP_ENTRY}'`, { outputDir: appTmpDir });
+      const note = 'Evaluation complete — score: 3.8/5, archetype: DX/Platform, recommendation: apply';
+      run(`add-note applications --company TestCorp --note "${note}"`, { outputDir: appTmpDir });
+      const { stdout } = run('read applications', { outputDir: appTmpDir });
+      const data = JSON.parse(stdout);
+      const entry = data.find(e => e.company === 'TestCorp');
+      assert.ok(entry.notes.includes('score: 3.8/5'), 'score with slash should survive round-trip');
+      assert.ok(entry.notes.includes('recommendation: apply'), 'recommendation should survive round-trip');
+      assert.ok(entry.notes.includes('DX/Platform'), 'archetype with slash should survive round-trip');
+    });
+
     it('exits non-zero for update with unknown stage', () => {
       run(`create applications '${APP_ENTRY}'`, { outputDir: appTmpDir });
       const { exitCode } = run('update applications --company TestCorp --stage Vibing', { expectError: true, outputDir: appTmpDir });

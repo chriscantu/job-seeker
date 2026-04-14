@@ -60,6 +60,7 @@ Skills may append additional flags after the date field:
 
 - `source:email-{source_label}` — which email alert source found this role
 - `RESEARCHED` — company research brief has been generated
+- `EVALUATED:{score}:{recommendation}` — fit evaluation complete (e.g., `EVALUATED:3.8:apply`)
 - `RESUME TAILORED` — resume has been tailored for this role
 - `APPLYING` — candidate is applying to this role
 
