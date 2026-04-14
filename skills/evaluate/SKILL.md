@@ -167,7 +167,7 @@ this header:
 ```markdown
 # STAR+R Story Bank
 
-Stories accumulate across evaluations. Each story is tagged and tracked for reuse.
+Stories accumulate across sessions. Each story is tagged and tracked for reuse.
 ```
 
 For each of the 6–8 most important JD requirements:

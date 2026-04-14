@@ -175,6 +175,34 @@ Check if `output/{company-slug}/interview-prep.md` exists.
   {round_types}. I'll merge new content for {new_round_type}."
 - **If not exists**: First run. Full generation, no merge needed.
 
+### Story Bank
+
+Check if `output/story-bank.md` exists.
+
+- **If exists**: Read the full file. Parse each `## {Story Title}` section and extract:
+  - The story title (from the `##` heading)
+  - Tags (from `**Tags:**` line — strip brackets, split on `] [` to get a list).
+    If a story has no `**Tags:**` line, omit it from `bankByTag` but still include
+    it in `bankByTitle` so it can be surfaced manually.
+  - Use count (length of `**used_for:**` array; treat missing or malformed `**used_for:**`
+    as empty `[]`)
+
+  Build two lookup structures for use in Phase 4, Section 3:
+  - `bankByTag`: map of `tag → [story titles]`, ordered within each list by descending
+    use count (length of `used_for` array), then most recent use date descending.
+    Example: `"ci-cd" → ["CI/CD Transformation at Procore", "Platform Adoption at Babylon"]`
+  - `bankByTitle`: map of `title → full story text` (for surfacing the story body)
+
+  Then show the user:
+
+  > "Story bank has {N} stories (most used: {top story title}, used {N} times).
+  > Want to audit framing before we map to this round? (yes / skip)"
+
+  - If user says **yes**: display the full story bank inline and wait for feedback before continuing to Phase 4.
+  - If user says **skip** or gives no response within one exchange: continue.
+
+- **If not exists**: Set `bankByTag = {}` and `bankByTitle = {}`. No preflight prompt — the bank is empty.
+
 ---
 
 ## Phase 4 — Generate Study Guide
@@ -214,38 +242,71 @@ Read `Departure Context` from `config/candidate.md`.
 
 ### Section 3: STAR Story Bank
 
-Generate 6-8 stories using `config/candidate.md` accomplishments and
-`references/resume.pdf` for detailed context. Each story must follow
-this format:
+Using the `bankByTag` and `bankByTitle` maps built in Phase 3, generate 6-8 stories
+for this session. The goal is to **surface existing stories first** and only generate
+new ones for themes not yet covered.
+
+**Required theme coverage** (select based on round type):
+
+| Round type | Required themes (in priority order) |
+|------------|--------------------------------------|
+| `behavioral` | team-scaling, conflict-resolution, delivery-transformation, cross-functional-influence, failure-learning, org-design |
+| `technical` | ci-cd, platform-modernization, dx, technical-strategy, architecture |
+| `hiring-manager` | team-scaling, cross-functional-influence, org-design, strategic-alignment |
+| `culture-fit` | values-alignment, team-building, cross-functional-influence, failure-learning |
+| `executive-panel` | team-scaling, delivery-transformation, technical-strategy, org-change |
+| `recruiter-screen` | team-scaling, delivery-transformation, cross-functional-influence |
+| `unknown` | team-scaling, delivery-transformation, cross-functional-influence, technical-strategy |
+
+Initialize `newStories` as an empty list and `surfacedTitles` as an empty set at the
+start of this section.
+
+**For each required theme:**
+
+1. Look up the theme in `bankByTag`. Take the first title from the list that is NOT
+   already in `surfacedTitles` (prevents a multi-tagged story from surfacing twice).
+2. **If a match exists:** Look up the story body in `bankByTitle`. Add the title to
+   `surfacedTitles`. Output the full story using the format below, marking it
+   **[existing]**. Add a one-line framing note specific to this company and round type.
+3. **If no match:** Generate a new story from `config/candidate.md` accomplishments
+   and `references/resume.pdf`. Mark it **[new]**. Use the bank format (with Reflection
+   and Tags — see below). Add the title to `surfacedTitles`. Append the story as
+   `{title, situation, task, action, result, reflection, tags}` to `newStories` for
+   write-back in Phase 5.5.
+
+Aim for 6-8 stories total. If existing stories cover all required themes, surface the
+best 6-8 by relevance: highest use count first, then most recent use (for canonical
+entries parse the YYYY-MM-DD after the em-dash; for bare-slug entries extract the
+trailing `YYYY-MM-DD` token after the last hyphen pair), then highest tag overlap with
+the round type. Do not generate new stories just to hit the count if the bank already
+covers the themes.
+
+**Story format** (for both existing and new). Note: the `_{Source: ...}_` line below
+is **display only** — omit it when writing to the story bank in Phase 5.5.
 
 ```markdown
-### {Label}
-
-**Situation:** {1-2 sentences of context — the company, the problem, the stakes}
-
-**Task:** {Your specific responsibility — what were you asked/expected to do}
-
-**Action:** {What you actually did — concrete methods, decisions, leadership moves}
-
-**Result:** {Quantified outcome — numbers, percentages, dollar amounts, timeline improvements}
-
-**Best for:** {Comma-separated list of question types this story answers, e.g., "scaling teams, delivery transformation, cross-functional influence"}
+### {Story Title}
+**Situation:** {1-2 sentences — company, problem, stakes}
+**Task:** {Your specific responsibility}
+**Action:** {What you did — concrete methods, decisions, leadership moves}
+**Result:** {Quantified outcome}
+**Reflection:** {What this signals about your leadership / what you'd do differently}
+**Tags:** [{theme1}] [{theme2}] [{theme3}]
+_{Source: existing | new — {one-line framing note for this round/company}}_
 ```
 
-Story selection criteria:
-- Cover the breadth of accomplishments in `config/candidate.md`
-- Each story should map to 2-3 different question types
-- Prefer stories with strong quantified results
-- Include at least one story about: team scaling, delivery/velocity
-  improvement, cross-functional collaboration, technical strategy,
-  and navigating organizational challenge
+**For new stories**, include a **Reflection** that answers "what does this story signal
+about my leadership at VP level?" — not just "what went well." This is what separates
+VP-level storytelling from manager-level. Example: "This signals I prioritize system
+reliability over feature velocity when there's a conflict — and that I can make that
+call without needing executive air cover."
 
 ### Section 4: Behavioral Questions
 
 10-12 likely behavioral questions for Sr Dir / VP level interviews.
 Each question includes:
 - The question text
-- 1-2 recommended STAR stories by label (from Section 3)
+- 1-2 recommended STAR stories by title (from Section 3)
 - A one-line note on what angle to emphasize
 
 Coverage areas (at least one question per area):
@@ -365,6 +426,70 @@ After writing, show the user:
 > **New this run:** {summary of what was added vs. kept from prior run}
 >
 > Review the file and let me know if you want to adjust anything."
+
+---
+
+## Phase 5.5 — Story Bank Write-Back
+
+### Append new stories
+
+For each story in `newStories` (tracked in Phase 4 Section 3):
+
+1. Check whether `output/story-bank.md` already contains a `## {Story Title}` heading
+   with that exact title. If it does, skip — do not duplicate.
+2. If no duplicate: append the story to `output/story-bank.md` in this format:
+
+```markdown
+## {Story Title}
+**Situation:** {text}
+**Task:** {text}
+**Action:** {text}
+**Result:** {text}
+**Reflection:** {text}
+**Tags:** [{theme1}] [{theme2}]
+**used_for:** ["{Company} — {YYYY-MM-DD}"]
+```
+
+If `output/story-bank.md` does not exist, create it with this header first:
+
+```markdown
+# STAR+R Story Bank
+
+Stories accumulate across sessions. Each story is tagged and tracked for reuse.
+```
+
+### Update used_for on existing stories
+
+For each **existing** story that was surfaced in Section 3 (i.e., marked `[existing]`):
+
+1. Find the story in `output/story-bank.md` by its `## {Story Title}` heading
+2. Find its `**used_for:**` line
+3. Parse the existing `used_for` value. Entries may be in two formats — accept both:
+   - Quoted em-dash: `["Acme — 2026-01-10"]` (canonical format)
+   - Bare slug: `[snyk-2026-04-14]` (legacy format written by evaluate)
+   To check whether the current session is already recorded, **normalize** each existing
+   entry before comparing: lowercase the company name, replace spaces with hyphens,
+   strip the em-dash separator. This produces a `{slug}-{YYYY-MM-DD}` token for both
+   formats (e.g., `acme-2026-01-10` from either `"Acme — 2026-01-10"` or
+   `acme-2026-01-10`). Compare the normalized current company+date against normalized
+   existing entries. If no match, append a new entry in canonical quoted em-dash format.
+   - Empty: `**used_for:** []` → `**used_for:** ["{Company} — {YYYY-MM-DD}"]`
+   - One legacy entry: `**used_for:** [snyk-2026-04-14]` → `**used_for:** [snyk-2026-04-14, "{Company} — {YYYY-MM-DD}"]`
+   - One canonical entry: `**used_for:** ["Acme — 2026-01-10"]` → `**used_for:** ["Acme — 2026-01-10", "{Company} — {YYYY-MM-DD}"]`
+   If `**used_for:**` is missing or unparseable, treat it as `[]` and rewrite in canonical form.
+4. Write the updated file
+
+### Show bank summary and flag core stories
+
+After write-back, count `used_for` entries per story across the full bank.
+
+After the Phase 5 summary has been shown, post a follow-up message:
+
+> **Story bank:** {total} stories total — {N} used this session ({existing_count} existing, {new_count} new).
+> {if any story has 3+ entries in used_for}: Core stories (used 3+ times — worth memorizing):
+> {list of core story titles}
+
+If no story has 3+ uses, omit the core stories line.
 
 ---
 
