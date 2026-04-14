@@ -61,6 +61,29 @@ check for `output/{company-slug}/company-research.md`:
 
 Read `skills/_shared/company-extraction.md` and execute.
 
+### Evaluation Gate
+
+Check for a prior evaluation using the derived `{company-slug}`:
+
+Attempt to read `output/{company-slug}/evaluation.md`.
+
+- **File absent** (read error / does not exist): prompt —
+  > "No evaluation found for {Company}. Running `/evaluate` first gives you a
+  > scored fit analysis and pre-loaded story bank before tailoring. Continue
+  > anyway, or run `/evaluate` first? (continue / evaluate first)"
+  Either answer proceeds — this is advisory only.
+- **File exists but frontmatter is missing or `generated` field cannot be parsed**: warn —
+  > "evaluation.md for {Company} exists but appears malformed (missing frontmatter
+  > or generated date). Consider re-running `/evaluate` before proceeding. Continue
+  > anyway? (continue / evaluate first)"
+  Either answer proceeds — this is advisory only.
+- **File exists and `generated` is readable**: compare to today's date.
+  - **Within 7 days**: proceed silently
+  - **Older than 7 days**: prompt —
+    > "The evaluation for {Company} is {N} days old. Proceed with it, or re-run
+    > `/evaluate` first for fresher analysis? (proceed / re-evaluate)"
+    If user says proceed: continue. If re-evaluate: stop and suggest `/evaluate`.
+
 ## Phase 2 — Analyze, Score, and Rewrite
 
 Read `skills/resume-tailor/tailoring-rules.md` and execute Phases 1-3.

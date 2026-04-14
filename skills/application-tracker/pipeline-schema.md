@@ -130,6 +130,19 @@ Closed ({count})
 
 ---
 
+## Skill-Generated Notes
+
+Some skills write to the pipeline automatically via `add-note`. These are
+informational — they do not change the stage.
+
+| Skill | Note format |
+|---|---|
+| `/evaluate` | `"Evaluation complete — score: X.X/5, archetype: {archetype}, recommendation: {apply\|borderline\|pass}"` |
+| `resume-tailor` | `"Resume tailored {YYYY-MM-DD}"` |
+| `cover-letter` | `"Cover letter generated {YYYY-MM-DD}"` |
+
+---
+
 ## Privacy Constraints
 
 - Application state files live in `output/` (gitignored)

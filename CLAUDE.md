@@ -75,6 +75,8 @@ Use `/skill-name` for direct invocation or match natural language below:
 | linkedin post, linkedin article, thought leadership | `/linkedin-article` |
 | draft outreach, reach out to, networking message | `/networking-outreach` |
 | setup, configure, get started, what's missing | `/setup` |
+| evaluate this role, is this a good fit, how do I match, score this job, is this worth applying to | `/evaluate` |
+| is this posting real, ghost job check, is this still open, check if posting is active | `/daily-digest` (ghost detection — issue #68, not yet built) |
 
 ## Commands
 
