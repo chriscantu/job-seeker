@@ -421,6 +421,60 @@ After writing, show the user:
 
 ---
 
+## Phase 5.5 — Story Bank Write-Back
+
+### Append new stories
+
+For each story in `newStories` (tracked in Phase 4 Section 3):
+
+1. Check whether `output/story-bank.md` already contains a `## {Story Title}` heading
+   with that exact title. If it does, skip — do not duplicate.
+2. If no duplicate: append the story to `output/story-bank.md` in this format:
+
+```markdown
+## {Story Title}
+**Situation:** {text}
+**Task:** {text}
+**Action:** {text}
+**Result:** {text}
+**Reflection:** {text}
+**Tags:** [{theme1}] [{theme2}]
+**used_for:** ["{Company} — {YYYY-MM-DD}"]
+```
+
+If `output/story-bank.md` does not exist, create it with this header first:
+
+```markdown
+# STAR+R Story Bank
+
+Stories accumulate across sessions. Each story is tagged and tracked for reuse.
+```
+
+### Update used_for on existing stories
+
+For each **existing** story that was surfaced in Section 3 (i.e., marked `[existing]`):
+
+1. Find the story in `output/story-bank.md` by its `## {Story Title}` heading
+2. Find its `**used_for:**` line
+3. If the current company+date is not already in the list, append it:
+   - Change `**used_for:** []` → `**used_for:** ["{Company} — {YYYY-MM-DD}"]`
+   - Change `**used_for:** ["..."]` → `**used_for:** ["...", "{Company} — {YYYY-MM-DD}"]`
+4. Write the updated file
+
+### Show bank summary and flag core stories
+
+After write-back, count `used_for` entries per story across the full bank.
+
+Append to the Phase 5 "Present Summary" output (after the existing summary block):
+
+> **Story bank:** {total} stories total — {N} used today ({existing_count} existing, {new_count} new).
+> {if any story has 3+ entries in used_for}: Core stories (used 3+ times — worth memorizing):
+> {list of core story titles}
+
+If no story has 3+ uses, omit the core stories line.
+
+---
+
 ## Error Handling
 
 | Condition | Behavior |
