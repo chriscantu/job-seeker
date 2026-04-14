@@ -175,6 +175,29 @@ Check if `output/{company-slug}/interview-prep.md` exists.
   {round_types}. I'll merge new content for {new_round_type}."
 - **If not exists**: First run. Full generation, no merge needed.
 
+### Story Bank
+
+Check if `output/story-bank.md` exists.
+
+- **If exists**: Read the full file. Parse each `## {Story Title}` section and extract:
+  - The story title (from the `##` heading)
+  - Tags (from `**Tags:**` line — strip brackets, split on `] [` to get a list)
+  - Use count (length of `**used_for:**` array)
+
+  Build two lookup structures for use in Phase 4:
+  - `bankByTag`: map of `tag → [story titles]` (e.g., `"ci-cd" → ["CI/CD Transformation at Procore"]`)
+  - `bankByTitle`: map of `title → full story text` (for surfacing the story body)
+
+  Then show the user:
+
+  > "Story bank has {N} stories (most used: {top story title}, used {N} times).
+  > Want to audit framing before we map to this JD? (yes / skip)"
+
+  - If user says **yes**: display the full story bank inline and wait for feedback before continuing to Phase 4.
+  - If user says **skip** or gives no response within one exchange: continue.
+
+- **If not exists**: Set `bankByTag = {}` and `bankByTitle = {}`. No preflight prompt — the bank is empty.
+
 ---
 
 ## Phase 4 — Generate Study Guide
