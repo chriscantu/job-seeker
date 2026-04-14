@@ -181,17 +181,20 @@ Check if `output/story-bank.md` exists.
 
 - **If exists**: Read the full file. Parse each `## {Story Title}` section and extract:
   - The story title (from the `##` heading)
-  - Tags (from `**Tags:**` line — strip brackets, split on `] [` to get a list)
-  - Use count (length of `**used_for:**` array)
+  - Tags (from `**Tags:**` line — strip brackets, split on `] [` to get a list).
+    If a story has no `**Tags:**` line, omit it from `bankByTag` but still include
+    it in `bankByTitle` so it can be surfaced manually.
+  - Use count (length of `**used_for:**` array; treat missing or malformed `**used_for:**`
+    as empty `[]`)
 
-  Build two lookup structures for use in Phase 4:
+  Build two lookup structures for use in Phase 4, Section 3:
   - `bankByTag`: map of `tag → [story titles]` (e.g., `"ci-cd" → ["CI/CD Transformation at Procore"]`)
   - `bankByTitle`: map of `title → full story text` (for surfacing the story body)
 
   Then show the user:
 
   > "Story bank has {N} stories (most used: {top story title}, used {N} times).
-  > Want to audit framing before we map to this JD? (yes / skip)"
+  > Want to audit framing before we map to this round? (yes / skip)"
 
   - If user says **yes**: display the full story bank inline and wait for feedback before continuing to Phase 4.
   - If user says **skip** or gives no response within one exchange: continue.
@@ -253,39 +256,43 @@ new ones for themes not yet covered.
 | `recruiter-screen` | team-scaling, delivery-transformation, cross-functional-influence |
 | `unknown` | team-scaling, delivery-transformation, cross-functional-influence, technical-strategy |
 
+Initialize `newStories` as an empty list and `surfacedTitles` as an empty set at the
+start of this section.
+
 **For each required theme:**
 
-1. Look up the theme in `bankByTag`.
-2. **If a match exists:** Look up the story body in `bankByTitle`. Output the full story
-   using the format below, marking it **[existing]**. Add a one-line framing note
-   specific to this company and round type.
+1. Look up the theme in `bankByTag`. Take the first title from the list that is NOT
+   already in `surfacedTitles` (prevents a multi-tagged story from surfacing twice).
+2. **If a match exists:** Look up the story body in `bankByTitle`. Add the title to
+   `surfacedTitles`. Output the full story using the format below, marking it
+   **[existing]**. Add a one-line framing note specific to this company and round type.
 3. **If no match:** Generate a new story from `config/candidate.md` accomplishments
    and `references/resume.pdf`. Mark it **[new]**. Use the bank format (with Reflection
-   and Tags — see below). Track it in a `newStories` list for write-back in Phase 5.5.
+   and Tags — see below). Add the title to `surfacedTitles`. Append the story as
+   `{title, situation, task, action, result, reflection, tags}` to `newStories` for
+   write-back in Phase 5.5.
 
 Aim for 6-8 stories total. If existing stories cover all required themes, surface the
-best 6-8 by relevance (most recently used or highest tag overlap with JD). Do not
-generate new stories just to hit the count if the bank already covers the themes.
+best 6-8 by relevance: highest use count first, then most recent use (parse the
+YYYY-MM-DD after the em-dash in each `used_for` entry), then highest tag overlap with
+the round type. Do not generate new stories just to hit the count if the bank already
+covers the themes.
 
 **Story format** (for both existing and new):
 
 ```markdown
 ### {Story Title}
-
 **Situation:** {1-2 sentences — company, problem, stakes}
-
 **Task:** {Your specific responsibility}
-
 **Action:** {What you did — concrete methods, decisions, leadership moves}
-
 **Result:** {Quantified outcome}
-
 **Reflection:** {What this signals about your leadership / what you'd do differently}
-
 **Tags:** [{theme1}] [{theme2}] [{theme3}]
-
 _{Source: existing | new — {one-line framing note for this round/company}}_
 ```
+
+Note: the `_{Source: ...}_` framing line is for display only — it is not persisted
+to the story bank.
 
 **For new stories**, include a **Reflection** that answers "what does this story signal
 about my leadership at VP level?" — not just "what went well." This is what separates
@@ -298,7 +305,7 @@ call without needing executive air cover."
 10-12 likely behavioral questions for Sr Dir / VP level interviews.
 Each question includes:
 - The question text
-- 1-2 recommended STAR stories by label (from Section 3)
+- 1-2 recommended STAR stories by title (from Section 3)
 - A one-line note on what angle to emphasize
 
 Coverage areas (at least one question per area):
@@ -456,18 +463,21 @@ For each **existing** story that was surfaced in Section 3 (i.e., marked `[exist
 
 1. Find the story in `output/story-bank.md` by its `## {Story Title}` heading
 2. Find its `**used_for:**` line
-3. If the current company+date is not already in the list, append it:
-   - Change `**used_for:** []` → `**used_for:** ["{Company} — {YYYY-MM-DD}"]`
-   - Change `**used_for:** ["..."]` → `**used_for:** ["...", "{Company} — {YYYY-MM-DD}"]`
+3. If the current company+date is not already in the list, append it — preserving
+   all existing entries. For an empty array: `**used_for:** []` →
+   `**used_for:** ["{Company} — {YYYY-MM-DD}"]`. For a non-empty array, append to
+   the end: `**used_for:** ["Acme — 2026-01-10"]` →
+   `**used_for:** ["Acme — 2026-01-10", "{Company} — {YYYY-MM-DD}"]`. If `**used_for:**`
+   is missing or unparseable, treat it as `[]` and rewrite the line in canonical form.
 4. Write the updated file
 
 ### Show bank summary and flag core stories
 
 After write-back, count `used_for` entries per story across the full bank.
 
-Append to the Phase 5 "Present Summary" output (after the existing summary block):
+After the Phase 5 summary has been shown, post a follow-up message:
 
-> **Story bank:** {total} stories total — {N} used today ({existing_count} existing, {new_count} new).
+> **Story bank:** {total} stories total — {N} used this session ({existing_count} existing, {new_count} new).
 > {if any story has 3+ entries in used_for}: Core stories (used 3+ times — worth memorizing):
 > {list of core story titles}
 
