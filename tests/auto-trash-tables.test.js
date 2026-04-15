@@ -30,6 +30,7 @@ const {
   extractTableSubstrings,
   extractAllTrashSubstrings,
   findSubstringWithComma,
+  deriveRelayVariants,
 } = require("../scripts/lib/trash-tables");
 
 // config/search.md is gitignored (personal). The committed surface is
@@ -179,4 +180,56 @@ test("auto-trash: extractAllTrashSubstrings returns all three tables concatenate
   );
   // Also prove the no-comma invariant holds on the concatenated list.
   assert.equal(findSubstringWithComma(all), null);
+});
+
+test("deriveRelayVariants: dot-only pattern gets underscore variant", () => {
+  const result = deriveRelayVariants(["topresume.com"]);
+  assert.deepStrictEqual(result, ["topresume.com", "topresume_com"]);
+});
+
+test("deriveRelayVariants: @-containing pattern gets _at_ variant", () => {
+  const result = deriveRelayVariants(["invitations@linkedin.com"]);
+  assert.deepStrictEqual(result, [
+    "invitations@linkedin.com",
+    "invitations_at_linkedin_com",
+  ]);
+});
+
+test("deriveRelayVariants: no-dot no-@ pattern unchanged", () => {
+  const result = deriveRelayVariants(["hackajob"]);
+  assert.deepStrictEqual(result, ["hackajob"]);
+});
+
+test("deriveRelayVariants: deduplicates when variant already in input", () => {
+  const result = deriveRelayVariants(["topresume.com", "topresume_com"]);
+  assert.deepStrictEqual(result, ["topresume.com", "topresume_com"]);
+});
+
+test("deriveRelayVariants: originals before variants, stable order", () => {
+  const result = deriveRelayVariants(["lensa.com", "hackajob", "topresume.com"]);
+  assert.deepStrictEqual(result, [
+    "lensa.com",
+    "hackajob",
+    "topresume.com",
+    "lensa_com",
+    "topresume_com",
+  ]);
+});
+
+test("deriveRelayVariants: multiple @ patterns", () => {
+  const result = deriveRelayVariants([
+    "invitations@linkedin.com",
+    "hit-reply@linkedin.com",
+  ]);
+  assert.deepStrictEqual(result, [
+    "invitations@linkedin.com",
+    "hit-reply@linkedin.com",
+    "invitations_at_linkedin_com",
+    "hit-reply_at_linkedin_com",
+  ]);
+});
+
+test("deriveRelayVariants: empty array returns empty", () => {
+  const result = deriveRelayVariants([]);
+  assert.deepStrictEqual(result, []);
 });
