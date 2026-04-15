@@ -430,22 +430,63 @@ the scan output's 5th field.
 | `error: {message}` | **Stop all trash calls** for this run and surface the error to the user. Unknown failures should not be silently retried. |
 
 ### Trash Gmail alerts
-Skip if `gmail_enabled = false` or no Gmail candidates body-fetched.
+Skip entire section if `gmail_enabled = false`.
 
-Collect all `messageId`s from Gmail candidates that were body-fetched AND
-presented in the Phase 5 confirmation table.
+**Step 1G: Trash aggregator + marketing + job-alert senders by sender pattern (atomic).**
 
-**Check credentials first:**
+Gmail-side equivalent of Apple Mail Step 1. Runs after Phase 5 user
+confirmation and after Apple Mail Step 1. Same rules: do not read the
+auto-trash tables yourself, do not concatenate substrings yourself, do not
+invoke `gmail.js trash-by-sender` directly. All of that is done
+deterministically inside the CLI below.
+
 ```bash
-test -f {plugin_root}/credentials/gmail-client-secret.json && test -f {plugin_root}/credentials/gmail-tokens.json && echo "ready" || echo "not-configured"
+bun {plugin_root}/scripts/auto_trash_gmail.js
 ```
 
-If `not-configured`, fall back to manual cleanup report:
-> "Gmail trash not configured. Run `bun scripts/gmail.js auth` to enable
-> automatic cleanup. Processed Gmail messages for manual review:
-> {list messageIds}"
+The script reads `config/search.md`, extracts every "Trash Sender Substring"
+from all three tables (Staffing/Aggregator, Marketing/Non-Job-Search, Job
+Alert Senders), validates the no-comma invariant, and shells out to
+`gmail.js trash-by-sender` with one `--sender` flag per substring.
 
-If `ready`, trash in one call:
+Ordering: Step 1G runs in Phase 6, AFTER Phase 5 user confirmation, AFTER
+Apple Mail Step 1, and BEFORE Step 2 (by-id trash below). The script is
+destructive — do not move it earlier.
+
+**Surface the full stdout of this command to the user verbatim**, including
+`pattern=0/0` rows — they may be a quiet run OR a typo in `config/search.md`,
+and the user needs to see both. Do not summarize, do not omit.
+
+**Exit codes — treat any non-zero as a hard Phase 6 failure and surface it:**
+
+| Code | Meaning | Action |
+|------|---------|--------|
+| `0`  | Success — all matched Gmail messages trashed | Continue to Step 2 |
+| `2`  | Config missing (`search.md`, required table heading, or Gmail credentials) | Report to user, stop Phase 6 |
+| `3`  | A substring in `config/search.md` contains a literal comma | Report to user, stop Phase 6 |
+| `4`  | Gmail API error (auth expired, network, or `gmail.js` child exited non-zero) | Report to user, stop Phase 6 |
+| `5`  | Partial failure — one or more patterns had `moved < matched` | Report to user, stop Phase 6 |
+
+Exit `2` for missing credentials means the user has not yet run
+`bun scripts/gmail.js auth`. Do not silently skip — surface the guidance
+and let the user re-auth.
+
+A diagnostic `--dry-run` flag prints the resolved pattern count and
+concatenated substring list without invoking the Gmail API. Use it when
+debugging why a sender isn't being trashed.
+
+**Step 2: Trash body-fetched Gmail alerts by message-ID.**
+
+Skip if no Gmail candidates were body-fetched.
+
+Most pattern-matched messages will already have been caught by Step 1G
+(same as Apple Mail). Step 2 remains necessary for body-fetched candidates
+whose senders are NOT in any of the three auto-trash tables — e.g. a
+one-off recruiter follow-up that the body classifier rejected.
+
+Collect all `messageId`s from Gmail candidates that were body-fetched AND
+presented in the Phase 5 confirmation table. Then:
+
 ```bash
 bun {plugin_root}/scripts/gmail.js trash {id1} {id2} ...
 ```

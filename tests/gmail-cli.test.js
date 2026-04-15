@@ -92,6 +92,48 @@ describe('gmail CLI', () => {
       }
     });
 
+    it('exits 1 when trash-by-sender is called with no --sender flag', () => {
+      try {
+        execSync(`bun ${CLI} trash-by-sender`, {
+          encoding: 'utf8',
+          stdio: 'pipe',
+        });
+        assert.fail('should have exited non-zero');
+      } catch (err) {
+        assert.ok(
+          err.stderr.includes('at least one --sender'),
+          `expected helpful error, got: ${err.stderr}`
+        );
+        assert.equal(err.status, 1);
+      }
+    });
+
+    it('exits 1 when --sender is missing its value', () => {
+      try {
+        execSync(`bun ${CLI} trash-by-sender --sender --dry-run`, {
+          encoding: 'utf8',
+          stdio: 'pipe',
+        });
+        assert.fail('should have exited non-zero');
+      } catch (err) {
+        assert.ok(err.stderr.includes('--sender requires a value'));
+        assert.equal(err.status, 1);
+      }
+    });
+
+    it('exits 1 on unknown flag to trash-by-sender', () => {
+      try {
+        execSync(
+          `bun ${CLI} trash-by-sender --sender lensa.com --bogus-flag`,
+          { encoding: 'utf8', stdio: 'pipe' }
+        );
+        assert.fail('should have exited non-zero');
+      } catch (err) {
+        assert.ok(err.stderr.includes('unknown flag'));
+        assert.equal(err.status, 1);
+      }
+    });
+
     it('exits 1 with error when --body-file does not exist', () => {
       try {
         execSync(

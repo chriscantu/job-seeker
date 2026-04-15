@@ -10,6 +10,7 @@
 //   bun scripts/gmail.js search <query> [--max N]               # Search messages (prints JSON)
 //   bun scripts/gmail.js create-draft --to X --subject Y --body-file Z
 //   bun scripts/gmail.js trash <id>...                          # Trash messages by ID
+//   bun scripts/gmail.js trash-by-sender --sender S [--sender S ...] [--newer-than 30d] [--dry-run]
 //
 // Note: `auth` starts a local HTTP server on :3000 for the OAuth callback.
 //
@@ -37,13 +38,16 @@ Commands:
   create-draft --to X --subject Y --body-file Z
                                    Create a Gmail draft (body read from file)
   trash <id>...                    Trash one or more messages by Gmail message ID
+  trash-by-sender --sender S [...]  Trash INBOX messages matching from:<S> (repeated flag)
+                                   Optional: --newer-than <window> (default 30d), --dry-run
 
 Examples:
   bun scripts/gmail.js auth
   bun scripts/gmail.js profile
   bun scripts/gmail.js search "from:@acme.com" --max 5
   bun scripts/gmail.js create-draft --to jane@acme.com --subject "Re: VP Eng" --body-file /tmp/body.txt
-  bun scripts/gmail.js trash 18f1a2b3c4d5e6f7`);
+  bun scripts/gmail.js trash 18f1a2b3c4d5e6f7
+  bun scripts/gmail.js trash-by-sender --sender lensa.com --sender ladders.com --dry-run`);
   process.exit(1);
 }
 
@@ -243,6 +247,187 @@ async function createDraftCommand(args) {
   }
 }
 
+// Parse argv for trash-by-sender: repeated --sender collects into an
+// array; --newer-than takes a value; --dry-run is a boolean. Unknown
+// flags are a hard error (printed to stderr; caller exits 1). Kept
+// separate from parseFlags() because parseFlags overwrites repeated
+// keys, which would silently drop all but the last --sender.
+function parseTrashBySenderArgs(args) {
+  const senders = [];
+  let newerThan = '30d';
+  let dryRun = false;
+  for (let i = 0; i < args.length; i++) {
+    const a = args[i];
+    if (a === '--sender') {
+      const v = args[i + 1];
+      if (!v || v.startsWith('--')) {
+        throw new Error('--sender requires a value');
+      }
+      senders.push(v);
+      i++;
+    } else if (a === '--newer-than') {
+      const v = args[i + 1];
+      if (!v || v.startsWith('--')) {
+        throw new Error('--newer-than requires a value (e.g. 30d, 7d, 1y)');
+      }
+      newerThan = v;
+      i++;
+    } else if (a === '--dry-run') {
+      dryRun = true;
+    } else if (a === '-h' || a === '--help') {
+      usage();
+    } else {
+      throw new Error(`unknown flag: ${a}`);
+    }
+  }
+  return { senders, newerThan, dryRun };
+}
+
+// Format per-pattern results as `trashed: pat1=M/N pat2=X/Y ...` matching
+// the AppleScript output that auto_trash_inbox.js parses. Append an
+// `(errors: ...)` suffix when any pattern had per-message trash failures,
+// so classifyGmailResult can detect partial failures with the same regex
+// shared with the Apple Mail path.
+function formatTrashBySenderOutput(results) {
+  const parts = results.map((r) => `${r.pattern}=${r.moved}/${r.matched}`);
+  const line = `trashed: ${parts.join(' ')}`;
+  const errored = results.filter((r) => r.errors && r.errors.length > 0);
+  if (errored.length === 0) {
+    return line;
+  }
+  const errSummary = errored
+    .map((r) => `${r.pattern}=${r.errors.join('|')}`)
+    .join(' ');
+  return `${line} (errors: ${errSummary})`;
+}
+
+// List INBOX messages matching `from:<sender> newer_than:<window>`,
+// paging through nextPageToken. Returns an array of message IDs. Caps
+// at 500 to protect against a misconfigured pattern matching thousands
+// of messages — a config-level anomaly that should be flagged, not
+// silently trashed.
+const MAX_MATCHES_PER_PATTERN = 500;
+
+async function listMatchingIds(gmail, sender, newerThan) {
+  const q = `from:${sender} in:inbox newer_than:${newerThan}`;
+  const ids = [];
+  let pageToken;
+  do {
+    const res = await gmail.users.messages.list({
+      userId: 'me',
+      q,
+      maxResults: 100,
+      pageToken,
+    });
+    const page = res.data.messages || [];
+    for (const m of page) ids.push(m.id);
+    pageToken = res.data.nextPageToken;
+    if (ids.length >= MAX_MATCHES_PER_PATTERN) {
+      console.error(
+        `warning: sender "${sender}" matched ≥${MAX_MATCHES_PER_PATTERN} messages; ` +
+          `trashing the first ${MAX_MATCHES_PER_PATTERN}. ` +
+          `Tighten --newer-than or check config/search.md for an overly broad substring.`
+      );
+      return ids.slice(0, MAX_MATCHES_PER_PATTERN);
+    }
+  } while (pageToken);
+  return ids;
+}
+
+async function trashBySenderCommand(args) {
+  let parsed;
+  try {
+    parsed = parseTrashBySenderArgs(args);
+  } catch (err) {
+    console.error(`error: ${err.message}`);
+    process.exit(1);
+  }
+  if (parsed.senders.length === 0) {
+    console.error(
+      'error: trash-by-sender requires at least one --sender <substring>'
+    );
+    process.exit(1);
+  }
+
+  const auth = getAuthenticatedClient(ROOT);
+  const gmail = google.gmail({ version: 'v1', auth });
+
+  const results = [];
+  for (const sender of parsed.senders) {
+    let ids;
+    try {
+      ids = await listMatchingIds(gmail, sender, parsed.newerThan);
+    } catch (err) {
+      const status = err.code || err.status;
+      const reason = err.message || 'unknown error';
+      if (status === 401 || status === 403) {
+        console.error(`AUTH_REQUIRED: ${reason}`);
+        console.error('Re-authenticate with: bun scripts/gmail.js auth');
+        process.exit(1);
+      }
+      console.error(
+        `GMAIL_ERROR: list failed for "${sender}" [${status || 'unknown'}] ${reason}`
+      );
+      process.exit(1);
+    }
+
+    if (parsed.dryRun) {
+      results.push({
+        pattern: sender,
+        moved: ids.length,
+        matched: ids.length,
+        errors: [],
+        ids,
+      });
+      continue;
+    }
+
+    // Per-message trash so we can track per-pattern moved/matched for
+    // partial-failure detection. batchModify is atomic and can't report
+    // partial progress.
+    const errors = [];
+    let moved = 0;
+    for (const id of ids) {
+      try {
+        await gmail.users.messages.trash({ userId: 'me', id });
+        moved++;
+      } catch (err) {
+        const status = err.code || err.status;
+        const reason = err.message || 'unknown error';
+        if (status === 401 || status === 403) {
+          console.error(`AUTH_REQUIRED: ${reason}`);
+          console.error('Re-authenticate with: bun scripts/gmail.js auth');
+          process.exit(1);
+        }
+        errors.push(`${id}:${status || 'err'}`);
+      }
+    }
+    results.push({
+      pattern: sender,
+      moved,
+      matched: ids.length,
+      errors,
+    });
+  }
+
+  // Always print the `trashed: ...` summary line — including 0/0 entries
+  // — so the caller (auto_trash_gmail.js / scan-email Phase 6) can spot
+  // typos and verify every configured pattern was attempted.
+  console.log(formatTrashBySenderOutput(results));
+
+  if (parsed.dryRun) {
+    // Also print per-pattern ID lists for operator inspection.
+    for (const r of results) {
+      if (r.ids && r.ids.length > 0) {
+        console.log(`  ${r.pattern}: ${r.ids.join(' ')}`);
+      }
+    }
+  }
+
+  const anyPartial = results.some((r) => r.moved < r.matched);
+  process.exit(anyPartial ? 1 : 0);
+}
+
 async function trashCommand(messageIds) {
   if (messageIds.length === 0) {
     console.error('Error: trash requires at least one message ID.');
@@ -294,6 +479,9 @@ async function main() {
       break;
     case 'trash':
       await trashCommand(args.slice(1));
+      break;
+    case 'trash-by-sender':
+      await trashBySenderCommand(args.slice(1));
       break;
     default:
       usage();
