@@ -53,6 +53,34 @@ function extractTableSubstrings(markdown, headingText) {
     .filter((s) => s && s.length > 0);
 }
 
+// Derive iCloud "Hide My Email" relay variants for sender patterns.
+// iCloud rewrites `user@domain.com` to `user_at_domain_com_{random}@icloud.com`,
+// turning every `.` into `_` and every `@` into `_at_`. A configured pattern
+// like `topresume.com` won't match the relay address `topresume_com_xxx@icloud.com`
+// unless we also search for `topresume_com`.
+//
+// Returns the input array followed by any new variants, deduplicated.
+// Originals always appear before derived variants to preserve table order.
+function deriveRelayVariants(substrings) {
+  const variants = [];
+  const seen = new Set(substrings);
+  for (const s of substrings) {
+    let variant = null;
+    if (s.includes('@') && s.includes('.')) {
+      // invitations@linkedin.com → invitations_at_linkedin_com
+      variant = s.replace(/@/g, '_at_').replace(/\./g, '_');
+    } else if (s.includes('.')) {
+      // topresume.com → topresume_com
+      variant = s.replace(/\./g, '_');
+    }
+    if (variant !== null && !seen.has(variant)) {
+      variants.push(variant);
+      seen.add(variant);
+    }
+  }
+  return [...substrings, ...variants];
+}
+
 // Extract all substrings from all three auto-trash tables, in table order.
 // Throws if any heading is missing OR if any named table has zero data rows
 // — both are hard contracts, not warnings, because Phase 6 Step 1 silently
@@ -75,7 +103,7 @@ function extractAllTrashSubstrings(markdown) {
       result.push(s);
     }
   }
-  return result;
+  return deriveRelayVariants(result);
 }
 
 // Validate the no-comma invariant. apple_mail_trash_by_sender.applescript
@@ -94,4 +122,5 @@ module.exports = {
   extractTableSubstrings,
   extractAllTrashSubstrings,
   findSubstringWithComma,
+  deriveRelayVariants,
 };
