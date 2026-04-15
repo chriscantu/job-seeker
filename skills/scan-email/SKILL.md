@@ -355,14 +355,21 @@ Skip if `apple_mail_enabled = false`.
 
 **Step 1: Trash aggregator + marketing + job-alert senders by sender pattern (atomic).**
 
-Read all three auto-trash tables from `config/search.md`:
-- **"Staffing/Aggregator Company Exclusions"** — the "Trash Sender Substring" column
-- **"Marketing / Non-Job-Search Senders to Auto-Trash"** — the "Trash Sender Substring" column
-- **"Job Alert Senders to Auto-Trash After Scan"** — the "Trash Sender Substring" column
+Run one command. Do not read the auto-trash tables yourself, do not concatenate
+substrings yourself, do not invoke `apple_mail_trash_by_sender.applescript`
+directly. All of that is done deterministically inside the CLI below — which
+exists specifically because an LLM-driven read-three-tables-then-shell-out
+sequence was unreliable (see issue #88).
 
-Concatenate every substring from all three tables into a comma-separated list, then
-issue a single trash-by-sender call. Substrings must NOT contain commas — the
-script splits the input on commas to build the pattern list.
+```bash
+bun {plugin_root}/scripts/auto_trash_inbox.js
+```
+
+The script reads `config/search.md` and `integrations/config/mail-config.md`,
+extracts every "Trash Sender Substring" from all three tables
+(Staffing/Aggregator, Marketing/Non-Job-Search, Job Alert Senders), validates
+the no-comma invariant, and invokes `apple_mail_trash_by_sender.applescript`
+with the concatenated pattern list.
 
 Ordering note: this Step 1 trash pass runs in Phase 6, AFTER metadata scan
 (Phase 2), body fetch (Phase 3), dedup/verification (Phase 4), and user
@@ -370,29 +377,29 @@ confirmation (Phase 5). The "Job Alert Senders" table captures senders whose
 individual alerts should be trashed even when pre-body-fetch filters
 (title classifier, already-seen dedup, age filter, newsletter skip rules)
 drop them — body-fetch-gated trash-by-id in Step 2 is not enough to prevent
-these messages from accumulating in the inbox. See issue #86.
+these messages from accumulating in the inbox. See issues #86 and #88.
 
-```bash
-osascript {plugin_root}/scripts/apple_mail_trash_by_sender.applescript \
-  "{account_name}" "{inbox_name}" "{comma_separated_substrings}"
-```
+**Surface the full stdout of this command to the user verbatim**, including
+`pattern=0/0` rows — they may be a quiet run OR a typo in `config/search.md`,
+and the user needs to see both. Do not summarize, do not omit.
 
-The script uses Mail's `whose sender contains` query so matching is by sender
-substring, NOT by index — immune to mid-sequence shifts when new mail arrives.
+**Exit codes — treat any non-zero as a hard Phase 6 failure and surface it:**
 
-**Output format:** `trashed: pattern1=moved/matched pattern2=moved/matched ...`
-For example: `trashed: lensa.com=3/3 ladders.com=0/0 topresume.com=2/2`. If a
-move fails, the affected pattern gets an `(errors: ...)` suffix listing the
-last error message.
+| Code | Meaning | Action |
+|------|---------|--------|
+| `0`  | Success — all matched messages trashed | Continue to Step 2 |
+| `2`  | Config missing (`search.md`, `mail-config.md`, or required table heading) | Report to user, stop Phase 6 |
+| `3`  | A substring in `config/search.md` contains a literal comma | Report to user, stop Phase 6 |
+| `4`  | osascript invocation failed or returned a sentinel error (`ACCOUNT_NOT_FOUND`, `MAILBOX_NOT_FOUND`, `TRASH_NOT_FOUND`) | Report to user, stop Phase 6 |
+| `5`  | Partial failure — one or more patterns had `moved < matched` | Report to user, continue to Step 2 |
 
-**Surface every line of output to the user**, including patterns with 0 matches —
-a `pattern=0/0` row may be a quiet run OR a typo in `config/search.md`. Don't
-hide them. If any pattern reports `moved < matched`, surface the error string
-explicitly so the user knows messages were left behind.
+A diagnostic `--dry-run` flag prints the resolved account, inbox, pattern
+count, and concatenated pattern list without invoking osascript. Use it when
+debugging why a sender isn't being trashed.
 
 These messages should never accumulate in the inbox regardless of whether they
 were body-fetched. If the user reports a new sender that "shouldn't be there,"
-add it to one of the two `config/search.md` tables — do not handle ad-hoc.
+add it to one of the three `config/search.md` tables — do not handle ad-hoc.
 
 **Step 2: Trash body-fetched candidate alerts by message-ID.**
 
