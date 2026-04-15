@@ -107,6 +107,65 @@ test("auto-trash: no substring contains a comma (trash script splits on comma)",
   }
 });
 
+test("auto-trash: extractAllTrashSubstrings throws when any table has zero data rows (issue #90 finding 2)", () => {
+  // Hostile fixture: all three headings present, all three header rows
+  // present, but the Job Alert Senders table has NO data rows. Before
+  // the finding-2 fix, extractAllTrashSubstrings silently returned the
+  // concatenation of the first two tables and the CLI happily shipped
+  // fewer patterns to osascript with EXIT_OK — re-creating issue #88
+  // at the config layer.
+  const md = `## Staffing/Aggregator Company Exclusions
+
+| Name | Trash Sender Substring |
+|------|------------------------|
+| Lensa | lensa.com |
+
+## Marketing / Non-Job-Search Senders to Auto-Trash
+
+| Sender | Trash Sender Substring |
+|--------|------------------------|
+| TopResume | topresume.com |
+
+## Job Alert Senders to Auto-Trash After Scan
+
+| Sender | Trash Sender Substring |
+|--------|------------------------|
+`;
+  assert.throws(
+    () => extractAllTrashSubstrings(md),
+    /Job Alert Senders.*(empty|zero|no data)/i,
+    "empty-table silent drop must throw ConfigError-equivalent"
+  );
+});
+
+test("auto-trash: extractAllTrashSubstrings throws when the first table is empty (issue #90 finding 2)", () => {
+  // Symmetry check — first table empty, other two populated. The error
+  // must still fire; we should not rely on the last table being the
+  // canary.
+  const md = `## Staffing/Aggregator Company Exclusions
+
+| Name | Trash Sender Substring |
+|------|------------------------|
+
+## Marketing / Non-Job-Search Senders to Auto-Trash
+
+| Sender | Trash Sender Substring |
+|--------|------------------------|
+| TopResume | topresume.com |
+
+## Job Alert Senders to Auto-Trash After Scan
+
+| Sender | Trash Sender Substring |
+|--------|------------------------|
+| LinkedIn | jobalerts-noreply@linkedin.com |
+`;
+  assert.throws(
+    () => extractAllTrashSubstrings(md),
+    /Staffing.*Aggregator.*(empty|zero|no data)/i,
+    "empty first table must throw"
+  );
+});
+
 test("auto-trash: extractAllTrashSubstrings returns all three tables concatenated", () => {
   const md = fs.readFileSync(SEARCH_MD, "utf8");
   const all = extractAllTrashSubstrings(md);

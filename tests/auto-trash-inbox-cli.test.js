@@ -178,6 +178,34 @@ describe("auto_trash_inbox.js CLI", () => {
     assert.match(stderr, /lensa,com/);
   });
 
+  it("exits EXIT_CONFIG when a required trash-table has zero data rows (issue #90 finding 2)", () => {
+    // Hostile fixture: all three headings present but the Job Alert
+    // Senders table is emptied. Before the finding-2 fix, the CLI would
+    // silently ship fewer patterns to osascript and exit 0 — a whole
+    // category of senders stops being trashed without any error.
+    const md = `## Staffing/Aggregator Company Exclusions
+
+| Name | Trash Sender Substring |
+|------|------------------------|
+| Lensa | lensa.com |
+
+## Marketing / Non-Job-Search Senders to Auto-Trash
+
+| Sender | Trash Sender Substring |
+|--------|------------------------|
+| TopResume | topresume.com |
+
+## Job Alert Senders to Auto-Trash After Scan
+
+| Sender | Trash Sender Substring |
+|--------|------------------------|
+`;
+    fs.writeFileSync(searchMdPath, md);
+    const { exitCode, stderr } = runExpectError("--dry-run");
+    assert.equal(exitCode, 2, "empty table must exit EXIT_CONFIG (2)");
+    assert.match(stderr, /Job Alert Senders/);
+  });
+
   it("exits non-zero when a required trash-table heading is missing", () => {
     // Strip the job-alert table entirely — if scan-email silently tolerated
     // this, issue #86 would come right back.
