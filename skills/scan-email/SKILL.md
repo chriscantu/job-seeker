@@ -440,6 +440,12 @@ auto-trash tables yourself, do not concatenate substrings yourself, do not
 invoke `gmail.js trash-by-sender` directly. All of that is done
 deterministically inside the CLI below.
 
+> **First-time setup:** if this is the user's first scan and
+> `credentials/gmail-tokens.json` does not yet exist, Step 1G will exit
+> `2` with a re-auth hint. The user must run `bun scripts/gmail.js auth`
+> once before scan-email can sweep Gmail. Surface the exit-2 message
+> verbatim — it contains the one command they need.
+
 ```bash
 bun {plugin_root}/scripts/auto_trash_gmail.js
 ```
@@ -455,25 +461,37 @@ destructive — do not move it earlier.
 
 **Surface the full stdout of this command to the user verbatim**, including
 `pattern=0/0` rows — they may be a quiet run OR a typo in `config/search.md`,
-and the user needs to see both. Do not summarize, do not omit.
+and the user needs to see both. Do not summarize, do not omit. The summary
+line may include trailing `(errors: ...)` and `(cap-hit: ...)` suffixes;
+pass those through verbatim as well — they are not failures, they are
+diagnostic breadcrumbs.
 
 **Exit codes — treat any non-zero as a hard Phase 6 failure and surface it:**
 
 | Code | Meaning | Action |
 |------|---------|--------|
-| `0`  | Success — all matched Gmail messages trashed | Continue to Step 2 |
-| `2`  | Config missing (`search.md`, required table heading, or Gmail credentials) | Report to user, stop Phase 6 |
+| `0`  | Success — all matched Gmail messages trashed (including clean `cap-hit` runs) | Continue to Step 2 |
+| `2`  | Config missing (`search.md`, required table heading, or Gmail credentials) | Report to user, stop Phase 6. If credentials missing, tell the user to run `bun scripts/gmail.js auth`. |
 | `3`  | A substring in `config/search.md` contains a literal comma | Report to user, stop Phase 6 |
-| `4`  | Gmail API error (auth expired, network, or `gmail.js` child exited non-zero) | Report to user, stop Phase 6 |
+| `4`  | Gmail API error (auth expired mid-run, list call failed, network, or `gmail.js` child exited non-zero) | Report to user, stop Phase 6 |
 | `5`  | Partial failure — one or more patterns had `moved < matched` | Report to user, stop Phase 6 |
 
-Exit `2` for missing credentials means the user has not yet run
-`bun scripts/gmail.js auth`. Do not silently skip — surface the guidance
-and let the user re-auth.
+**Tunable behavior (env vars — no code changes needed):**
 
-A diagnostic `--dry-run` flag prints the resolved pattern count and
-concatenated substring list without invoking the Gmail API. Use it when
-debugging why a sender isn't being trashed.
+| Variable | Default | Purpose |
+|---|---|---|
+| `JOB_SEEKER_GMAIL_NEWER_THAN` | `30d` | Gmail search window. Weekly scans → `7d`, returning from PTO → `90d`. |
+| `JOB_SEEKER_GMAIL_TRASH_MAX` | `500` | Max matches per pattern before `(cap-hit: ...)` suffix fires. Raise for legitimately noisy senders; lower as a safety net. |
+
+Both can also be set per-invocation:
+
+```bash
+bun {plugin_root}/scripts/auto_trash_gmail.js --newer-than 7d
+```
+
+A diagnostic `--dry-run` flag prints the resolved pattern count, the
+`newer-than` window, and the concatenated substring list without invoking
+the Gmail API. Use it when debugging why a sender isn't being trashed.
 
 **Step 2: Trash body-fetched Gmail alerts by message-ID.**
 

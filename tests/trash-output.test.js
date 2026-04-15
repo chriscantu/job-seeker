@@ -137,8 +137,12 @@ describe("classifyGmailResult", () => {
 });
 
 describe("detectPartialFailure (shared with Gmail path)", () => {
-  // One smoke test confirming the parser handles the Gmail CLI's error
-  // suffix format. Full coverage lives in tests/auto-trash-classify.test.js.
+  // Gmail-specific smoke tests. Full Apple-Mail coverage lives in
+  // tests/auto-trash-classify.test.js. The parser hardening at
+  // scripts/lib/trash-output.js strips EVERY trailing parenthesized
+  // suffix — not just `(errors: ...)` — so future suffixes like
+  // `(cap-hit: ...)` can be added without parser changes.
+
   it("parses Gmail-style (errors: pat=id:code|id:code) suffix correctly", () => {
     const r = detectPartialFailure(
       "trashed: glassdoor.com=1/3 mail.remotehunter.com=2/2 (errors: glassdoor.com=abc:503|def:503)",
@@ -155,5 +159,30 @@ describe("detectPartialFailure (shared with Gmail path)", () => {
       assert.notEqual(f.pattern, "abc");
       assert.notEqual(f.pattern, "def");
     }
+  });
+
+  it("strips (cap-hit: ...) suffix so cap-hit tokens do not become phantom patterns", () => {
+    // Review finding C1 root cause at the parser level. If the parser
+    // didn't strip `(cap-hit: ...)`, the token `lensa.com=500` inside
+    // the suffix wouldn't match `/=(\d+)\/(\d+)/` anyway (no slash),
+    // but a future suffix format might — so strip defensively.
+    const r = detectPartialFailure(
+      "trashed: lensa.com=500/500 topresume.com=1/1 (cap-hit: lensa.com=500)",
+      2
+    );
+    assert.equal(r.isPartial, false);
+    assert.equal(r.entryCount, 2);
+    assert.equal(r.isAnomaly, false);
+  });
+
+  it("strips chained (errors: ...) (cap-hit: ...) suffixes", () => {
+    const r = detectPartialFailure(
+      "trashed: lensa.com=499/500 topresume.com=1/1 (errors: lensa.com=a:500) (cap-hit: lensa.com=500)",
+      2
+    );
+    assert.equal(r.isPartial, true);
+    assert.equal(r.entryCount, 2);
+    assert.equal(r.failures.length, 1);
+    assert.equal(r.failures[0].pattern, "lensa.com");
   });
 });

@@ -54,11 +54,20 @@ function detectPartialFailure(stdout, expectedPatternCount) {
     return empty;
   }
   let body = stdout.slice('trashed:'.length).trim();
-  // Strip any `(errors: ...)` suffix before scanning for pattern entries,
-  // so `bar=1/2` inside it can never be captured as a phantom pattern.
-  const errorsIdx = body.indexOf('(errors:');
-  if (errorsIdx !== -1) {
-    body = body.slice(0, errorsIdx).trim();
+  // Strip every trailing parenthesized suffix — `(errors: ...)`,
+  // `(cap-hit: ...)`, and any future annotation — before scanning for
+  // pattern entries. This prevents any suffix body from being captured
+  // as a phantom pattern, and lets new suffix types be added without
+  // touching the parser.
+  //
+  // We find the first `(` preceded by whitespace (or at start) and
+  // truncate. Suffix order in gmail.js's formatTrashBySenderOutput is
+  // always: core entries, then `(errors: ...)`, then `(cap-hit: ...)`,
+  // all space-separated — so the first `(` always begins the suffix
+  // block.
+  const suffixMatch = body.match(/(?:^|\s)\(/);
+  if (suffixMatch) {
+    body = body.slice(0, suffixMatch.index).trim();
   }
 
   const failures = [];

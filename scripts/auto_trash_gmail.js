@@ -37,9 +37,20 @@
 //   5  partial failure (moved < matched for one or more patterns)
 //
 // Env overrides (intended for tests):
-//   JOB_SEEKER_SEARCH_MD     override path to search.md
-//   JOB_SEEKER_GMAIL_BIN     override path to gmail.js (for test stubs)
-//   JOB_SEEKER_GMAIL_CREDS   override path to credentials/ dir
+//   JOB_SEEKER_SEARCH_MD           override path to search.md
+//   JOB_SEEKER_GMAIL_BIN           override path to gmail.js (for test stubs)
+//   JOB_SEEKER_GMAIL_CREDS         override path to credentials/ dir
+//   JOB_SEEKER_SKIP_CRED_CHECK     set to skip credential existence check
+//                                  (tests only — decoupled from GMAIL_BIN so
+//                                  that a legitimate user binary override
+//                                  still validates credentials)
+//   JOB_SEEKER_GMAIL_NEWER_THAN    Gmail search window forwarded to
+//                                  `gmail.js trash-by-sender --newer-than`
+//                                  (default: 30d). Use `7d` for weekly
+//                                  scans, `90d` after a long break.
+//   JOB_SEEKER_GMAIL_TRASH_MAX     max matches per pattern forwarded via
+//                                  child env (default: 500). Raise if a
+//                                  legitimately noisy sender exceeds the cap.
 
 const fs = require('fs');
 const path = require('path');
@@ -85,26 +96,53 @@ class CommaError extends Error {
 }
 
 function parseArgs(argv) {
-  const args = { dryRun: false };
-  for (const a of argv.slice(2)) {
+  const args = { dryRun: false, newerThan: null };
+  const rest = argv.slice(2);
+
+  for (let i = 0; i < rest.length; i++) {
+    const a = rest[i];
     if (a === '--dry-run') {
       args.dryRun = true;
-    } else if (a === '-h' || a === '--help') {
-      args.help = true;
-    } else {
-      throw new Error(`unknown argument: ${a}`);
+      continue;
     }
+    if (a.startsWith('--newer-than=')) {
+      const v = a.slice('--newer-than='.length);
+      if (v === '') {
+        throw new Error('--newer-than= requires a value (e.g. 30d, 7d, 1y)');
+      }
+      args.newerThan = v;
+      continue;
+    }
+    if (a === '--newer-than') {
+      const v = rest[i + 1];
+      if (v === undefined || v === '' || v.startsWith('--')) {
+        throw new Error('--newer-than requires a value (e.g. 30d, 7d, 1y)');
+      }
+      args.newerThan = v;
+      i++;
+      continue;
+    }
+    if (a === '-h' || a === '--help') {
+      args.help = true;
+      continue;
+    }
+    throw new Error(`unknown argument: ${a}`);
   }
   return args;
 }
 
 function printHelp() {
   process.stdout.write(
-    'Usage: bun scripts/auto_trash_gmail.js [--dry-run]\n' +
+    'Usage: bun scripts/auto_trash_gmail.js [--dry-run] [--newer-than WINDOW]\n' +
       '\n' +
       'Reads config/search.md, then invokes gmail.js trash-by-sender with\n' +
       'one --sender flag per substring to move matching INBOX messages to\n' +
-      'Gmail Trash.\n'
+      'Gmail Trash.\n' +
+      '\n' +
+      'Options:\n' +
+      '  --dry-run               Print the plan without calling Gmail.\n' +
+      '  --newer-than WINDOW     Gmail search window (default: 30d, or\n' +
+      '                          JOB_SEEKER_GMAIL_NEWER_THAN if set).\n'
   );
 }
 
@@ -130,15 +168,22 @@ function checkCredentials(credsDir) {
   }
 }
 
-function buildPlan(env) {
+function buildPlan(env, cliArgs) {
   const searchPath = env.JOB_SEEKER_SEARCH_MD || DEFAULT_SEARCH_MD;
   const credsDir = env.JOB_SEEKER_GMAIL_CREDS || DEFAULT_CREDS_DIR;
   const gmailBin = env.JOB_SEEKER_GMAIL_BIN || DEFAULT_GMAIL_BIN;
 
-  // Credentials are only required for live runs. Tests and `--dry-run`
-  // against a stub gmail.js should not need them. The caller decides
-  // based on args.dryRun + env override presence.
-  const skipCredCheck = Boolean(env.JOB_SEEKER_GMAIL_BIN);
+  // Credential-check bypass is its own env var, decoupled from
+  // JOB_SEEKER_GMAIL_BIN. A legitimate user override of the gmail
+  // binary path (e.g. a local dev fork) must still validate credentials;
+  // only the test stub path opts out explicitly.
+  const skipCredCheck = Boolean(env.JOB_SEEKER_SKIP_CRED_CHECK);
+
+  // --newer-than precedence: CLI flag > env var > default (via child).
+  // Leaving newerThan null lets the child apply its own default
+  // (currently 30d in gmail.js), which is the single source of truth.
+  const newerThan =
+    (cliArgs && cliArgs.newerThan) || env.JOB_SEEKER_GMAIL_NEWER_THAN || null;
 
   const md = readSearchMd(searchPath);
   const substrings = extractAllTrashSubstrings(md);
@@ -146,7 +191,7 @@ function buildPlan(env) {
   if (offender !== null) {
     throw new CommaError(offender);
   }
-  return { substrings, gmailBin, credsDir, skipCredCheck };
+  return { substrings, gmailBin, credsDir, skipCredCheck, newerThan };
 }
 
 function runTrashBySender(plan, dryRun) {
@@ -154,7 +199,12 @@ function runTrashBySender(plan, dryRun) {
   for (const s of plan.substrings) {
     args.push('--sender', s);
   }
+  if (plan.newerThan) {
+    args.push('--newer-than', plan.newerThan);
+  }
   if (dryRun) args.push('--dry-run');
+  // Child inherits process.env, so JOB_SEEKER_GMAIL_TRASH_MAX flows
+  // through to gmail.js without explicit forwarding.
   const result = spawnSync('bun', args, { encoding: 'utf8' });
   if (result.error) {
     throw new Error(`bun invocation failed: ${result.error.message}`);
@@ -180,7 +230,7 @@ function main() {
 
   let plan;
   try {
-    plan = buildPlan(process.env);
+    plan = buildPlan(process.env, args);
   } catch (err) {
     if (err instanceof ConfigError) {
       process.stderr.write(`error: ${err.message}\n`);
@@ -204,6 +254,7 @@ function main() {
     process.stdout.write(
       `dry-run: Phase 6 Step 1G would trash Gmail INBOX messages by sender\n` +
         `  pattern count: ${plan.substrings.length}\n` +
+        `  newer-than: ${plan.newerThan || '30d (gmail.js default)'}\n` +
         `  patterns: ${plan.substrings.join(',')}\n`
     );
     return EXIT_OK;
