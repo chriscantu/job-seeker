@@ -391,7 +391,7 @@ and the user needs to see both. Do not summarize, do not omit.
 | `2`  | Config missing (`search.md`, `mail-config.md`, or required table heading) | Report to user, stop Phase 6 |
 | `3`  | A substring in `config/search.md` contains a literal comma | Report to user, stop Phase 6 |
 | `4`  | osascript invocation failed or returned a sentinel error (`ACCOUNT_NOT_FOUND`, `MAILBOX_NOT_FOUND`, `TRASH_NOT_FOUND`) | Report to user, stop Phase 6 |
-| `5`  | Partial failure — one or more patterns had `moved < matched` | Report to user, continue to Step 2 |
+| `5`  | Partial failure — one or more patterns had `moved < matched` | Report to user, stop Phase 6 |
 
 A diagnostic `--dry-run` flag prints the resolved account, inbox, pattern
 count, and concatenated pattern list without invoking osascript. Use it when

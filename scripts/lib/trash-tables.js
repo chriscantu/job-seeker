@@ -54,13 +54,23 @@ function extractTableSubstrings(markdown, headingText) {
 }
 
 // Extract all substrings from all three auto-trash tables, in table order.
-// Throws if any heading is missing — this is a hard contract, not a warning,
-// because Phase 6 Step 1 silently dropping a whole table is exactly the
-// failure mode issue #88 was about.
+// Throws if any heading is missing OR if any named table has zero data rows
+// — both are hard contracts, not warnings, because Phase 6 Step 1 silently
+// dropping a whole table is exactly the failure mode issue #88 was about,
+// and an emptied data section is issue #88 at the config layer (see #90
+// finding 2).
 function extractAllTrashSubstrings(markdown) {
   const result = [];
   for (const heading of TABLE_HEADINGS) {
     const substrings = extractTableSubstrings(markdown, heading);
+    if (substrings.length === 0) {
+      throw new Error(
+        `Trash table "${heading}" has zero data rows. ` +
+          `An empty table silently drops a whole category of senders ` +
+          `from Phase 6 Step 1 — restore at least one row, or delete the ` +
+          `heading entirely if you mean to remove the category.`
+      );
+    }
     for (const s of substrings) {
       result.push(s);
     }
