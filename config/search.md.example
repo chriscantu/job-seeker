@@ -27,6 +27,44 @@ List the exact titles to search for, one per line:
 - Relocation required: No
 - 100% in-office: No
 
+## Staffing/Aggregator Company Exclusions
+
+These are recruitment platforms, not actual employers. Never use their listings or URLs.
+The `scan-email` skill also auto-trashes any inbox message whose sender domain
+matches one of the entries in the "trash sender substring" column.
+
+| Name | Trash Sender Substring |
+|------|------------------------|
+| Lensa | lensa.com |
+| Ladders | ladders.com |
+
+## Marketing / Non-Job-Search Senders to Auto-Trash
+
+These are not job alerts and never will be. The `scan-email` skill auto-trashes
+them on every run alongside the aggregator list above:
+
+| Sender | Trash Sender Substring |
+|--------|------------------------|
+| TopResume | topresume.com |
+| LinkedIn connection invites | invitations@linkedin.com |
+| LinkedIn InMail / sales outreach | inmail-hit-reply@linkedin.com |
+
+## Job Alert Senders to Auto-Trash After Scan
+
+These senders *do* have content `scan-email` reads (job postings), but every
+individual alert should be trashed once the run is done — otherwise they
+accumulate whenever the subject-line classifier, already-seen dedup, age
+filter, or other pre-body-fetch filters skip them. Phase 6 runs this trash
+pass AFTER metadata scan, body fetch, and user confirmation, so adding a
+sender here is safe: content has already been extracted by the time the
+trash fires. See issue #86.
+
+| Sender | Trash Sender Substring |
+|--------|------------------------|
+| LinkedIn job alerts (fit/role) | jobalerts-noreply@linkedin.com |
+| LinkedIn job alerts (daily digest) | jobs-noreply@linkedin.com |
+| LinkedIn job alerts (recommendation) | jobs-listings@linkedin.com |
+
 ## Notes
 
 Add any current search context here — companies you're actively pursuing,
