@@ -353,15 +353,24 @@ The skill MUST NOT run these `rm -rf` commands. The user executes them manually.
 ### Trash Apple Mail alerts
 Skip if `apple_mail_enabled = false`.
 
-**Step 1: Trash aggregator + marketing senders by sender pattern (atomic).**
+**Step 1: Trash aggregator + marketing + job-alert senders by sender pattern (atomic).**
 
-Read both auto-trash tables from `config/search.md`:
+Read all three auto-trash tables from `config/search.md`:
 - **"Staffing/Aggregator Company Exclusions"** — the "Trash Sender Substring" column
 - **"Marketing / Non-Job-Search Senders to Auto-Trash"** — the "Trash Sender Substring" column
+- **"Job Alert Senders to Auto-Trash After Scan"** — the "Trash Sender Substring" column
 
-Concatenate every substring from both tables into a comma-separated list, then
+Concatenate every substring from all three tables into a comma-separated list, then
 issue a single trash-by-sender call. Substrings must NOT contain commas — the
 script splits the input on commas to build the pattern list.
+
+Ordering note: this Step 1 trash pass runs in Phase 6, AFTER metadata scan
+(Phase 2), body fetch (Phase 3), dedup/verification (Phase 4), and user
+confirmation (Phase 5). The "Job Alert Senders" table captures senders whose
+individual alerts should be trashed even when pre-body-fetch filters
+(title classifier, already-seen dedup, age filter, newsletter skip rules)
+drop them — body-fetch-gated trash-by-id in Step 2 is not enough to prevent
+these messages from accumulating in the inbox. See issue #86.
 
 ```bash
 osascript {plugin_root}/scripts/apple_mail_trash_by_sender.applescript \
