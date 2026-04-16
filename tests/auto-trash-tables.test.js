@@ -31,6 +31,7 @@ const {
   extractAllTrashSubstrings,
   findSubstringWithComma,
   deriveRelayVariants,
+  appendToTrashTable,
 } = require("../scripts/lib/trash-tables");
 
 // config/search.md is gitignored (personal). The committed surface is
@@ -232,4 +233,104 @@ test("deriveRelayVariants: multiple @ patterns", () => {
 test("deriveRelayVariants: empty array returns empty", () => {
   const result = deriveRelayVariants([]);
   assert.deepStrictEqual(result, []);
+});
+
+test("appendToTrashTable: appends to the correct table", () => {
+  const tmpDir = require("os").tmpdir();
+  const tmpFile = path.join(
+    fs.mkdtempSync(path.join(tmpDir, "append-test-")),
+    "search.md"
+  );
+  fs.copyFileSync(SEARCH_MD, tmpFile);
+
+  appendToTrashTable(tmpFile, "Job Alert Senders to Auto-Trash After Scan", [
+    { name: "Glassdoor alerts", pattern: "noreply@glassdoor.com" },
+  ]);
+
+  const updated = fs.readFileSync(tmpFile, "utf8");
+  const subs = extractTableSubstrings(
+    updated,
+    "Job Alert Senders to Auto-Trash After Scan"
+  );
+  assert.ok(
+    subs.includes("noreply@glassdoor.com"),
+    "appended pattern should be in the table"
+  );
+
+  // Other tables should be unchanged
+  const staffing = extractTableSubstrings(
+    updated,
+    "Staffing/Aggregator Company Exclusions"
+  );
+  assert.ok(staffing.includes("lensa.com"), "staffing table should be unchanged");
+
+  fs.rmSync(path.dirname(tmpFile), { recursive: true, force: true });
+});
+
+test("appendToTrashTable: appends to last table (EOF edge case)", () => {
+  const tmpDir = require("os").tmpdir();
+  const tmpFile = path.join(
+    fs.mkdtempSync(path.join(tmpDir, "append-eof-test-")),
+    "search.md"
+  );
+  const md = `## Staffing/Aggregator Company Exclusions
+
+| Name | Trash Sender Substring |
+|------|------------------------|
+| Lensa | lensa.com |
+
+## Marketing / Non-Job-Search Senders to Auto-Trash
+
+| Sender | Trash Sender Substring |
+|--------|------------------------|
+| TopResume | topresume.com |
+
+## Job Alert Senders to Auto-Trash After Scan
+
+| Sender | Trash Sender Substring |
+|--------|------------------------|
+| LinkedIn | jobalerts-noreply@linkedin.com |
+`;
+  fs.writeFileSync(tmpFile, md);
+
+  appendToTrashTable(tmpFile, "Job Alert Senders to Auto-Trash After Scan", [
+    { name: "Glassdoor", pattern: "glassdoor.com" },
+  ]);
+
+  const updated = fs.readFileSync(tmpFile, "utf8");
+  const subs = extractTableSubstrings(
+    updated,
+    "Job Alert Senders to Auto-Trash After Scan"
+  );
+  assert.ok(subs.includes("glassdoor.com"), "should append to last table");
+  assert.ok(
+    subs.includes("jobalerts-noreply@linkedin.com"),
+    "existing rows preserved"
+  );
+
+  fs.rmSync(path.dirname(tmpFile), { recursive: true, force: true });
+});
+
+test("appendToTrashTable: appends multiple entries at once", () => {
+  const tmpDir = require("os").tmpdir();
+  const tmpFile = path.join(
+    fs.mkdtempSync(path.join(tmpDir, "append-multi-test-")),
+    "search.md"
+  );
+  fs.copyFileSync(SEARCH_MD, tmpFile);
+
+  appendToTrashTable(tmpFile, "Marketing / Non-Job-Search Senders to Auto-Trash", [
+    { name: "ResumeGenius", pattern: "resumegenius.com" },
+    { name: "Zety", pattern: "zety.com" },
+  ]);
+
+  const updated = fs.readFileSync(tmpFile, "utf8");
+  const subs = extractTableSubstrings(
+    updated,
+    "Marketing / Non-Job-Search Senders to Auto-Trash"
+  );
+  assert.ok(subs.includes("resumegenius.com"));
+  assert.ok(subs.includes("zety.com"));
+
+  fs.rmSync(path.dirname(tmpFile), { recursive: true, force: true });
 });
