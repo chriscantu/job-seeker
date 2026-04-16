@@ -85,6 +85,24 @@ test("classifier: notifications@ from unknown domain with 5+ messages → medium
   assert.equal(result.confidence, "medium");
 });
 
+test("classifier: high volume + templated subjects without automated prefix → medium", () => {
+  const result = classifySender({
+    domain: "someco.com",
+    fromAddresses: ["marketing@someco.com"],
+    messageCount: 6,
+    subjects: [
+      "Your weekly digest #12",
+      "Your weekly digest #13",
+      "Your weekly digest #14",
+      "Your weekly digest #15",
+      "Your weekly digest #16",
+      "Your weekly digest #17",
+    ],
+  });
+  assert.equal(result.confidence, "medium");
+  assert.equal(result.suggestedCategory, "marketing");
+});
+
 // --- Fallback (low confidence) ---
 
 test("classifier: unknown domain, low count, no signals → unknown / low", () => {

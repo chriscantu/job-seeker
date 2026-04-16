@@ -63,6 +63,7 @@ function extractTableSubstrings(markdown, headingText) {
 //
 // Returns the input array followed by any new variants, deduplicated.
 // Originals always appear before derived variants to preserve table order.
+// Patterns without `.` produce no variant (no transformation needed).
 function deriveRelayVariants(substrings) {
   const variants = [];
   const seen = new Set(substrings);
@@ -123,8 +124,28 @@ function findSubstringWithComma(substrings) {
 // Each entry is { name: string, pattern: string }.
 // Finds the table by heading, locates the last data row, and inserts
 // new rows after it (before the next heading or EOF).
+// WARNING: mutates the file at filePath in-place.
 function appendToTrashTable(filePath, headingText, entries) {
   if (!entries || entries.length === 0) return;
+  for (const e of entries) {
+    if (!e.name || !e.pattern) {
+      throw new Error(
+        `appendToTrashTable: entry missing name or pattern: ${JSON.stringify(e)}`
+      );
+    }
+    if (e.pattern.includes(',')) {
+      throw new Error(
+        `appendToTrashTable: pattern "${e.pattern}" contains a comma — ` +
+          `this would silently split into two bogus patterns in the trash script`
+      );
+    }
+    if (e.pattern.includes('|')) {
+      throw new Error(
+        `appendToTrashTable: pattern "${e.pattern}" contains a pipe — ` +
+          `this would corrupt the markdown table structure`
+      );
+    }
+  }
   const content = fs.readFileSync(filePath, 'utf8');
   const headingMarker = `## ${headingText}`;
   const headingIdx = content.indexOf(headingMarker);
@@ -137,14 +158,21 @@ function appendToTrashTable(filePath, headingText, entries) {
     ? headingIdx + nextHeadingMatch.index
     : content.length;
 
-  // Find the last table row (line starting with |) in this section
+  // Find the last data row (line starting with |, excluding the header
+  // row and separator rows). The header is the first non-separator pipe
+  // row — skip it so we only track data rows.
   const section = content.slice(headingIdx, sectionEnd);
   const lines = section.split('\n');
   let lastTableLineOffset = -1;
   let offset = headingIdx;
+  let headerSkipped = false;
   for (let i = 0; i < lines.length; i++) {
     if (lines[i].trim().startsWith('|') && !lines[i].includes('---')) {
-      lastTableLineOffset = offset + lines[i].length;
+      if (!headerSkipped) {
+        headerSkipped = true;
+      } else {
+        lastTableLineOffset = offset + lines[i].length;
+      }
     }
     offset += lines[i].length + 1; // +1 for \n
   }

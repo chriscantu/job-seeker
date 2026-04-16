@@ -175,6 +175,60 @@ describe("audit_trash_patterns.js CLI", () => {
     assert.deepStrictEqual(result.uncoveredSenders, []);
   });
 
+  it("parses 'Display Name <email>' format in From headers", () => {
+    const searchResults = makeSearchResults([
+      {
+        from: "Glassdoor Jobs <noreply@glassdoor.com>",
+        subject: "6 new VP jobs",
+      },
+    ]);
+    const out = run("", { GMAIL_SEARCH_STDOUT: searchResults });
+    const result = JSON.parse(out);
+    const uncovered = result.uncoveredSenders.find(
+      (s) => s.domain === "glassdoor.com"
+    );
+    assert.ok(uncovered, "should parse email from angle-bracket format");
+    assert.ok(uncovered.fromAddresses.includes("noreply@glassdoor.com"));
+  });
+
+  it("skips messages with no from header without crashing", () => {
+    const raw = JSON.stringify([
+      {
+        id: "msg-0",
+        threadId: "thread-0",
+        from: null,
+        to: "me@example.com",
+        subject: "No from",
+        date: "2026-04-15",
+        snippet: "",
+      },
+      {
+        id: "msg-1",
+        threadId: "thread-1",
+        from: "noreply@glassdoor.com",
+        to: "me@example.com",
+        subject: "Jobs",
+        date: "2026-04-15",
+        snippet: "",
+      },
+    ]);
+    const out = run("", { GMAIL_SEARCH_STDOUT: raw });
+    const result = JSON.parse(out);
+    // Should not crash, should process the valid message
+    assert.ok(
+      result.uncoveredSenders.find((s) => s.domain === "glassdoor.com"),
+      "valid message should still be processed"
+    );
+  });
+
+  it("rejects invalid --newer-than value", () => {
+    const { exitCode, stderr } = runExpectError(
+      "--newer-than 7d%20from:evil@bad.com"
+    );
+    assert.equal(exitCode, 2);
+    assert.match(stderr, /invalid --newer-than/);
+  });
+
   it("collects sample subjects in uncovered senders", () => {
     const searchResults = makeSearchResults([
       { from: "noreply@glassdoor.com", subject: "6 new VP Engineering jobs" },

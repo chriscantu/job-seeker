@@ -75,7 +75,8 @@ function matchesDomainList(domain, domainList) {
   return false;
 }
 
-// Check if any fromAddress has an automated local-part prefix.
+// Check if any fromAddress has an automated local-part (exact match or
+// delimited by `-` or `+`, e.g. `noreply`, `noreply-bounces`).
 function hasAutomatedLocalPart(fromAddresses) {
   for (const addr of fromAddresses) {
     const local = addr.split('@')[0].toLowerCase();
@@ -109,7 +110,9 @@ function classifySender({ domain, fromAddresses, messageCount, subjects }) {
     }
   }
 
-  // 2. Heuristic signals — medium confidence
+  // 2. Heuristic signals — medium confidence.
+  // All heuristic-tier results default to 'marketing' — expand categories
+  // when domain-specific heuristics are added.
   const isAutomated = hasAutomatedLocalPart(fromAddresses);
   const isHighVolume = messageCount >= 5;
   const isTemplated = hasTemplatedSubjects(subjects);
@@ -123,7 +126,7 @@ function classifySender({ domain, fromAddresses, messageCount, subjects }) {
   if (isHighVolume && isTemplated) {
     return { suggestedCategory: 'marketing', confidence: 'medium' };
   }
-  // Single strong signal with supporting evidence
+  // Automated sender with moderate volume (lower threshold than isHighVolume)
   if (isAutomated && messageCount >= 3) {
     return { suggestedCategory: 'marketing', confidence: 'medium' };
   }

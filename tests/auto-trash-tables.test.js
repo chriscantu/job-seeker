@@ -334,3 +334,109 @@ test("appendToTrashTable: appends multiple entries at once", () => {
 
   fs.rmSync(path.dirname(tmpFile), { recursive: true, force: true });
 });
+
+test("appendToTrashTable: throws on missing heading", () => {
+  const tmpDir = require("os").tmpdir();
+  const tmpFile = path.join(
+    fs.mkdtempSync(path.join(tmpDir, "append-missing-heading-")),
+    "search.md"
+  );
+  fs.copyFileSync(SEARCH_MD, tmpFile);
+
+  assert.throws(
+    () =>
+      appendToTrashTable(tmpFile, "Nonexistent Heading", [
+        { name: "Test", pattern: "test.com" },
+      ]),
+    /Heading not found/,
+    "missing heading must throw"
+  );
+
+  fs.rmSync(path.dirname(tmpFile), { recursive: true, force: true });
+});
+
+test("appendToTrashTable: throws on heading with no data rows", () => {
+  const tmpDir = require("os").tmpdir();
+  const tmpFile = path.join(
+    fs.mkdtempSync(path.join(tmpDir, "append-no-rows-")),
+    "search.md"
+  );
+  const md = `## Test Table
+
+Some text but no table rows at all.
+
+## Next Section
+`;
+  fs.writeFileSync(tmpFile, md);
+
+  assert.throws(
+    () =>
+      appendToTrashTable(tmpFile, "Test Table", [
+        { name: "Test", pattern: "test.com" },
+      ]),
+    /No table rows found/,
+    "heading with no table rows must throw"
+  );
+
+  fs.rmSync(path.dirname(tmpFile), { recursive: true, force: true });
+});
+
+test("appendToTrashTable: throws on pattern containing comma", () => {
+  const tmpDir = require("os").tmpdir();
+  const tmpFile = path.join(
+    fs.mkdtempSync(path.join(tmpDir, "append-comma-")),
+    "search.md"
+  );
+  fs.copyFileSync(SEARCH_MD, tmpFile);
+
+  assert.throws(
+    () =>
+      appendToTrashTable(tmpFile, "Job Alert Senders to Auto-Trash After Scan", [
+        { name: "Bad", pattern: "lensa,com" },
+      ]),
+    /comma/,
+    "pattern with comma must throw"
+  );
+
+  fs.rmSync(path.dirname(tmpFile), { recursive: true, force: true });
+});
+
+test("appendToTrashTable: throws on pattern containing pipe", () => {
+  const tmpDir = require("os").tmpdir();
+  const tmpFile = path.join(
+    fs.mkdtempSync(path.join(tmpDir, "append-pipe-")),
+    "search.md"
+  );
+  fs.copyFileSync(SEARCH_MD, tmpFile);
+
+  assert.throws(
+    () =>
+      appendToTrashTable(tmpFile, "Job Alert Senders to Auto-Trash After Scan", [
+        { name: "Bad", pattern: "lens|a.com" },
+      ]),
+    /pipe/,
+    "pattern with pipe must throw"
+  );
+
+  fs.rmSync(path.dirname(tmpFile), { recursive: true, force: true });
+});
+
+test("appendToTrashTable: throws on entry missing pattern", () => {
+  const tmpDir = require("os").tmpdir();
+  const tmpFile = path.join(
+    fs.mkdtempSync(path.join(tmpDir, "append-missing-")),
+    "search.md"
+  );
+  fs.copyFileSync(SEARCH_MD, tmpFile);
+
+  assert.throws(
+    () =>
+      appendToTrashTable(tmpFile, "Job Alert Senders to Auto-Trash After Scan", [
+        { name: "Test" },
+      ]),
+    /missing name or pattern/,
+    "entry without pattern must throw"
+  );
+
+  fs.rmSync(path.dirname(tmpFile), { recursive: true, force: true });
+});

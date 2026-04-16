@@ -6,8 +6,9 @@
 // (which stubs trash-by-sender), this stub reads GMAIL_SEARCH_STDOUT /
 // GMAIL_SEARCH_STDERR / GMAIL_SEARCH_EXIT and echoes them.
 //
-// The stub checks that argv[1] === "search" to confirm the audit CLI
-// is calling the right subcommand, then echoes the canned response.
+// The stub checks that process.argv[2] === "search" (argv[0] is the
+// runtime, argv[1] is the script) to confirm the audit CLI is calling
+// the right subcommand, then echoes the canned response.
 
 const cmd = process.argv[2];
 if (cmd !== 'search') {

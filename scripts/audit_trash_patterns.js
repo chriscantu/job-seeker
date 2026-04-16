@@ -12,7 +12,7 @@
 //
 // Exit codes:
 //   0  success
-//   2  config error (missing search.md, missing credentials)
+//   2  config or argument error (missing search.md, missing credentials, bad CLI args)
 //   4  Gmail API error (search subprocess failed)
 //
 // Env overrides (intended for tests):
@@ -66,6 +66,12 @@ function parseArgs(argv) {
       throw new Error(`unknown argument: ${a}`);
     }
   }
+  if (args.newerThan && !/^\d+[dhm]$/.test(args.newerThan)) {
+    throw new Error(
+      `invalid --newer-than value "${args.newerThan}" — ` +
+        `expected format like 30d, 7d, 24h, 60m`
+    );
+  }
   return args;
 }
 
@@ -101,14 +107,13 @@ function checkCredentials(credsDir) {
 }
 
 // Extract email address from a From header like "Name <email@domain.com>"
-// or bare "email@domain.com".
+// or bare "email@domain.com". Returns the address lowercased.
 function parseEmailAddress(fromHeader) {
   const match = fromHeader.match(/<([^>]+)>/);
   if (match) return match[1].toLowerCase();
   return fromHeader.trim().toLowerCase();
 }
 
-// Extract domain from an email address.
 function extractDomain(email) {
   const at = email.lastIndexOf('@');
   if (at === -1) return email;
@@ -140,7 +145,15 @@ function runGmailSearch(gmailBin, newerThan) {
   }
   const stdout = (result.stdout || '').trim();
   if (!stdout) return [];
-  return JSON.parse(stdout);
+  try {
+    return JSON.parse(stdout);
+  } catch (parseErr) {
+    const preview = stdout.slice(0, 200);
+    throw new Error(
+      `gmail.js search returned invalid JSON. ` +
+        `First 200 chars of output: ${preview}`
+    );
+  }
 }
 
 function main() {
@@ -167,12 +180,19 @@ function main() {
     const md = readSearchMd(searchPath);
     patterns = extractAllTrashSubstrings(md);
   } catch (err) {
-    if (err instanceof ConfigError) {
+    // ConfigError and extractAllTrashSubstrings errors (missing heading,
+    // empty table) are config problems — report and exit cleanly.
+    // Unexpected runtime errors (TypeError, etc.) should propagate with
+    // their stack trace for debugging.
+    if (
+      err instanceof ConfigError ||
+      err.message.includes('Trash table') ||
+      err.message.includes('Heading not found')
+    ) {
       process.stderr.write(`error: ${err.message}\n`);
       return EXIT_CONFIG;
     }
-    process.stderr.write(`error: ${err.message}\n`);
-    return EXIT_CONFIG;
+    throw err;
   }
 
   if (!skipCredCheck) {
@@ -194,8 +214,9 @@ function main() {
 
   // Group by sender domain
   const domainMap = new Map();
+  let skippedNoFrom = 0;
   for (const msg of messages) {
-    if (!msg.from) continue;
+    if (!msg.from) { skippedNoFrom++; continue; }
     const email = parseEmailAddress(msg.from);
     const domain = extractDomain(email);
     if (!domainMap.has(domain)) {
@@ -209,6 +230,18 @@ function main() {
     entry.fromAddresses.add(email);
     if (msg.subject) entry.subjects.push(msg.subject);
     entry.count++;
+  }
+
+  if (skippedNoFrom > 0) {
+    process.stderr.write(
+      `warning: ${skippedNoFrom} of ${messages.length} messages had no From header and were skipped\n`
+    );
+  }
+  if (messages.length > 0 && domainMap.size === 0) {
+    process.stderr.write(
+      `warning: all ${messages.length} messages were skipped (none had a From header). ` +
+        `This likely indicates a gmail.js bug or Gmail API schema change.\n`
+    );
   }
 
   // Classify each domain
