@@ -18,6 +18,8 @@
 //     silently skipped or mis-executed. Fixed by making this lib + the
 //     auto_trash_inbox.js CLI the single deterministic path.
 
+const fs = require('fs');
+
 const TABLE_HEADINGS = [
   'Staffing/Aggregator Company Exclusions',
   'Marketing / Non-Job-Search Senders to Auto-Trash',
@@ -53,6 +55,35 @@ function extractTableSubstrings(markdown, headingText) {
     .filter((s) => s && s.length > 0);
 }
 
+// Derive iCloud "Hide My Email" relay variants for sender patterns.
+// iCloud rewrites `user@domain.com` to `user_at_domain_com_{random}@icloud.com`,
+// turning every `.` into `_` and every `@` into `_at_`. A configured pattern
+// like `topresume.com` won't match the relay address `topresume_com_xxx@icloud.com`
+// unless we also search for `topresume_com`.
+//
+// Returns the input array followed by any new variants, deduplicated.
+// Originals always appear before derived variants to preserve table order.
+// Patterns without `.` produce no variant (no transformation needed).
+function deriveRelayVariants(substrings) {
+  const variants = [];
+  const seen = new Set(substrings);
+  for (const s of substrings) {
+    let variant = null;
+    if (s.includes('@') && s.includes('.')) {
+      // invitations@linkedin.com → invitations_at_linkedin_com
+      variant = s.replace(/@/g, '_at_').replace(/\./g, '_');
+    } else if (s.includes('.')) {
+      // topresume.com → topresume_com
+      variant = s.replace(/\./g, '_');
+    }
+    if (variant !== null && !seen.has(variant)) {
+      variants.push(variant);
+      seen.add(variant);
+    }
+  }
+  return [...substrings, ...variants];
+}
+
 // Extract all substrings from all three auto-trash tables, in table order.
 // Throws if any heading is missing OR if any named table has zero data rows
 // — both are hard contracts, not warnings, because Phase 6 Step 1 silently
@@ -75,7 +106,7 @@ function extractAllTrashSubstrings(markdown) {
       result.push(s);
     }
   }
-  return result;
+  return deriveRelayVariants(result);
 }
 
 // Validate the no-comma invariant. apple_mail_trash_by_sender.applescript
@@ -89,9 +120,85 @@ function findSubstringWithComma(substrings) {
   return null;
 }
 
+// Append new rows to a specific auto-trash table in search.md.
+// Each entry is { name: string, pattern: string }.
+// Finds the table by heading, locates the last data row, and inserts
+// new rows after it (before the next heading or EOF).
+// WARNING: mutates the file at filePath in-place.
+function appendToTrashTable(filePath, headingText, entries) {
+  if (!entries || entries.length === 0) return;
+  for (const e of entries) {
+    if (!e.name || !e.pattern) {
+      throw new Error(
+        `appendToTrashTable: entry missing name or pattern: ${JSON.stringify(e)}`
+      );
+    }
+    if (e.pattern.includes(',')) {
+      throw new Error(
+        `appendToTrashTable: pattern "${e.pattern}" contains a comma — ` +
+          `this would silently split into two bogus patterns in the trash script`
+      );
+    }
+    if (e.pattern.includes('|')) {
+      throw new Error(
+        `appendToTrashTable: pattern "${e.pattern}" contains a pipe — ` +
+          `this would corrupt the markdown table structure`
+      );
+    }
+  }
+  const content = fs.readFileSync(filePath, 'utf8');
+  const headingMarker = `## ${headingText}`;
+  const headingIdx = content.indexOf(headingMarker);
+  if (headingIdx === -1) {
+    throw new Error(`Heading not found: ${headingMarker}`);
+  }
+  const afterHeading = content.slice(headingIdx);
+  const nextHeadingMatch = afterHeading.match(/\n## (?!$)/m);
+  const sectionEnd = nextHeadingMatch
+    ? headingIdx + nextHeadingMatch.index
+    : content.length;
+
+  // Find the last data row (line starting with |, excluding the header
+  // row and separator rows). The header is the first non-separator pipe
+  // row — skip it so we only track data rows.
+  const section = content.slice(headingIdx, sectionEnd);
+  const lines = section.split('\n');
+  let lastTableLineOffset = -1;
+  let offset = headingIdx;
+  let headerSkipped = false;
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].trim().startsWith('|') && !lines[i].includes('---')) {
+      if (!headerSkipped) {
+        headerSkipped = true;
+      } else {
+        lastTableLineOffset = offset + lines[i].length;
+      }
+    }
+    offset += lines[i].length + 1; // +1 for \n
+  }
+
+  if (lastTableLineOffset === -1) {
+    throw new Error(`No table rows found under ${headingMarker}`);
+  }
+
+  const newRows = entries
+    .map((e) => `| ${e.name} | ${e.pattern} |`)
+    .join('\n');
+
+  const updated =
+    content.slice(0, lastTableLineOffset) +
+    '\n' +
+    newRows +
+    content.slice(lastTableLineOffset);
+
+  fs.writeFileSync(filePath, updated);
+}
+
 module.exports = {
   TABLE_HEADINGS,
   extractTableSubstrings,
   extractAllTrashSubstrings,
   findSubstringWithComma,
+  deriveRelayVariants,
+  appendToTrashTable,
 };

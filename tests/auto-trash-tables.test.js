@@ -30,6 +30,8 @@ const {
   extractTableSubstrings,
   extractAllTrashSubstrings,
   findSubstringWithComma,
+  deriveRelayVariants,
+  appendToTrashTable,
 } = require("../scripts/lib/trash-tables");
 
 // config/search.md is gitignored (personal). The committed surface is
@@ -179,4 +181,262 @@ test("auto-trash: extractAllTrashSubstrings returns all three tables concatenate
   );
   // Also prove the no-comma invariant holds on the concatenated list.
   assert.equal(findSubstringWithComma(all), null);
+});
+
+test("deriveRelayVariants: dot-only pattern gets underscore variant", () => {
+  const result = deriveRelayVariants(["topresume.com"]);
+  assert.deepStrictEqual(result, ["topresume.com", "topresume_com"]);
+});
+
+test("deriveRelayVariants: @-containing pattern gets _at_ variant", () => {
+  const result = deriveRelayVariants(["invitations@linkedin.com"]);
+  assert.deepStrictEqual(result, [
+    "invitations@linkedin.com",
+    "invitations_at_linkedin_com",
+  ]);
+});
+
+test("deriveRelayVariants: no-dot no-@ pattern unchanged", () => {
+  const result = deriveRelayVariants(["hackajob"]);
+  assert.deepStrictEqual(result, ["hackajob"]);
+});
+
+test("deriveRelayVariants: deduplicates when variant already in input", () => {
+  const result = deriveRelayVariants(["topresume.com", "topresume_com"]);
+  assert.deepStrictEqual(result, ["topresume.com", "topresume_com"]);
+});
+
+test("deriveRelayVariants: originals before variants, stable order", () => {
+  const result = deriveRelayVariants(["lensa.com", "hackajob", "topresume.com"]);
+  assert.deepStrictEqual(result, [
+    "lensa.com",
+    "hackajob",
+    "topresume.com",
+    "lensa_com",
+    "topresume_com",
+  ]);
+});
+
+test("deriveRelayVariants: multiple @ patterns", () => {
+  const result = deriveRelayVariants([
+    "invitations@linkedin.com",
+    "hit-reply@linkedin.com",
+  ]);
+  assert.deepStrictEqual(result, [
+    "invitations@linkedin.com",
+    "hit-reply@linkedin.com",
+    "invitations_at_linkedin_com",
+    "hit-reply_at_linkedin_com",
+  ]);
+});
+
+test("deriveRelayVariants: empty array returns empty", () => {
+  const result = deriveRelayVariants([]);
+  assert.deepStrictEqual(result, []);
+});
+
+test("appendToTrashTable: appends to the correct table", () => {
+  const tmpDir = require("os").tmpdir();
+  const tmpFile = path.join(
+    fs.mkdtempSync(path.join(tmpDir, "append-test-")),
+    "search.md"
+  );
+  fs.copyFileSync(SEARCH_MD, tmpFile);
+
+  appendToTrashTable(tmpFile, "Job Alert Senders to Auto-Trash After Scan", [
+    { name: "Glassdoor alerts", pattern: "noreply@glassdoor.com" },
+  ]);
+
+  const updated = fs.readFileSync(tmpFile, "utf8");
+  const subs = extractTableSubstrings(
+    updated,
+    "Job Alert Senders to Auto-Trash After Scan"
+  );
+  assert.ok(
+    subs.includes("noreply@glassdoor.com"),
+    "appended pattern should be in the table"
+  );
+
+  // Other tables should be unchanged
+  const staffing = extractTableSubstrings(
+    updated,
+    "Staffing/Aggregator Company Exclusions"
+  );
+  assert.ok(staffing.includes("lensa.com"), "staffing table should be unchanged");
+
+  fs.rmSync(path.dirname(tmpFile), { recursive: true, force: true });
+});
+
+test("appendToTrashTable: appends to last table (EOF edge case)", () => {
+  const tmpDir = require("os").tmpdir();
+  const tmpFile = path.join(
+    fs.mkdtempSync(path.join(tmpDir, "append-eof-test-")),
+    "search.md"
+  );
+  const md = `## Staffing/Aggregator Company Exclusions
+
+| Name | Trash Sender Substring |
+|------|------------------------|
+| Lensa | lensa.com |
+
+## Marketing / Non-Job-Search Senders to Auto-Trash
+
+| Sender | Trash Sender Substring |
+|--------|------------------------|
+| TopResume | topresume.com |
+
+## Job Alert Senders to Auto-Trash After Scan
+
+| Sender | Trash Sender Substring |
+|--------|------------------------|
+| LinkedIn | jobalerts-noreply@linkedin.com |
+`;
+  fs.writeFileSync(tmpFile, md);
+
+  appendToTrashTable(tmpFile, "Job Alert Senders to Auto-Trash After Scan", [
+    { name: "Glassdoor", pattern: "glassdoor.com" },
+  ]);
+
+  const updated = fs.readFileSync(tmpFile, "utf8");
+  const subs = extractTableSubstrings(
+    updated,
+    "Job Alert Senders to Auto-Trash After Scan"
+  );
+  assert.ok(subs.includes("glassdoor.com"), "should append to last table");
+  assert.ok(
+    subs.includes("jobalerts-noreply@linkedin.com"),
+    "existing rows preserved"
+  );
+
+  fs.rmSync(path.dirname(tmpFile), { recursive: true, force: true });
+});
+
+test("appendToTrashTable: appends multiple entries at once", () => {
+  const tmpDir = require("os").tmpdir();
+  const tmpFile = path.join(
+    fs.mkdtempSync(path.join(tmpDir, "append-multi-test-")),
+    "search.md"
+  );
+  fs.copyFileSync(SEARCH_MD, tmpFile);
+
+  appendToTrashTable(tmpFile, "Marketing / Non-Job-Search Senders to Auto-Trash", [
+    { name: "ResumeGenius", pattern: "resumegenius.com" },
+    { name: "Zety", pattern: "zety.com" },
+  ]);
+
+  const updated = fs.readFileSync(tmpFile, "utf8");
+  const subs = extractTableSubstrings(
+    updated,
+    "Marketing / Non-Job-Search Senders to Auto-Trash"
+  );
+  assert.ok(subs.includes("resumegenius.com"));
+  assert.ok(subs.includes("zety.com"));
+
+  fs.rmSync(path.dirname(tmpFile), { recursive: true, force: true });
+});
+
+test("appendToTrashTable: throws on missing heading", () => {
+  const tmpDir = require("os").tmpdir();
+  const tmpFile = path.join(
+    fs.mkdtempSync(path.join(tmpDir, "append-missing-heading-")),
+    "search.md"
+  );
+  fs.copyFileSync(SEARCH_MD, tmpFile);
+
+  assert.throws(
+    () =>
+      appendToTrashTable(tmpFile, "Nonexistent Heading", [
+        { name: "Test", pattern: "test.com" },
+      ]),
+    /Heading not found/,
+    "missing heading must throw"
+  );
+
+  fs.rmSync(path.dirname(tmpFile), { recursive: true, force: true });
+});
+
+test("appendToTrashTable: throws on heading with no data rows", () => {
+  const tmpDir = require("os").tmpdir();
+  const tmpFile = path.join(
+    fs.mkdtempSync(path.join(tmpDir, "append-no-rows-")),
+    "search.md"
+  );
+  const md = `## Test Table
+
+Some text but no table rows at all.
+
+## Next Section
+`;
+  fs.writeFileSync(tmpFile, md);
+
+  assert.throws(
+    () =>
+      appendToTrashTable(tmpFile, "Test Table", [
+        { name: "Test", pattern: "test.com" },
+      ]),
+    /No table rows found/,
+    "heading with no table rows must throw"
+  );
+
+  fs.rmSync(path.dirname(tmpFile), { recursive: true, force: true });
+});
+
+test("appendToTrashTable: throws on pattern containing comma", () => {
+  const tmpDir = require("os").tmpdir();
+  const tmpFile = path.join(
+    fs.mkdtempSync(path.join(tmpDir, "append-comma-")),
+    "search.md"
+  );
+  fs.copyFileSync(SEARCH_MD, tmpFile);
+
+  assert.throws(
+    () =>
+      appendToTrashTable(tmpFile, "Job Alert Senders to Auto-Trash After Scan", [
+        { name: "Bad", pattern: "lensa,com" },
+      ]),
+    /comma/,
+    "pattern with comma must throw"
+  );
+
+  fs.rmSync(path.dirname(tmpFile), { recursive: true, force: true });
+});
+
+test("appendToTrashTable: throws on pattern containing pipe", () => {
+  const tmpDir = require("os").tmpdir();
+  const tmpFile = path.join(
+    fs.mkdtempSync(path.join(tmpDir, "append-pipe-")),
+    "search.md"
+  );
+  fs.copyFileSync(SEARCH_MD, tmpFile);
+
+  assert.throws(
+    () =>
+      appendToTrashTable(tmpFile, "Job Alert Senders to Auto-Trash After Scan", [
+        { name: "Bad", pattern: "lens|a.com" },
+      ]),
+    /pipe/,
+    "pattern with pipe must throw"
+  );
+
+  fs.rmSync(path.dirname(tmpFile), { recursive: true, force: true });
+});
+
+test("appendToTrashTable: throws on entry missing pattern", () => {
+  const tmpDir = require("os").tmpdir();
+  const tmpFile = path.join(
+    fs.mkdtempSync(path.join(tmpDir, "append-missing-")),
+    "search.md"
+  );
+  fs.copyFileSync(SEARCH_MD, tmpFile);
+
+  assert.throws(
+    () =>
+      appendToTrashTable(tmpFile, "Job Alert Senders to Auto-Trash After Scan", [
+        { name: "Test" },
+      ]),
+    /missing name or pattern/,
+    "entry without pattern must throw"
+  );
+
+  fs.rmSync(path.dirname(tmpFile), { recursive: true, force: true });
 });
