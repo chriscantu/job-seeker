@@ -1,9 +1,15 @@
-const { describe, it } = require('node:test');
+const { describe, it, before } = require('node:test');
 const assert = require('node:assert/strict');
 const { execSync } = require('child_process');
+const fs = require('fs');
 const path = require('path');
 
 const CLI = path.join(__dirname, '..', 'scripts', 'gmail.js');
+
+// Ensure temp body file exists for create-draft tests that get past flag parsing
+before(() => {
+  fs.writeFileSync('/tmp/gmail-cli-test-body.txt', 'test body');
+});
 
 describe('gmail CLI', () => {
   describe('usage', () => {
@@ -53,16 +59,25 @@ describe('gmail CLI', () => {
   });
 
   describe('create-draft command', () => {
-    it('exits 1 with error when --to is missing', () => {
+    it('does not require --to (recipient can be added later in Gmail)', () => {
+      // Without valid OAuth tokens, the command will fail at the API call,
+      // not at flag validation. We verify it gets past flag parsing by
+      // checking the error is NOT about a missing --to flag.
       try {
         execSync(
-          `bun ${CLI} create-draft --subject "Test" --body-file /tmp/x.txt`,
-          { encoding: 'utf8', stdio: 'pipe' }
+          `bun ${CLI} create-draft --subject "Test" --body-file /tmp/gmail-cli-test-body.txt`,
+          {
+            encoding: 'utf8',
+            stdio: 'pipe',
+            env: { ...process.env, HOME: '/tmp/no-gmail-tokens' },
+          }
         );
-        assert.fail('should have exited non-zero');
+        assert.fail('should have exited non-zero (no OAuth tokens)');
       } catch (err) {
-        assert.ok(err.stderr.includes('--to is required'));
-        assert.equal(err.status, 1);
+        assert.ok(
+          !err.stderr.includes('--to is required'),
+          `--to should be optional, but got: ${err.stderr}`
+        );
       }
     });
 

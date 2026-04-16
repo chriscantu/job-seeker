@@ -8,7 +8,7 @@
 //   bun scripts/gmail.js auth                                   # One-time OAuth2 consent flow
 //   bun scripts/gmail.js profile                                # Print authenticated email address
 //   bun scripts/gmail.js search <query> [--max N]               # Search messages (prints JSON)
-//   bun scripts/gmail.js create-draft --to X --subject Y --body-file Z
+//   bun scripts/gmail.js create-draft [--to X] --subject Y --body-file Z
 //   bun scripts/gmail.js trash <id>...                          # Trash messages by ID
 //   bun scripts/gmail.js trash-by-sender --sender S [--sender S ...] [--newer-than 30d] [--dry-run]
 //
@@ -35,8 +35,10 @@ Commands:
   auth                             Authenticate with Gmail (one-time browser consent)
   profile                          Print the authenticated Gmail address
   search <query> [--max N]         Search messages, print JSON array
-  create-draft --to X --subject Y --body-file Z
-                                   Create a Gmail draft (body read from file)
+  create-draft [--to X] --subject Y --body-file Z
+                                   Create a Gmail draft (body read from file;
+                                   --to is optional — omit for drafts where
+                                   the recipient is not yet known)
   trash <id>...                    Trash one or more messages by Gmail message ID
   trash-by-sender --sender S [...]  Trash INBOX messages matching from:<S> (repeated flag)
                                    Optional: --newer-than <window> (default 30d), --dry-run
@@ -46,6 +48,7 @@ Examples:
   bun scripts/gmail.js profile
   bun scripts/gmail.js search "from:@acme.com" --max 5
   bun scripts/gmail.js create-draft --to jane@acme.com --subject "Re: VP Eng" --body-file /tmp/body.txt
+  bun scripts/gmail.js create-draft --subject "Cold outreach" --body-file /tmp/body.txt
   bun scripts/gmail.js trash 18f1a2b3c4d5e6f7
   bun scripts/gmail.js trash-by-sender --sender lensa.com --sender ladders.com --dry-run`);
   process.exit(1);
@@ -194,14 +197,15 @@ async function searchCommand(args) {
 }
 
 function encodeRfc822(to, subject, body) {
-  const lines = [
-    `To: ${to}`,
+  const lines = [];
+  if (to) lines.push(`To: ${to}`);
+  lines.push(
     `Subject: ${subject}`,
     'Content-Type: text/plain; charset="UTF-8"',
     'MIME-Version: 1.0',
     '',
     body,
-  ];
+  );
   const message = lines.join('\r\n');
   return Buffer.from(message).toString('base64')
     .replace(/\+/g, '-')
@@ -211,10 +215,6 @@ function encodeRfc822(to, subject, body) {
 
 async function createDraftCommand(args) {
   const { flags } = parseFlags(args);
-  if (!flags.to) {
-    console.error('Error: --to is required.');
-    process.exit(1);
-  }
   if (!flags.subject) {
     console.error('Error: --subject is required.');
     process.exit(1);
@@ -613,6 +613,7 @@ async function main() {
 // (require.main === module), main() is invoked below; when required
 // from a test, only the exports are visible and main() does not run.
 module.exports = {
+  encodeRfc822,
   parseTrashBySenderArgs,
   formatTrashBySenderOutput,
   listMatchingIds,
