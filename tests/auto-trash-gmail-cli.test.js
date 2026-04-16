@@ -179,7 +179,7 @@ describe("auto_trash_gmail.js CLI", () => {
     const out = run(
       "",
       stubEnv({
-        stdout: "trashed: lensa.com=2/2 topresume.com=0/0 glassdoor.com=3/3",
+        stdout: "trashed: lensa.com=2/2 topresume.com=0/0 glassdoor.com=3/3 lensa_com=0/0 topresume_com=0/0 glassdoor_com=0/0",
         exit: 0,
       })
     );
@@ -241,7 +241,7 @@ describe("auto_trash_gmail.js CLI", () => {
       "",
       stubEnv({
         stdout:
-          "trashed: lensa.com=1/3 topresume.com=0/0 glassdoor.com=2/2 (errors: lensa.com=a:503|b:503)",
+          "trashed: lensa.com=1/3 topresume.com=0/0 glassdoor.com=2/2 lensa_com=0/0 topresume_com=0/0 glassdoor_com=0/0 (errors: lensa.com=a:503|b:503)",
         exit: 0,
       })
     );
@@ -277,7 +277,7 @@ describe("auto_trash_gmail.js CLI", () => {
       "",
       stubEnv({
         stdout:
-          "trashed: lensa.com=500/500 topresume.com=0/0 glassdoor.com=3/3 (cap-hit: lensa.com=500)",
+          "trashed: lensa.com=500/500 topresume.com=0/0 glassdoor.com=3/3 lensa_com=0/0 topresume_com=0/0 glassdoor_com=0/0 (cap-hit: lensa.com=500)",
         exit: 0,
       })
     );
@@ -404,7 +404,7 @@ describe("auto_trash_gmail.js CLI", () => {
     const { exitCode } = runExpectError(
       "",
       stubEnv({
-        stdout: "trashed: lensa.com=1/1 topresume.com=0/0",
+        stdout: "trashed: lensa.com=1/1 topresume.com=0/0 lensa_com=0/0 topresume_com=0/0",
         exit: 0,
       })
     );
