@@ -18,6 +18,8 @@
 //     silently skipped or mis-executed. Fixed by making this lib + the
 //     auto_trash_inbox.js CLI the single deterministic path.
 
+const fs = require('fs');
+
 const TABLE_HEADINGS = [
   'Staffing/Aggregator Company Exclusions',
   'Marketing / Non-Job-Search Senders to Auto-Trash',
@@ -117,10 +119,58 @@ function findSubstringWithComma(substrings) {
   return null;
 }
 
+// Append new rows to a specific auto-trash table in search.md.
+// Each entry is { name: string, pattern: string }.
+// Finds the table by heading, locates the last data row, and inserts
+// new rows after it (before the next heading or EOF).
+function appendToTrashTable(filePath, headingText, entries) {
+  if (!entries || entries.length === 0) return;
+  const content = fs.readFileSync(filePath, 'utf8');
+  const headingMarker = `## ${headingText}`;
+  const headingIdx = content.indexOf(headingMarker);
+  if (headingIdx === -1) {
+    throw new Error(`Heading not found: ${headingMarker}`);
+  }
+  const afterHeading = content.slice(headingIdx);
+  const nextHeadingMatch = afterHeading.match(/\n## (?!$)/m);
+  const sectionEnd = nextHeadingMatch
+    ? headingIdx + nextHeadingMatch.index
+    : content.length;
+
+  // Find the last table row (line starting with |) in this section
+  const section = content.slice(headingIdx, sectionEnd);
+  const lines = section.split('\n');
+  let lastTableLineOffset = -1;
+  let offset = headingIdx;
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].trim().startsWith('|') && !lines[i].includes('---')) {
+      lastTableLineOffset = offset + lines[i].length;
+    }
+    offset += lines[i].length + 1; // +1 for \n
+  }
+
+  if (lastTableLineOffset === -1) {
+    throw new Error(`No table rows found under ${headingMarker}`);
+  }
+
+  const newRows = entries
+    .map((e) => `| ${e.name} | ${e.pattern} |`)
+    .join('\n');
+
+  const updated =
+    content.slice(0, lastTableLineOffset) +
+    '\n' +
+    newRows +
+    content.slice(lastTableLineOffset);
+
+  fs.writeFileSync(filePath, updated);
+}
+
 module.exports = {
   TABLE_HEADINGS,
   extractTableSubstrings,
   extractAllTrashSubstrings,
   findSubstringWithComma,
   deriveRelayVariants,
+  appendToTrashTable,
 };
