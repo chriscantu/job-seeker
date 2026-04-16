@@ -20,6 +20,7 @@ const { describe, it } = require("node:test");
 const assert = require("node:assert/strict");
 
 const {
+  encodeRfc822,
   parseTrashBySenderArgs,
   formatTrashBySenderOutput,
   listMatchingIds,
@@ -27,6 +28,30 @@ const {
   resolveMaxMatches,
   DEFAULT_MAX_MATCHES_PER_PATTERN,
 } = require("../scripts/gmail.js");
+
+describe("encodeRfc822", () => {
+  it("includes To header when recipient is provided", () => {
+    const raw = encodeRfc822("jane@acme.com", "Hello", "body text");
+    const decoded = Buffer.from(raw, "base64").toString("utf8");
+    assert.ok(decoded.includes("To: jane@acme.com"), "expected To header");
+    assert.ok(decoded.includes("Subject: Hello"), "expected Subject header");
+    assert.ok(decoded.includes("body text"), "expected body");
+  });
+
+  it("omits To header when recipient is undefined", () => {
+    const raw = encodeRfc822(undefined, "Draft", "draft body");
+    const decoded = Buffer.from(raw, "base64").toString("utf8");
+    assert.ok(!decoded.includes("To:"), "expected no To header");
+    assert.ok(decoded.includes("Subject: Draft"), "expected Subject header");
+    assert.ok(decoded.includes("draft body"), "expected body");
+  });
+
+  it("omits To header when recipient is empty string", () => {
+    const raw = encodeRfc822("", "Draft", "draft body");
+    const decoded = Buffer.from(raw, "base64").toString("utf8");
+    assert.ok(!decoded.includes("To:"), "expected no To header");
+  });
+});
 
 describe("parseTrashBySenderArgs", () => {
   it("collects multiple --sender flags in order", () => {
