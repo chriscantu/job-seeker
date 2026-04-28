@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Job Seeker — Daily Digest Execution Flow</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f1117; color: #e1e4e8; min-height: 100vh; }
+
+  .header { padding: 24px 32px; border-bottom: 1px solid #21262d; }
+  .header h1 { font-size: 20px; font-weight: 600; color: #f0f6fc; }
+  .header p { font-size: 13px; color: #8b949e; margin-top: 4px; }
+
+  .container { display: flex; height: calc(100vh - 80px); }
+  .flow-panel { flex: 1; padding: 32px; overflow-y: auto; }
+  .detail-panel { width: 360px; border-left: 1px solid #21262d; padding: 24px; overflow-y: auto; background: #161b22; flex-shrink: 0; }
+
+  .phase { margin-bottom: 28px; }
+  .phase-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1.2px; color: #8b949e; margin-bottom: 10px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .phase-label::after { content: ''; flex: 1; height: 1px; background: #21262d; }
+
+  .node { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 12px 16px; margin-bottom: 6px; cursor: pointer; transition: all 0.15s ease; }
+  .node:hover { border-color: #58a6ff; background: #1c2333; }
+  .node.active { border-color: #58a6ff; background: #1c2333; box-shadow: 0 0 0 1px #58a6ff; }
+  .node.dimmed { opacity: 0.2; }
+  .node.highlighted { box-shadow: 0 0 14px rgba(63,185,80,0.2); }
+
+  .node.decision { border-left: 3px solid #d29922; }
+  .node.api      { border-left: 3px solid #3fb950; }
+  .node.fallback { border-left: 3px solid #8b949e; }
+  .node.cache    { border-left: 3px solid #58a6ff; }
+  .node.output   { border-left: 3px solid #bc8cff; }
+  .node.error    { border-left: 3px solid #f85149; }
+
+  .node-title { font-size: 13px; font-weight: 600; color: #f0f6fc; }
+  .node-subtitle { font-size: 11px; color: #8b949e; margin-top: 3px; line-height: 1.5; }
+  .node-badge { display: inline-block; font-size: 10px; padding: 2px 8px; border-radius: 10px; margin-top: 6px; font-weight: 600; }
+  .badge-api    { background: #0d3320; color: #3fb950; }
+  .badge-cache  { background: #0d1a2e; color: #79c0ff; }
+  .badge-output { background: #1f0e2c; color: #bc8cff; }
+  .badge-error  { background: #2a0e0e; color: #f85149; }
+  .badge-warn   { background: #3d2e00; color: #d29922; }
+
+  .connector { width: 2px; height: 16px; background: #30363d; margin: 0 auto 6px; position: relative; }
+  .connector::after { content: ''; position: absolute; bottom: -4px; left: -3px; width: 8px; height: 8px; border-right: 2px solid #30363d; border-bottom: 2px solid #30363d; transform: rotate(45deg); }
+
+  .branch { display: flex; gap: 8px; }
+  .branch > div { flex: 1; min-width: 0; }
+  .branch-label { font-size: 11px; text-align: center; margin-bottom: 5px; font-weight: 500; color: #58a6ff; }
+  .branch-label.warn  { color: #d29922; }
+  .branch-label.green { color: #3fb950; }
+  .branch-label.muted { color: #8b949e; }
+
+  .gate { text-align: center; padding: 10px; margin: 10px 0; border: 1px solid #58a6ff; border-radius: 20px; font-size: 12px; font-weight: 600; color: #58a6ff; background: #1c2333; cursor: pointer; }
+  .gate:hover { background: #21262d; }
+  .gate.active { box-shadow: 0 0 0 1px #58a6ff; }
+  .gate.dimmed { opacity: 0.2; }
+  .gate.highlighted { box-shadow: 0 0 14px rgba(88,166,255,0.3); }
+
+  .detail-panel h2 { font-size: 16px; font-weight: 600; color: #f0f6fc; margin-bottom: 16px; }
+  .empty-state { color: #484f58; font-size: 13px; font-style: italic; margin-top: 40px; text-align: center; }
+  .detail-section { margin-bottom: 16px; }
+  .detail-section h3 { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #8b949e; margin-bottom: 6px; }
+  .detail-section p { font-size: 13px; line-height: 1.6; color: #c9d1d9; }
+  .detail-section ul { padding-left: 16px; font-size: 13px; line-height: 1.8; color: #c9d1d9; }
+
+  .legend { margin-top: 24px; padding: 14px; background: #0d1117; border: 1px solid #21262d; border-radius: 8px; }
+  .legend h3 { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #8b949e; margin-bottom: 10px; }
+  .legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 12px; color: #8b949e; }
+  .legend-swatch { width: 12px; height: 12px; border-radius: 2px; border: 1px solid; flex-shrink: 0; }
+  .ls-decision { background: #3d2e00; border-color: #d29922; }
+  .ls-api      { background: #0d3320; border-color: #3fb950; }
+  .ls-fallback { background: #1c2023; border-color: #8b949e; }
+  .ls-cache    { background: #0d1a2e; border-color: #58a6ff; }
+  .ls-output   { background: #1f0e2c; border-color: #bc8cff; }
+  .ls-error    { background: #2a0e0e; border-color: #f85149; }
+
+  .sim-controls { margin-top: 16px; padding: 14px; background: #0d1117; border: 1px solid #21262d; border-radius: 8px; }
+  .sim-controls h3 { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #8b949e; margin-bottom: 10px; }
+  .sim-btn { display: block; width: 100%; padding: 10px; margin-bottom: 6px; background: #21262d; border: 1px solid #30363d; border-radius: 6px; color: #c9d1d9; font-size: 12px; cursor: pointer; transition: all 0.15s ease; text-align: left; }
+  .sim-btn:hover { background: #30363d; border-color: #58a6ff; color: #f0f6fc; }
+  .sim-btn.active-sim { background: #1c2333; border-color: #58a6ff; color: #58a6ff; }
+  .sim-btn .sim-title { font-weight: 600; margin-bottom: 2px; }
+  .sim-btn .sim-desc { font-size: 11px; color: #8b949e; }
+  .sim-btn.active-sim .sim-desc { color: #79c0ff; }
+  .reset-btn { display: block; width: 100%; padding: 8px; margin-top: 8px; background: transparent; border: 1px solid #21262d; border-radius: 6px; color: #8b949e; font-size: 11px; cursor: pointer; }
+  .reset-btn:hover { border-color: #30363d; color: #c9d1d9; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Daily Digest &mdash; Execution Flow</h1>
+  <p>Click any node for details &middot; Use simulation buttons to trace execution paths</p>
+</div>
+
+<div class="container">
+  <div class="flow-panel">
+
+    <!-- Phase 0 -->
+    <div class="phase">
+      <div class="phase-label">Phase 0 &mdash; Preflight</div>
+      <div class="node" id="n-config" data-key="config">
+        <div class="node-title">Read config files</div>
+        <div class="node-subtitle">candidate.md &middot; search.md &middot; batching.md</div>
+      </div>
+      <div class="connector"></div>
+      <div class="node" id="n-state" data-key="state">
+        <div class="node-title">Read state files</div>
+        <div class="node-subtitle">seen-postings (build dedup set) &middot; preferences (signals + last_run_date)</div>
+      </div>
+      <div class="connector"></div>
+      <div class="node" id="n-since" data-key="since">
+        <div class="node-title">Compute search_since</div>
+        <div class="node-subtitle">max(last_run_date, today &minus; 7 days) &mdash; or yesterday if no prefs file</div>
+      </div>
+      <div class="connector"></div>
+      <div class="node decision" id="n-ts-cfg" data-key="ts-cfg">
+        <div class="node-title">theirstack-config.md exists?</div>
+      </div>
+      <div class="branch">
+        <div>
+          <div class="branch-label green">Config found</div>
+          <div class="node decision" id="n-budget" data-key="budget">
+            <div class="node-title">Budget check</div>
+            <div class="node-subtitle">month_total + daily_budget &ge; 200 credits?</div>
+          </div>
+          <div class="node" id="n-ts-on" data-key="ts-on">
+            <div class="node-title">use_theirstack = true</div>
+            <span class="node-badge badge-api">TheirStack enabled</span>
+          </div>
+        </div>
+        <div>
+          <div class="branch-label warn">No config or exhausted</div>
+          <div class="node fallback" id="n-ts-off" data-key="ts-off">
+            <div class="node-title">use_theirstack = false</div>
+            <div class="node-subtitle">Config absent or monthly limit reached</div>
+            <span class="node-badge badge-warn">Degraded mode</span>
+          </div>
+        </div>
+      </div>
+      <div class="connector"></div>
+      <div class="node" id="n-notes-opt" data-key="notes-opt">
+        <div class="node-title">(Optional) Read notes-config.md</div>
+        <div class="node-subtitle">Activates Phase 4 Apple Notes write when present</div>
+      </div>
+    </div>
+
+    <!-- Phase Cache Check -->
+    <div class="phase">
+      <div class="phase-label">Phase Cache Check</div>
+      <div class="node cache decision" id="n-cp2" data-key="cp2">
+        <div class="node-title">phase2 cached? (2 h TTL)</div>
+        <div class="node-subtitle">bun scripts/cache.js read daily-digest phase2</div>
+        <span class="node-badge badge-cache">Cache check</span>
+      </div>
+      <div class="branch">
+        <div>
+          <div class="branch-label green">Hit</div>
+          <div class="node decision" id="n-rp3" data-key="rp3">
+            <div class="node-title">Prompt: resume from Phase 3?</div>
+            <div class="node-subtitle">"Verification cached &mdash; {N} roles. Resume from compose?"</div>
+          </div>
+          <div style="font-size:11px;color:#8b949e;text-align:center;margin-top:4px">Yes &rarr; jump to Phase 3<br>Fresh &rarr; re-check phase1</div>
+        </div>
+        <div>
+          <div class="branch-label muted">Miss</div>
+          <div class="node cache decision" id="n-cp1" data-key="cp1">
+            <div class="node-title">phase1 cached? (2 h TTL)</div>
+            <div class="node-subtitle">bun scripts/cache.js read daily-digest phase1</div>
+            <span class="node-badge badge-cache">Cache check</span>
+          </div>
+          <div class="node decision" id="n-rp2" data-key="rp2">
+            <div class="node-title">Prompt: resume from Phase 2?</div>
+            <div class="node-subtitle">"Discovery cached &mdash; {N} roles. Resume from verification?"</div>
+          </div>
+          <div style="font-size:11px;color:#8b949e;text-align:center;margin-top:4px">Yes &rarr; jump to Phase 2<br>Fresh / Miss &rarr; run Phase 1</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Phase 1 -->
+    <div class="phase">
+      <div class="phase-label">Phase 1 &mdash; Discovery</div>
+      <div class="node decision" id="n-tsq" data-key="tsq">
+        <div class="node-title">use_theirstack?</div>
+        <div class="node-subtitle">Value determined in Phase 0 preflight</div>
+      </div>
+      <div class="branch">
+        <div>
+          <div class="branch-label green">Yes</div>
+          <div class="node api" id="n-ts-api" data-key="ts-api">
+            <div class="node-title">TheirStack API</div>
+            <div class="node-subtitle">POST &middot; job_title_or from search.md &middot; posted_at_gte &middot; limit 10</div>
+            <span class="node-badge badge-api">5&ndash;8 credits/call</span>
+          </div>
+          <div class="node decision" id="n-ts-ok" data-key="ts-ok">
+            <div class="node-title">200 OK &amp; non-empty?</div>
+          </div>
+          <div class="node error" id="n-ts-err" data-key="ts-err">
+            <div class="node-title">Log error &rarr; use_theirstack = false</div>
+            <div class="node-subtitle">output/error-{date}.log &middot; fall through to WebSearch</div>
+            <span class="node-badge badge-error">Non-fatal</span>
+          </div>
+        </div>
+        <div>
+          <div class="branch-label warn">No (or API error)</div>
+          <div class="node fallback" id="n-ws" data-key="ws">
+            <div class="node-title">WebSearch fallback</div>
+            <div class="node-subtitle">6 parallel queries &middot; Ashby &middot; Greenhouse &middot; Lever &middot; edtech &middot; climate &middot; mission-driven</div>
+            <span class="node-badge badge-warn">Fallback mode</span>
+          </div>
+        </div>
+      </div>
+      <div class="connector"></div>
+      <div class="node decision" id="n-dow" data-key="dow">
+        <div class="node-title">Monday or Thursday?</div>
+        <div class="node-subtitle">Niche boards searched 2&times;/week only</div>
+      </div>
+      <div class="branch">
+        <div>
+          <div class="branch-label green">Yes</div>
+          <div class="node api" id="n-niche" data-key="niche">
+            <div class="node-title">Niche board WebSearch</div>
+            <div class="node-subtitle">3 parallel queries &middot; Tech Jobs for Good &middot; Purpose Jobs &middot; Built In</div>
+            <span class="node-badge badge-api">Free</span>
+          </div>
+        </div>
+        <div>
+          <div class="branch-label muted">No</div>
+          <div class="node" id="n-skip-niche" data-key="skip-niche">
+            <div class="node-title">Skip niche search</div>
+          </div>
+        </div>
+      </div>
+      <div class="connector"></div>
+      <div class="node" id="n-merge1" data-key="merge1">
+        <div class="node-title">Merge all discovery results</div>
+      </div>
+      <div class="connector"></div>
+      <div class="node cache" id="n-cw1" data-key="cw1">
+        <div class="node-title">Cache Phase 1 results</div>
+        <div class="node-subtitle">bun scripts/cache.js write daily-digest phase1</div>
+        <span class="node-badge badge-cache">2 h TTL</span>
+      </div>
+    </div>
+
+    <!-- Phase 2 -->
+    <div class="phase">
+      <div class="phase-label">Phase 2 &mdash; URL Verification</div>
+      <div class="node" id="n-url-q" data-key="url-q">
+        <div class="node-title">Filter aggregator URLs</div>
+        <div class="node-subtitle">Resolve to direct ATS / company career-page links</div>
+      </div>
+      <div class="connector"></div>
+      <div class="node decision" id="n-route" data-key="route">
+        <div class="node-title">Route by URL domain</div>
+        <div class="node-subtitle">Pattern-match each URL to a verification method</div>
+      </div>
+      <div class="branch">
+        <div>
+          <div class="branch-label green">greenhouse.io</div>
+          <div class="node api" id="n-gh" data-key="gh">
+            <div class="node-title">Greenhouse API</div>
+            <div class="node-subtitle">boards-api.greenhouse.io</div>
+            <span class="node-badge badge-api">Free</span>
+          </div>
+        </div>
+        <div>
+          <div class="branch-label green">lever.co</div>
+          <div class="node api" id="n-lv" data-key="lv">
+            <div class="node-title">Lever API</div>
+            <div class="node-subtitle">api.lever.co</div>
+            <span class="node-badge badge-api">Free</span>
+          </div>
+        </div>
+        <div>
+          <div class="branch-label green">ashbyhq.com</div>
+          <div class="node api" id="n-ab" data-key="ab">
+            <div class="node-title">Ashby API</div>
+            <div class="node-subtitle">jobs.ashbyhq.com</div>
+            <span class="node-badge badge-api">Free</span>
+          </div>
+        </div>
+        <div>
+          <div class="branch-label muted">other</div>
+          <div class="node fallback" id="n-wf" data-key="wf">
+            <div class="node-title">WebFetch fallback</div>
+            <div class="node-subtitle">HTML parse &middot; Workday, iCIMS, direct pages</div>
+            <span class="node-badge badge-warn">Less reliable</span>
+          </div>
+        </div>
+      </div>
+      <div class="connector"></div>
+      <div class="node" id="n-vmerge" data-key="vmerge">
+        <div class="node-title">Merge verification results</div>
+        <div class="node-subtitle">open &middot; closed &middot; unknown &mdash; wait for all parallel batches</div>
+      </div>
+      <div class="connector"></div>
+      <div class="node cache" id="n-cw2" data-key="cw2">
+        <div class="node-title">Cache Phase 2 results</div>
+        <div class="node-subtitle">bun scripts/cache.js write daily-digest phase2</div>
+        <span class="node-badge badge-cache">2 h TTL</span>
+      </div>
+    </div>
+
+    <!-- Phase 3 -->
+    <div class="phase">
+      <div class="phase-label">Phase 3 &mdash; Compose &amp; Score</div>
+      <div class="node" id="n-dedup" data-key="dedup">
+        <div class="node-title">Dedup against seen-postings</div>
+        <div class="node-subtitle">Filter roles whose URL already exists in output/*-seen-postings.md</div>
+      </div>
+      <div class="connector"></div>
+      <div class="node" id="n-score" data-key="score">
+        <div class="node-title">Score roles</div>
+        <div class="node-subtitle">Star ratings &middot; comp eval &middot; mission fit &middot; scoring-rules.md</div>
+      </div>
+      <div class="connector"></div>
+      <div class="node output" id="n-html" data-key="html">
+        <div class="node-title">Write HTML digest</div>
+        <div class="node-subtitle">output/digest-{date}.html</div>
+        <span class="node-badge badge-output">Primary output</span>
+      </div>
+      <div class="connector"></div>
+      <div class="node decision" id="n-ts-ftr" data-key="ts-ftr">
+        <div class="node-title">TheirStack OFF due to error or budget?</div>
+        <div class="node-subtitle">Only fires when disable reason is error/budget &mdash; not config-absent</div>
+      </div>
+      <div class="branch">
+        <div>
+          <div class="branch-label warn">Yes</div>
+          <div class="node error" id="n-footer" data-key="footer">
+            <div class="node-title">Append footer note</div>
+            <div class="node-subtitle">"TheirStack unavailable today ({reason}) &mdash; results from web search only."</div>
+          </div>
+        </div>
+        <div>
+          <div class="branch-label muted">No</div>
+          <div style="padding:10px;font-size:11px;color:#8b949e;text-align:center">No footer needed</div>
+        </div>
+      </div>
+      <div class="connector"></div>
+      <div class="gate" id="n-ready" data-key="ready">Digest ready</div>
+    </div>
+
+    <!-- Phase 4 -->
+    <div class="phase">
+      <div class="phase-label">Phase 4 &mdash; Apple Notes (optional)</div>
+      <div class="node decision" id="n-notes-chk" data-key="notes-chk">
+        <div class="node-title">notes-config.md exists?</div>
+        <div class="node-subtitle">integrations/config/notes-config.md</div>
+      </div>
+      <div class="branch">
+        <div>
+          <div class="branch-label green">Yes</div>
+          <div class="node api" id="n-notes-wr" data-key="notes-wr">
+            <div class="node-title">Create Apple Notes entry</div>
+            <div class="node-subtitle">osascript &middot; note named digest-{date} in default_folder</div>
+          </div>
+          <div class="node decision" id="n-notes-err" data-key="notes-err">
+            <div class="node-title">Write error?</div>
+          </div>
+          <div class="node error" id="n-notes-log" data-key="notes-log">
+            <div class="node-title">Log error &middot; surface to user</div>
+            <div class="node-subtitle">output/error-{date}.log &middot; "HTML fallback" &middot; never silent</div>
+            <span class="node-badge badge-error">Non-blocking</span>
+          </div>
+        </div>
+        <div>
+          <div class="branch-label muted">No</div>
+          <div class="node" id="n-skip-notes" data-key="skip-notes">
+            <div class="node-title">Skip &mdash; HTML digest only</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Phase 5 -->
+    <div class="phase">
+      <div class="phase-label">Phase 5 &mdash; State Writes</div>
+      <div class="branch">
+        <div>
+          <div class="node output" id="n-sp" data-key="sp">
+            <div class="node-title">Append seen-postings</div>
+            <div class="node-subtitle">All roles: open + closed + unknown &middot; includes posting dates</div>
+            <span class="node-badge badge-output">Dedup guard</span>
+          </div>
+        </div>
+        <div>
+          <div class="node output" id="n-prefs" data-key="prefs">
+            <div class="node-title">Append preferences</div>
+            <div class="node-subtitle">Source effectiveness counts &middot; TheirStack credits used today</div>
+            <span class="node-badge badge-output">Source tracking</span>
+          </div>
+        </div>
+      </div>
+      <div class="connector"></div>
+      <div class="node decision" id="n-p5-notes" data-key="p5-notes">
+        <div class="node-title">Apple Notes configured?</div>
+      </div>
+      <div class="branch">
+        <div>
+          <div class="branch-label green">Yes</div>
+          <div class="node api" id="n-notes-state" data-key="notes-state">
+            <div class="node-title">Update Apple Notes state</div>
+            <div class="node-subtitle">Seen Postings note &middot; Preferences note</div>
+          </div>
+        </div>
+        <div>
+          <div class="branch-label muted">No</div>
+          <div style="padding:10px;font-size:11px;color:#8b949e;text-align:center">No Notes update</div>
+        </div>
+      </div>
+      <div class="connector"></div>
+      <div class="gate" id="n-done" data-key="done">&#10003; Done</div>
+    </div>
+
+  </div>
+
+  <!-- Detail Panel -->
+  <div class="detail-panel">
+    <h2>Details</h2>
+    <div id="detail-content">
+      <p class="empty-state">Click any node to see details</p>
+    </div>
+
+    <div class="legend">
+      <h3>Color key</h3>
+      <div class="legend-item"><div class="legend-swatch ls-decision"></div>Decision / branch point</div>
+      <div class="legend-item"><div class="legend-swatch ls-api"></div>External API call</div>
+      <div class="legend-item"><div class="legend-swatch ls-fallback"></div>Fallback / degraded path</div>
+      <div class="legend-item"><div class="legend-swatch ls-cache"></div>Phase cache read / write</div>
+      <div class="legend-item"><div class="legend-swatch ls-output"></div>Output / state write</div>
+      <div class="legend-item"><div class="legend-swatch ls-error"></div>Error / non-blocking failure</div>
+    </div>
+
+    <div class="sim-controls">
+      <h3>Simulate a scenario</h3>
+      <button class="sim-btn" data-scenario="tuesday">
+        <div class="sim-title">Typical Tuesday</div>
+        <div class="sim-desc">TheirStack &middot; skip niche boards &middot; write Apple Notes</div>
+      </button>
+      <button class="sim-btn" data-scenario="monday">
+        <div class="sim-title">Monday</div>
+        <div class="sim-desc">TheirStack + 3 niche board searches in parallel</div>
+      </button>
+      <button class="sim-btn" data-scenario="eom">
+        <div class="sim-title">End of month (budget exhausted)</div>
+        <div class="sim-desc">WebSearch-only fallback &middot; TheirStack footer appended</div>
+      </button>
+      <button class="sim-btn" data-scenario="cache">
+        <div class="sim-title">Cache hit &mdash; resume from Phase 3</div>
+        <div class="sim-desc">Phase 2 cached &middot; jump straight to compose</div>
+      </button>
+      <button class="sim-btn" data-scenario="notes-fail">
+        <div class="sim-title">Apple Notes failure</div>
+        <div class="sim-desc">Notes write fails &middot; HTML fallback &middot; non-blocking</div>
+      </button>
+      <button class="reset-btn" id="reset-btn">Reset (show all)</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var details = {
+    config: { title: 'Read Config Files', sections: [
+      { heading: 'Files read', items: ['config/candidate.md — name, experience, strengths', 'config/search.md — target titles, location, comp floor, skip list', 'skills/_shared/batching.md — parallel batch protocol'] },
+      { heading: 'Purpose', text: 'Establishes filter criteria and candidate context used in every downstream phase.' }
+    ]},
+    state: { title: 'Read State Files', sections: [
+      { heading: 'Files read', items: ['output/*-seen-postings.md — build URL dedup set', 'output/*-preferences.md — signals, last_run_date, TheirStack credit history'] },
+      { heading: 'Dedup set', text: 'Every URL in seen-postings is loaded into memory. Phase 3 filters any role whose URL is already in this set.' }
+    ]},
+    since: { title: 'Compute search_since', sections: [
+      { heading: 'Logic', items: ['Parse most recent ## YYYY-MM-DD header in preferences as last_run_date', 'search_since = max(last_run_date, today − 7 days) — 7-day cap prevents noise after gaps', 'If no preferences file: search_since = yesterday'] },
+      { heading: 'Usage', text: 'Passed as posted_at_gte to TheirStack and as after:{date} operator in WebSearch queries.' }
+    ]},
+    'ts-cfg': { title: 'TheirStack Config Check', sections: [
+      { heading: 'File', text: 'integrations/config/theirstack-config.md — contains api_key, base_url, daily_credit_budget.' },
+      { heading: 'Absent', text: 'use_theirstack = false silently. No footer added (config-absent is expected for non-TheirStack users).' }
+    ]},
+    budget: { title: 'Monthly Budget Check', sections: [
+      { heading: 'Guard', text: 'Sum all credits_used=N entries in ### TheirStack Credits in preferences for the current month. If month_total + daily_credit_budget ≥ 200, set use_theirstack = false.' },
+      { heading: 'Why 200?', text: '200 credits is the monthly plan ceiling. The guard uses ≥ to leave zero headroom once fully consumed.' }
+    ]},
+    'ts-on': { title: 'TheirStack Enabled', sections: [
+      { heading: 'State', text: 'use_theirstack = true. Phase 1 calls the TheirStack API as the primary discovery source.' }
+    ]},
+    'ts-off': { title: 'TheirStack Disabled', sections: [
+      { heading: 'Causes', items: ['Config file absent (expected for non-TheirStack users)', 'Monthly budget exhausted (month_total + daily ≥ 200)', 'API error (set dynamically in Phase 1)'] },
+      { heading: 'Effect', text: 'Phase 1 uses 6 parallel WebSearch queries. Footer added to digest only when reason was error or budget — not config-absent.' }
+    ]},
+    'notes-opt': { title: 'Optional: Notes Config', sections: [
+      { heading: 'File', text: 'integrations/config/notes-config.md — plugin_root and default_folder for osascript writes.' },
+      { heading: 'Absent', text: 'Phase 4 and Phase 5 Apple Notes updates are silently skipped. HTML is always written.' }
+    ]},
+    cp2: { title: 'Phase 2 Cache Check', sections: [
+      { heading: 'Command', text: 'bun scripts/cache.js read daily-digest phase2' },
+      { heading: 'Hit (exit 0)', text: '"Verification cached at {T} — {N} roles verified. Resume from compose?" Yes → jump to Phase 3. Fresh → check phase1 cache.' },
+      { heading: 'TTL', text: '2 hours. File at output/.cache/daily-digest-phase2.json.' }
+    ]},
+    cp1: { title: 'Phase 1 Cache Check', sections: [
+      { heading: 'Command', text: 'bun scripts/cache.js read daily-digest phase1' },
+      { heading: 'Hit (exit 0)', text: '"Discovery cached at {T} — {N} roles found. Resume from verification?" Yes → jump to Phase 2. Fresh / Miss → run Phase 1.' }
+    ]},
+    rp3: { title: 'Resume from Phase 3?', sections: [
+      { heading: 'Yes', text: 'Loads Phase 2 cached data and jumps directly to Phase 3 dedup. Skips both Phase 1 and Phase 2.' },
+      { heading: 'Fresh', text: 'Ignores Phase 2 cache, falls through to check Phase 1 cache.' }
+    ]},
+    rp2: { title: 'Resume from Phase 2?', sections: [
+      { heading: 'Yes', text: 'Loads Phase 1 cached data and jumps to Phase 2 verification. Skips Phase 1 discovery.' },
+      { heading: 'Fresh', text: 'Ignores Phase 1 cache, runs Phase 1 from scratch.' }
+    ]},
+    tsq: { title: 'use_theirstack Decision', sections: [
+      { heading: 'Source', text: 'Set in Phase 0: true if config exists and budget allows, false otherwise.' },
+      { heading: 'Yes path', text: 'Calls TheirStack API. On success, proceeds to day-of-week check. On error or empty results, logs and falls through to WebSearch.' },
+      { heading: 'No path', text: 'Immediately issues 6 parallel WebSearch queries.' }
+    ]},
+    'ts-api': { title: 'TheirStack API Call', sections: [
+      { heading: 'Endpoint', text: 'POST https://api.theirstack.com/v1/jobs/search' },
+      { heading: 'Request body', items: ['job_title_or: array from Target Role Titles in search.md', 'posted_at_gte: search_since date (YYYY-MM-DD)', 'limit: 10'] },
+      { heading: 'Note', text: 'Company size, location, and remote filtering applied in Phase 3 — not supported as API query params. Credit usage appended to preferences after success.' }
+    ]},
+    'ts-ok': { title: 'TheirStack Response Check', sections: [
+      { heading: '200 + non-empty', text: 'Proceeds to day-of-week check for optional niche board supplement.' },
+      { heading: 'Non-200 or empty data', text: 'Logs error. Sets use_theirstack = false. Falls through to WebSearch fallback.' }
+    ]},
+    'ts-err': { title: 'TheirStack Error Log', sections: [
+      { heading: 'What is logged', text: 'Error details to output/error-{date}.log. use_theirstack = false for this run.' },
+      { heading: 'Non-fatal', text: 'Execution continues with WebSearch fallback. A footer will be added in Phase 3.' }
+    ]},
+    ws: { title: 'WebSearch Fallback', sections: [
+      { heading: 'When triggered', text: 'use_theirstack = false (config absent, budget exhausted, or API error).' },
+      { heading: 'Queries (6, parallel)', items: ['Ashby VP Engineering remote after:{search_since}', 'Greenhouse VP Engineering remote after:{search_since}', 'Lever healthcare VP Engineering after:{search_since}', 'EdTech VP Engineering remote after:{search_since}', 'Lever climate/sustainability VP Engineering after:{search_since}', 'Mission-driven VP Engineering remote after:{search_since}'] }
+    ]},
+    dow: { title: 'Day-of-Week Check', sections: [
+      { heading: 'Purpose', text: 'Niche boards post less frequently. Monday and Thursday sweeps catch fresh postings without over-polling.' },
+      { heading: 'Check', text: 'date +%A — if Monday or Thursday, issue niche board WebSearch queries in parallel.' }
+    ]},
+    niche: { title: 'Niche Board WebSearch', sections: [
+      { heading: 'Queries (3, parallel)', items: ['site:techjobsforgood.com "VP Engineering" OR "Senior Director Engineering" remote', 'site:purpose.jobs "VP Engineering" OR "Senior Director Engineering"', 'site:builtin.com/jobs Austin "VP Engineering" OR "Senior Director Engineering"'] },
+      { heading: 'Why', text: 'These boards target mission-driven companies. TheirStack may not index all of them. No additional cost.' }
+    ]},
+    'skip-niche': { title: 'Skip Niche Search', sections: [
+      { heading: 'Rationale', text: 'On non-Monday/Thursday days, TheirStack or WebSearch fallback provides sufficient coverage. Skipping avoids duplicates.' }
+    ]},
+    merge1: { title: 'Merge Discovery Results', sections: [
+      { heading: 'What is merged', text: 'TheirStack results (if any) plus niche board results (if Mon/Thu). Produces the raw candidate list for Phase 2.' },
+      { heading: 'Wait', text: 'All parallel discovery batches must complete before merging.' }
+    ]},
+    cw1: { title: 'Cache Phase 1 Results', sections: [
+      { heading: 'Command', text: 'bun scripts/cache.js write daily-digest phase1 \'<json>\'' },
+      { heading: 'Benefit', text: 'If Phase 2 fails mid-run, the next invocation can resume from verification without re-running discovery.' }
+    ]},
+    'url-q': { title: 'Filter Aggregator URLs', sections: [
+      { heading: 'What is filtered', text: 'Aggregator links (LinkedIn, Indeed, Glassdoor) replaced with canonical ATS or company URLs.' },
+      { heading: 'Why', text: 'ATS APIs require the direct board URL. Aggregator URLs cannot be checked via Greenhouse / Lever / Ashby APIs.' }
+    ]},
+    route: { title: 'URL Domain Router', sections: [
+      { heading: 'Routing rules', items: ['boards.greenhouse.io/* → Greenhouse API', 'jobs.lever.co/* → Lever API', 'jobs.ashbyhq.com/* → Ashby API', 'Everything else → WebFetch HTML parse'] },
+      { heading: 'Parallel', text: 'All verifications issued in a single parallel batch. Results merged once all complete.' }
+    ]},
+    gh: { title: 'Greenhouse API', sections: [
+      { heading: 'Endpoint', text: 'GET https://boards-api.greenhouse.io/v1/boards/{company}/jobs/{id}' },
+      { heading: 'Signals', text: '200 with job object = open. 404 = closed. Auth: none.' }
+    ]},
+    lv: { title: 'Lever API', sections: [
+      { heading: 'Endpoint', text: 'GET https://api.lever.co/v0/postings/{company}/{id}' },
+      { heading: 'Signals', text: '200 with posting object = open. 404 = closed. Auth: none.' }
+    ]},
+    ab: { title: 'Ashby API', sections: [
+      { heading: 'Endpoint', text: 'Ashby public job board API (company-specific endpoint).' },
+      { heading: 'Signals', text: 'Job present = open. Absent = closed. Auth: none.' }
+    ]},
+    wf: { title: 'WebFetch Fallback', sections: [
+      { heading: 'When used', text: 'Any URL not matching Greenhouse, Lever, or Ashby: Workday, iCIMS, SmartRecruiters, direct career pages.' },
+      { heading: 'Limitation', text: 'HTML parsing is less reliable. May hit 403s, JS-rendered pages, or ambiguous signals. This is the weakest verification path.' }
+    ]},
+    vmerge: { title: 'Merge Verification Results', sections: [
+      { heading: 'Categories', items: ['open — verified still accepting applications', 'closed — verified no longer accepting (excluded from digest)', 'unknown — inconclusive (included with caution flag)'] }
+    ]},
+    cw2: { title: 'Cache Phase 2 Results', sections: [
+      { heading: 'Command', text: 'bun scripts/cache.js write daily-digest phase2 \'<json>\'' },
+      { heading: 'Benefit', text: 'If Phase 3 or 4 fails, next run resumes from compose without re-verifying all URLs.' }
+    ]},
+    dedup: { title: 'Deduplication', sections: [
+      { heading: 'How', text: 'Each verified role URL is checked against the seen-postings set loaded in Phase 0. Any URL already present is filtered out.' },
+      { heading: 'Guarantee', text: 'No role is surfaced twice across digest runs, regardless of how many sources discover it.' }
+    ]},
+    score: { title: 'Score Roles', sections: [
+      { heading: 'Criteria', items: ['Title match to target role titles', 'Location (remote, Austin hybrid)', 'Company size and type', 'Comp floor from search.md', 'Mission alignment'] },
+      { heading: 'Output', text: 'Star rating (1–5) and brief rationale per role, rendered in the HTML digest.' }
+    ]},
+    html: { title: 'Write HTML Digest', sections: [
+      { heading: 'Path', text: 'output/digest-{date}.html — always written, even when Apple Notes is configured.' },
+      { heading: 'Template', text: 'Styled HTML from skills/daily-digest/scoring-rules.md. Includes star ratings, role cards, comp notes, source attribution.' },
+      { heading: 'Fallback', text: 'When Apple Notes write fails (Phase 4), this file is the user-facing fallback.' }
+    ]},
+    'ts-ftr': { title: 'TheirStack Footer Decision', sections: [
+      { heading: 'When fires', text: 'Only when use_theirstack was set false due to API error or budget exhaustion. Not when config is simply absent.' }
+    ]},
+    footer: { title: 'TheirStack Footer', sections: [
+      { heading: 'Text', text: '"Note: TheirStack unavailable today ({reason}) — results sourced from web search only."' },
+      { heading: 'Position', text: 'Appended at the bottom of the HTML digest.' }
+    ]},
+    ready: { title: 'Digest Ready', sections: [
+      { heading: 'State', text: 'output/digest-{date}.html is written. Execution proceeds to optional Apple Notes write and mandatory state updates.' }
+    ]},
+    'notes-chk': { title: 'Apple Notes Config Check', sections: [
+      { heading: 'File', text: 'integrations/config/notes-config.md — plugin_root and default_folder.' },
+      { heading: 'Absent', text: 'Phase 4 is skipped entirely. HTML output is the fallback.' }
+    ]},
+    'notes-wr': { title: 'Create Apple Notes Entry', sections: [
+      { heading: 'Mechanism', text: 'osascript via skills/_shared/apple-notes.md create operation.' },
+      { heading: 'Note name', text: 'digest-{date} in default_folder.' }
+    ]},
+    'notes-err': { title: 'Apple Notes Write Error', sections: [
+      { heading: 'Detection', text: 'Script returns error: prefix in output.' },
+      { heading: 'Non-blocking', text: 'Failure does NOT stop execution. Phase 5 state writes proceed regardless.' }
+    ]},
+    'notes-log': { title: 'Apple Notes Error Log', sections: [
+      { heading: 'Actions', items: ['Log full error to output/error-{date}.log', 'Tell user: "Apple Notes write failed — saved HTML fallback. Error: {exact message}"', 'Continue to Phase 5 state writes'] },
+      { heading: 'Never silent', text: 'Per SKILL.md: Apple Notes failure must always be surfaced. No quiet fallback.' }
+    ]},
+    'skip-notes': { title: 'Skip Apple Notes', sections: [
+      { heading: 'Reason', text: 'integrations/config/notes-config.md does not exist.' },
+      { heading: 'Effect', text: 'Phase 4 is a no-op. Proceeds directly to Phase 5 state writes.' }
+    ]},
+    sp: { title: 'Append Seen Postings', sections: [
+      { heading: 'File', text: 'output/*-seen-postings.md (most recent date-prefixed file).' },
+      { heading: 'What is appended', text: 'All roles surfaced: open, closed, and unknown. Includes posting dates.' },
+      { heading: 'Why all?', text: 'Closed roles must be marked seen so they are not re-verified on subsequent runs, wasting API credits.' }
+    ]},
+    prefs: { title: 'Append Preferences', sections: [
+      { heading: 'File', text: 'output/*-preferences.md (most recent date-prefixed file).' },
+      { heading: 'What is appended', items: ['Source effectiveness counts (roles per source)', 'TheirStack credit usage: credits_used=N, month_total=N, month_limit=200'] }
+    ]},
+    'p5-notes': { title: 'Apple Notes State Check', sections: [
+      { heading: 'Purpose', text: 'If Apple Notes is configured, update the running Seen Postings and Preferences notes in addition to the markdown files.' }
+    ]},
+    'notes-state': { title: 'Update Apple Notes State', sections: [
+      { heading: 'Notes updated', items: ['Seen Postings — append new role URLs', 'Preferences — append source + credit data'] }
+    ]},
+    done: { title: 'Done', sections: [
+      { heading: 'Summary', text: 'All phases complete. HTML digest written. State files updated. Apple Notes updated if configured. Error log written if any failures occurred.' }
+    ]}
+  };
+
+  function buildDetail(d) {
+    var wrap = document.createElement('div');
+    var h = document.createElement('h2');
+    h.style.marginBottom = '16px';
+    h.textContent = d.title;
+    wrap.appendChild(h);
+    d.sections.forEach(function (s) {
+      var sec = document.createElement('div');
+      sec.className = 'detail-section';
+      var h3 = document.createElement('h3');
+      h3.textContent = s.heading;
+      sec.appendChild(h3);
+      if (s.items) {
+        var ul = document.createElement('ul');
+        s.items.forEach(function (t) { var li = document.createElement('li'); li.textContent = t; ul.appendChild(li); });
+        sec.appendChild(ul);
+      } else {
+        var p = document.createElement('p');
+        p.textContent = s.text;
+        sec.appendChild(p);
+      }
+      wrap.appendChild(sec);
+    });
+    return wrap;
+  }
+
+  function showDetail(key) {
+    document.querySelectorAll('[data-key]').forEach(function (n) { n.classList.remove('active'); });
+    var el = document.getElementById('n-' + key);
+    if (el) el.classList.add('active');
+    var d = details[key];
+    if (d) document.getElementById('detail-content').replaceChildren(buildDetail(d));
+  }
+
+  document.querySelectorAll('[data-key]').forEach(function (el) {
+    el.addEventListener('click', function () { showDetail(this.getAttribute('data-key')); });
+  });
+
+  var ALL_IDS = ['n-config','n-state','n-since','n-ts-cfg','n-budget','n-ts-on','n-ts-off','n-notes-opt',
+    'n-cp2','n-rp3','n-cp1','n-rp2',
+    'n-tsq','n-ts-api','n-ts-ok','n-ts-err','n-ws','n-dow','n-niche','n-skip-niche','n-merge1','n-cw1',
+    'n-url-q','n-route','n-gh','n-lv','n-ab','n-wf','n-vmerge','n-cw2',
+    'n-dedup','n-score','n-html','n-ts-ftr','n-footer','n-ready',
+    'n-notes-chk','n-notes-wr','n-notes-err','n-notes-log','n-skip-notes',
+    'n-sp','n-prefs','n-p5-notes','n-notes-state','n-done'];
+
+  var scenarios = {
+    tuesday: {
+      on:  ['n-config','n-state','n-since','n-ts-cfg','n-budget','n-ts-on','n-notes-opt',
+            'n-cp2','n-cp1',
+            'n-tsq','n-ts-api','n-ts-ok','n-dow','n-skip-niche','n-merge1','n-cw1',
+            'n-url-q','n-route','n-gh','n-lv','n-ab','n-wf','n-vmerge','n-cw2',
+            'n-dedup','n-score','n-html','n-ts-ftr','n-ready',
+            'n-notes-chk','n-notes-wr','n-notes-err',
+            'n-sp','n-prefs','n-p5-notes','n-notes-state','n-done'],
+      off: ['n-ts-off','n-rp3','n-rp2','n-ts-err','n-ws','n-niche','n-footer','n-notes-log','n-skip-notes']
+    },
+    monday: {
+      on:  ['n-config','n-state','n-since','n-ts-cfg','n-budget','n-ts-on','n-notes-opt',
+            'n-cp2','n-cp1',
+            'n-tsq','n-ts-api','n-ts-ok','n-dow','n-niche','n-merge1','n-cw1',
+            'n-url-q','n-route','n-gh','n-lv','n-ab','n-wf','n-vmerge','n-cw2',
+            'n-dedup','n-score','n-html','n-ts-ftr','n-ready',
+            'n-notes-chk','n-notes-wr','n-notes-err',
+            'n-sp','n-prefs','n-p5-notes','n-notes-state','n-done'],
+      off: ['n-ts-off','n-rp3','n-rp2','n-ts-err','n-ws','n-skip-niche','n-footer','n-notes-log','n-skip-notes']
+    },
+    eom: {
+      on:  ['n-config','n-state','n-since','n-ts-cfg','n-budget','n-ts-off','n-notes-opt',
+            'n-cp2','n-cp1',
+            'n-tsq','n-ws','n-dow','n-niche','n-merge1','n-cw1',
+            'n-url-q','n-route','n-gh','n-lv','n-ab','n-wf','n-vmerge','n-cw2',
+            'n-dedup','n-score','n-html','n-ts-ftr','n-footer','n-ready',
+            'n-notes-chk','n-notes-wr','n-notes-err',
+            'n-sp','n-prefs','n-p5-notes','n-notes-state','n-done'],
+      off: ['n-ts-on','n-rp3','n-rp2','n-ts-api','n-ts-ok','n-ts-err','n-skip-niche','n-notes-log','n-skip-notes']
+    },
+    cache: {
+      on:  ['n-cp2','n-rp3','n-dedup','n-score','n-html','n-ts-ftr','n-ready',
+            'n-notes-chk','n-notes-wr','n-notes-err',
+            'n-sp','n-prefs','n-p5-notes','n-notes-state','n-done'],
+      off: ['n-config','n-state','n-since','n-ts-cfg','n-budget','n-ts-on','n-ts-off','n-notes-opt',
+            'n-cp1','n-rp2',
+            'n-tsq','n-ts-api','n-ts-ok','n-ts-err','n-ws','n-dow','n-niche','n-skip-niche','n-merge1','n-cw1',
+            'n-url-q','n-route','n-gh','n-lv','n-ab','n-wf','n-vmerge','n-cw2',
+            'n-footer','n-notes-log','n-skip-notes']
+    },
+    'notes-fail': {
+      on:  ['n-config','n-state','n-since','n-ts-cfg','n-budget','n-ts-on','n-notes-opt',
+            'n-cp2','n-cp1',
+            'n-tsq','n-ts-api','n-ts-ok','n-dow','n-skip-niche','n-merge1','n-cw1',
+            'n-url-q','n-route','n-gh','n-lv','n-ab','n-wf','n-vmerge','n-cw2',
+            'n-dedup','n-score','n-html','n-ts-ftr','n-ready',
+            'n-notes-chk','n-notes-wr','n-notes-err','n-notes-log',
+            'n-sp','n-prefs','n-p5-notes','n-notes-state','n-done'],
+      off: ['n-ts-off','n-rp3','n-rp2','n-ts-err','n-ws','n-niche','n-footer','n-skip-notes']
+    }
+  };
+
+  function runScenario(name) {
+    var s = scenarios[name];
+    if (!s) return;
+    document.querySelectorAll('.sim-btn').forEach(function (b) { b.classList.remove('active-sim'); });
+    document.querySelector('[data-scenario="' + name + '"]').classList.add('active-sim');
+    ALL_IDS.forEach(function (id) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      el.classList.remove('highlighted', 'dimmed');
+    });
+    s.on.forEach(function (id) { var el = document.getElementById(id); if (el) el.classList.add('highlighted'); });
+    s.off.forEach(function (id) { var el = document.getElementById(id); if (el) el.classList.add('dimmed'); });
+  }
+
+  document.querySelectorAll('.sim-btn[data-scenario]').forEach(function (btn) {
+    btn.addEventListener('click', function () { runScenario(this.getAttribute('data-scenario')); });
+  });
+
+  document.getElementById('reset-btn').addEventListener('click', function () {
+    document.querySelectorAll('.sim-btn').forEach(function (b) { b.classList.remove('active-sim'); });
+    ALL_IDS.forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) el.classList.remove('highlighted', 'dimmed', 'active');
+    });
+    document.getElementById('detail-content').innerHTML = '<p class="empty-state">Click any node to see details</p>';
+  });
+})();
+</script>
+</body>
+</html>
