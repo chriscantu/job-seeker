@@ -37,3 +37,12 @@ default.profraw
 
 # Gmail API credentials (OAuth2 tokens — personal)
 credentials/
+
+# Editor config (personal)
+.vscode/
+
+# Python virtualenvs
+mlx_env/
+
+# MCP server logs
+*.log
