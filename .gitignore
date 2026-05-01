@@ -16,6 +16,7 @@ config/search.md
 /references/*
 !/references/email-patterns.md
 !/references/skills-master.md
+!/references/resume.md
 
 # Outdated files
 job-search-system.md
