@@ -22,7 +22,7 @@ Senior Engineering leader specializing in delivery transformation at post-IPO an
 
 ## Skills
 
-Delivery Transformation | Multinational Team Leadership | Engineering Strategy | Cost Optimization | Strategic Technology Planning | Stakeholder Management | OKRs | ShapeUp | Agile | Platform Engineering | Design Systems | Micro-Frontends | Monolith-to-Microservices Migration | System Architecture | CI/CD Optimization | Quality Automation | Feature Flags | Progressive Rollouts | Chaos Engineering | Observability | SRE | Performance Testing | Engineering Productivity | React | TypeScript | JavaScript | GraphQL | Node.js | AWS | Accessibility (WCAG) | A/B Testing | Automated Testing | GitHub | Jenkins | Docker | Kubernetes | Terraform | Datadog | Grafana
+Delivery Transformation | Multinational Team Leadership | Engineering Strategy | Cost Optimization | Strategic Technology Planning | Stakeholder Management | OKRs | ShapeUp | Agile | Platform Engineering | Design Systems | Micro-Frontends | Monolith-to-Microservices Migration | System Architecture | CI/CD Optimization | Quality Automation | Feature Flags | Progressive Rollouts | Chaos Engineering | Observability | SRE | Performance Testing | Platform Automation | React | TypeScript | JavaScript | GraphQL | Node.js | AWS | Accessibility (WCAG) | A/B Testing | Automated Testing | GitHub | Jenkins | Docker | Kubernetes | Terraform | Datadog | Grafana
 
 ## Professional Experience
 
