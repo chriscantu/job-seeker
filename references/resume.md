@@ -9,12 +9,12 @@ canonical_version: 2026-05-01
 
 christopher.cantu@gmail.com | Austin, TX | linkedin.com/in/christophermcantu
 
-Senior Engineering leader specializing in delivery transformation at post-IPO and enterprise technology companies. Expert in rescuing broken delivery systems and building scalable platforms that enable consistent time to market. 15+ years leading multinational engineering organizations (60+ engineers) through complex transformations while maintaining quality and compliance. Track record: transformed CI/CD reliability from 1-5% to 95-99%; reduced deployment cycles from 6 months to minutes; unlocked $18M+ in business value.
+Senior Engineering Leader specializing in delivery transformation at post-IPO and enterprise technology companies. Expert in rescuing broken delivery systems and building scalable platforms that enable consistent time to market. 15+ years leading multinational engineering organizations (60+ engineers) through complex transformations while maintaining quality and compliance. Track record: transformed CI/CD reliability from 1% to 95%; reduced deployment cycles from 6 months to minutes; unlocked $18M+ in business value.
 
 ## Key Accomplishments
 
 - **Revenue Impact** — Delivered $18M+ in business value through delivery transformation and international expansion | **Impact:** Unlocked European/Asian market revenue ahead of plan
-- **Delivery Excellence** — Transformed CI/CD from 1-5% to 95-99% reliability, enabling consistent fast delivery | **Impact:** Enabled 3x faster product release cadence at scale
+- **Delivery Excellence** — Transformed CI/CD from 1% to 95% reliability, enabling consistent fast delivery | **Impact:** Enabled 3x faster product release cadence at scale
 - **Speed to Market** — Accelerated deployment from 6 months to minutes; achieved 20x release velocity increase | **Impact:** Compounded shipping velocity across all UI applications
 - **Platform Scaling** — 85% design system adoption across 185 repos in 6 months via automation | **Impact:** Fastest design-system rollout in company history
 - **Cost Optimization** — $10M+ operational savings through automation and platform consolidation | **Impact:** Freed engineering capacity for product investment
@@ -30,8 +30,8 @@ Delivery Transformation | Multinational Team Leadership | Engineering Strategy |
 
 *Austin, TX (Hybrid) | September 2023 – April 2026 | 60 engineers, 8 international teams*
 
-- Led $50M+ frontend modernization across 125+ repositories and 65+ global teams; led 60 engineers across 8 international teams through delivery transformation, platform consolidation, and quality automation. **Impact:** $12M+ revenue unlocked in European/Asian markets within first year.
-- Reduced localization deployment from 6 months to minutes, unlocking $12M+ revenue in European/Asian markets within first year. **Impact:** Localization stopped being a release blocker for international launches.
+- Led $50M+ frontend modernization across 125+ repositories and 65+ global teams through delivery transformation, platform consolidation, and quality automation. **Impact:** $12M+ revenue unlocked in European/Asian markets within first year.
+- Reduced localization deployment from 6 months to minutes, eliminating release blockers for international launches. **Impact:** Localization stopped gating European/Asian rollouts.
 - Achieved 85% design system adoption across 185 repositories in 6 months via AI-driven automation, fastest in company history. **Impact:** Component-level UI consistency across the entire product suite.
 - Created contextual, customizable platform enabling product re-envisioning and supporting AI-powered product initiatives. **Impact:** Unblocked AI roadmap for the next product cycle.
 - Partnered with VP of Product, VP of Engineering, and VP of Customer Success on technology strategy for international growth. **Impact:** Aligned cross-functional roadmap across three regions.
