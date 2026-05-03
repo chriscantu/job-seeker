@@ -97,7 +97,6 @@ job-seeker/
 │   ├── apple_mail_trash.applescript
 │   ├── apple_calendar_search.applescript
 │   ├── gmail.js             ← Gmail CLI (auth, profile, search, create-draft, trash)
-│   ├── generate_resume_docx.js
 │   ├── generate_coverletter_docx.js
 │   ├── docx-styles.js
 │   └── lib/                 ← Script-local modules
