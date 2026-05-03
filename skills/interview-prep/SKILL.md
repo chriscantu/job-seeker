@@ -21,7 +21,7 @@ the calendar for upcoming interviews and tailors content to the round type.
 Read `skills/_shared/preflight.md` and execute.
 
 Then read these additional files in parallel:
-- `references/resume.pdf` — detailed accomplishments for STAR stories
+- `references/resume.md` — canonical markdown resume; detailed accomplishments for STAR stories
 - `references/voice-guide.md` — tone calibration for all written output.
   If missing, proceed with default voice calibration from `PRINCIPLES.md`.
 
@@ -269,7 +269,7 @@ start of this section.
    `surfacedTitles`. Output the full story using the format below, marking it
    **[existing]**. Add a one-line framing note specific to this company and round type.
 3. **If no match:** Generate a new story from `config/candidate.md` accomplishments
-   and `references/resume.pdf`. Mark it **[new]**. Use the bank format (with Reflection
+   and `references/resume.md`. Mark it **[new]**. Use the bank format (with Reflection
    and Tags — see below). Add the title to `surfacedTitles`. Append the story as
    `{title, situation, task, action, result, reflection, tags}` to `newStories` for
    write-back in Phase 5.5.
@@ -332,7 +332,7 @@ company's domain and note the limitation.
 
 5-8 questions on technical leadership topics. Each question includes a
 2-3 sentence suggested framing grounded in the candidate's real experience
-from `references/resume.pdf`. Topics:
+from `references/resume.md`. Topics:
 - Platform modernization and migration strategy
 - CI/CD at scale (the candidate's strongest area)
 - AI/ML adoption and tooling strategy

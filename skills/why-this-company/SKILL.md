@@ -19,7 +19,7 @@ the company's mission, stage, and engineering challenges.
 Read `skills/_shared/preflight.md` and execute.
 
 Then read these additional files:
-- `references/resume.pdf` — for detailed accomplishments
+- `references/resume.md` — canonical markdown resume for detailed accomplishments
 - Glob `references/writing-samples/*.md` — if any files exist, read them to
   calibrate tone before writing.
 

@@ -1,0 +1,15 @@
+We are seeking a Director of Engineering to scale our Series C platform from
+40 to 120 engineers across three continents. You will own the migration from
+our monolith to a micro-services architecture, drive observability and SLO
+maturity across critical services, and partner with our recruiting team to
+hire and onboard 60+ engineers in the next 18 months. You will report to the
+SVP of Engineering and own roadmap delivery for the platform organization.
+
+Requirements:
+- 8+ years engineering leadership scaling teams through hyper-growth phases
+- Proven experience leading micro-services migration from a monolith
+- Demonstrated ownership of observability, SLOs, and on-call maturity
+- Strong hiring track record — closing 30+ engineering hires per year
+- Experience managing managers across distributed, multi-region teams
+- Comfort partnering with product, design, and customer success leadership
+- Background in B2B SaaS or developer infrastructure preferred

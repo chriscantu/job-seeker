@@ -1,0 +1,19 @@
+We are hiring a VP of AI Infrastructure to lead the team building our
+internal ML platform that powers production model serving, training
+pipelines, and the GPU fleet underpinning our research and product
+organizations. You will own the strategic direction for MLOps tooling,
+scale GPU orchestration across thousands of accelerators, and partner with
+research scientists to ship models from notebook to production.
+
+Requirements:
+- 10+ years engineering leadership, with 4+ years owning ML platform or
+  infrastructure organizations
+- Deep experience with GPU orchestration (Kubernetes, Slurm, Ray) at scale
+- Production ownership of model serving infrastructure and inference latency
+  SLOs
+- Working knowledge of vector databases, embedding pipelines, and feature
+  stores
+- Track record building MLOps tooling — CI/CD for models, evaluation
+  pipelines, experiment tracking
+- Strong partnership with research scientists and applied ML teams
+- Comfort with on-call ownership for high-throughput inference systems

@@ -1,197 +1,106 @@
 ---
 name: resume-tailor
 description: >
-  Customize resume for a specific role — rewrites summary, reorders bullets,
-  and reconfigures the Key Accomplishments table based on job posting analysis.
-  Produces .md source + .docx in one shot. Output saved to
-  output/{company-slug}/{Name}_Resume_{Company}.md/.docx.
-  Triggers: "tailor my resume", "customize resume for", "adjust resume for this role"
+  Customize resume for a specific role — produces ATS-safe, ≤2-page .docx tailored
+  per recruiter spec. Drives off references/resume.md (canonical), references/skills-master.md,
+  and references/resume-template.docx. Output saved to
+  output/{company-slug}/{Name}_Resume_{Company}.{md,docx,decisions.md}.
+  Triggers: "tailor my resume", "customize resume for", "ATS resume for"
 allowed-tools: Read, Write, Edit, Bash, WebSearch, WebFetch, Glob
 ---
 
-# Resume Tailor
+# Resume Tailor (ATS edition)
 
-Takes a job posting and produces a role-optimized resume with a rewritten summary,
-reordered bullets, and a reconfigured Key Accomplishments table — then generates
-both .md and .docx in one shot.
+Takes a job posting and produces a role-optimized, ATS-safe resume in `.docx`,
+≤2 pages, per recruiter feedback (2026-05-01). See `tailoring-rules.md`,
+`drop-strategy.md`, and `render.md` for the operational rules.
 
 ## Phase 0 — Preflight
 
-Read `skills/_shared/preflight.md` and execute.
+Read `skills/_shared/preflight.md` and execute. Additionally:
 
-Additionally:
-- Read `references/resume.pdf` — canonical resume (source of truth for all bullet text)
-- Read `references/voice-guide.md` if it exists — the tailored summary must match
-  the candidate's voice. If missing, rely on the anti-patterns list in tailoring-rules.
-- Glob `references/writing-samples/*.md` — if any exist, read them to calibrate tone
+- Verify `references/resume.md` exists; halt with extraction instruction if not.
+- Verify `references/skills-master.md` exists with ≥5 `[always]`-tagged entries.
+- Verify `references/resume-template.docx` exists.
+- Verify `pandoc` on PATH; halt with `brew install pandoc` if missing.
+- Verify `soffice` and `pdfinfo` on PATH; halt with `brew install --cask libreoffice`
+  and `brew install poppler` if missing.
 
 ### Phase Cache Check
 
 Before starting analysis, check for cached results from a prior interrupted run.
 See `skills/_shared/phase-cache.md` for the full caching convention.
 
-1. Run `bun scripts/cache.js read resume-tailor analysis`
-   - If exit 0: Posting analysis is cached. Display: "Posting analysis cached at {cached_at} for {company}. Resume from resume composition?" If user confirms, skip to Phase 3 using the cached data. If user says "fresh", proceed normally.
-
+1. `bun scripts/cache.js read resume-tailor analysis`
+   - If exit 0: cached. Display: "Posting analysis cached at {cached_at} for {company}.
+     Resume from compose? (yes / fresh)"
 2. If not cached, proceed with Phase 1 normally.
 
 ## Required Inputs
 
-Ask the user for what you don't already have:
-
-- **Job posting URL** (required — fetch and parse for requirements)
-- **Specific points to emphasize** (optional — candidate may want to highlight
-  certain experience)
-
-## Company Research Reuse
-
-After extracting the company name and deriving `{company-slug}` (see Phase 1),
-check for `output/{company-slug}/company-research.md`:
-
-- **If exists**: Read the file. Check the frontmatter block first (see
-  `skills/_shared/frontmatter.md`):
-  - `generated` — if older than 7 days, suggest re-running company-research
-  - `rating` — note the fit rating in the decisions summary
-  - Then read the Positioning section in the body to inform accomplishment scoring.
-- **If not exists**: Fetch the job posting URL directly. Extract requirements
-  from the posting content. Optionally suggest: "I can research {Company} first
-  for better context — want me to run company-research?"
+- **Job posting URL** (required)
+- **Specific points to emphasize** (optional)
 
 ## Phase 1 — Company Extraction
 
-Read `skills/_shared/company-extraction.md` and execute.
+Read `skills/_shared/company-extraction.md` and execute. Then run the
+`output/{company-slug}/evaluation.md` gate per existing convention.
 
-### Evaluation Gate
+## Phase 2 — Analyze, Score, Compose
 
-Check for a prior evaluation using the derived `{company-slug}`:
+Read `skills/resume-tailor/tailoring-rules.md` and execute. The pipeline:
 
-Attempt to read `output/{company-slug}/evaluation.md`.
+1. Fetch JD; extract top 3-5 reqs, seniority signals, keywords.
+2. Score every bullet in `references/resume.md` against keywords.
+3. Reorder Key Accomplishments (6 fixed, by relevance).
+4. Select 10 skills (5 floor + 5 JD-overlay) from `references/skills-master.md`.
+5. Swap summary lead clause with the JD's top requirement.
+6. Compose tailored markdown via `composeTailoredResumeMarkdown`.
 
-- **File absent** (read error / does not exist): prompt —
-  > "No evaluation found for {Company}. Running `/evaluate` first gives you a
-  > scored fit analysis and pre-loaded story bank before tailoring. Continue
-  > anyway, or run `/evaluate` first? (continue / evaluate first)"
-  Either answer proceeds — this is advisory only.
-- **File exists but frontmatter is missing or `generated` field cannot be parsed**: warn —
-  > "evaluation.md for {Company} exists but appears malformed (missing frontmatter
-  > or generated date). Consider re-running `/evaluate` before proceeding. Continue
-  > anyway? (continue / evaluate first)"
-  Either answer proceeds — this is advisory only.
-- **File exists and `generated` is readable**: compare to today's date.
-  - **Within 7 days**: proceed silently
-  - **Older than 7 days**: prompt —
-    > "The evaluation for {Company} is {N} days old. Proceed with it, or re-run
-    > `/evaluate` first for fresher analysis? (proceed / re-evaluate)"
-    If user says proceed: continue. If re-evaluate: stop and suggest `/evaluate`.
-
-## Phase 2 — Analyze, Score, and Rewrite
-
-Read `skills/resume-tailor/tailoring-rules.md` and execute Phases 1-3.
-
-#### Cache Analysis Results
-
-After analysis completes, cache for resumption:
-`bun scripts/cache.js write resume-tailor analysis '<json>'`
-— include requirement mapping, accomplishment scoring, and gap analysis.
-
-## Phase 3 — Generate Output
-
-### Step 3a: Write the Tailored Markdown
-
-Write to `output/{company-slug}/{Name}_Resume_{Company}.md` where `{Name}`
-is from `config/candidate.md` with spaces replaced by underscores, and
-`{Company}` is the display name with spaces replaced by underscores and
-special characters removed (e.g., "Maven Clinic" → `Maven_Clinic`).
-
-Include a frontmatter block before the resume content (see
-`skills/_shared/frontmatter.md` for the schema). The `research_date` field
-is the `generated` date from the company-research brief, if one was used.
-
-Follow the markdown structure and content rules in
-`skills/resume-tailor/tailoring-rules.md` exactly — the parser is rigid.
-The docx generation script strips frontmatter automatically before parsing.
-
-### Step 3b: Generate the .docx
+Cache analysis results before composing:
 
 ```fish
-set NODE_PATH /opt/homebrew/lib/node_modules
-bun scripts/generate_resume_docx.js \
-  output/{company-slug}/{Name}_Resume_{Company}.md \
-  output/{company-slug}/{Name}_Resume_{Company}.docx
+bun scripts/cache.js write resume-tailor analysis '<json>'
 ```
 
-If the script exits non-zero, show the error to the user and leave the .md
-in place for debugging. Do not silently swallow the error.
+## Phase 3 — Render & Enforce
 
-### Step 3c: Present Tailoring Decisions Summary
+1. Render the tailored .md to .docx via `renderResume` (pandoc + reference-doc template).
+2. Verify page count via `pageCount` (wraps `scripts/resume-page-count.fish`).
+3. If pages > 2, run `enforceTwoPages` — drops oldest+lowest bullet, re-renders, up to 5 iterations.
+4. Hard fail with diagnostics if drop pool exhausted or iteration limit reached.
 
-After generating both files, present a summary covering:
+Output:
 
-1. **Requirements keyed on** — the 3-5 requirements extracted in Phase 2
-2. **Accomplishments table changes** — which items were promoted/demoted, why
-3. **Bullet reordering** — for each reordered job entry, which bullet moved up and why
-4. **Summary changes** — what the new summary emphasizes vs. the canonical
-5. **Requirement gaps** — any posting requirements the resume doesn't address.
-   Flag these honestly — don't hide mismatches.
-
-End with the file paths:
 ```
-Files written:
-  output/{company-slug}/{Name}_Resume_{Company}.md
-  output/{company-slug}/{Name}_Resume_{Company}.docx
+output/{company-slug}/{Name}_Resume_{Company}.md
+output/{company-slug}/{Name}_Resume_{Company}.docx
+output/{company-slug}/{Name}_Resume_{Company}.decisions.md
 ```
 
 ## Phase 4 — State Update
 
-Read `skills/_shared/state-io.md` and execute the **append** pattern for `seen-postings`.
+Read `skills/_shared/state-io.md`. Append `RESUME TAILORED` flag to the seen-postings entry.
 
-Find the seen-postings line matching the company name or URL and append
-`| RESUME TAILORED` to that line.
-
-**If the company is NOT in seen-postings** (URL came from outside the digest),
-add a new entry under today's date section with the `RESUME TAILORED` flag.
-Include `posted:YYYY-MM-DD` if visible on the job page, otherwise use
-`discovered:YYYY-MM-DD` (today's date).
-
-### Applications Pipeline (if tracked)
-
-If the company has an entry in the applications pipeline, record the resume tailoring:
+If the company has an applications-pipeline entry:
 
 ```fish
 bun scripts/state.js add-note applications --company "{company}" --note "Resume tailored {YYYY-MM-DD}"
 ```
 
-If the command exits non-zero (no matching application entry), this is expected
-for roles not yet in the pipeline. Log a note to the user:
-
-> "No application entry found for {company} — skipping pipeline update.
-> Run /application-tracker to add it."
-
-Do not fail the skill run.
+If exit non-zero, log a note: "No application entry — run /application-tracker to add it."
 
 ## Error Handling
 
-| Condition | Behavior |
-|-----------|----------|
-| Job posting URL returns 404 | Stop: "Could not access that posting. Is the URL correct?" |
-| Cannot determine company name | Stop: "Could not identify the company. Try providing the company name directly." |
-| `references/resume.pdf` missing | Stop: "No canonical resume found at references/resume.pdf" |
-| `config/candidate.md` missing or invalid | Stop: show the validation error from `validate-config.js` |
-| `generate_resume_docx.js` fails | Show the error to the user, leave the .md in place for debugging |
-| Company-research brief exists but is old | Use it — note the date in the decisions summary |
-| `output/{company-slug}/` doesn't exist | Create it before writing files |
-| Seen-postings file doesn't exist | Create `output/YYYY-MM-DD-seen-postings.md` with the new entry |
+See full table in `docs/superpowers/specs/2026-05-01-ats-resume-template-design.md`.
+Hard-fail philosophy: every fail surfaces (a) what failed, (b) why, (c) remediation.
+Tailored .md preserved on failure.
 
 ## Key Constraints
 
-- **Never fabricate experience** — only reorder, re-emphasize, and rewrite
-  the summary using existing content from `references/resume.pdf`
-- **Never remove sections, bullets, or narrative blocks** — all resume sections,
-  bullets, AND Challenge/Action/Results paragraphs remain. Only bullet ORDER
-  changes; nothing is deleted.
-- **Bullet facts are sacred** — numbers, scope, outcomes verbatim from
-  the canonical resume. Light phrasing edits allowed.
-- **Education and Core Expertise are verbatim** — copy the entire Education
-  section exactly. Do not trim, reorder, or omit any items.
-- **Flag gaps honestly** — if the posting requires something the candidate
-  doesn't have, say so in the decisions summary
+- Never fabricate experience.
+- Bullet facts (numbers, scope, outcomes) verbatim from canonical.
+- Education and Header are verbatim.
+- Recruiter spec (no CAR labels, every bullet has Impact, Skills max 10 pipe-delimited)
+  is binding.
+- 2-page limit is HARD — content drops first per drop-strategy.md.

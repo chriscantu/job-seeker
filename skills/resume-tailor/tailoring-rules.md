@@ -4,63 +4,63 @@
 
 Extract from the job posting (or company-research brief if available):
 
-1. **Top 3-5 requirements** — the capabilities the role most demands
-   (e.g., "scaling engineering orgs internationally", "platform migration",
-   "CI/CD maturity")
-2. **Seniority signals** — scope indicators (budget, team size, org breadth)
-3. **Domain context** — industry, tech stack, company stage
+1. **Top 3-5 requirements** — capabilities the role most demands.
+2. **Seniority signals** — scope indicators (budget, team size, org breadth).
+3. **Domain context** — industry, tech stack, company stage.
 
-## Phase 2: Score and Map Accomplishments
+## Phase 2: Score and Map Content
 
-Read the canonical resume (`references/resume.pdf`). For every bullet and
-accomplishment:
+Read `references/resume.md`. For every bullet and accomplishment:
 
-- Score relevance against the extracted requirements
-- **Keep all 6 accomplishment cards** — reorder rows so the most relevant
-  cards appear in row 1. Individual card content can be swapped but total
-  count stays at 6. Dropping cards makes the resume look thinner.
-- Determine bullet reordering within each job entry — most relevant first.
-  Do not remove any bullets.
+- Score relevance against the extracted keywords (`scoreBullet`).
+- Reorder all 6 Key Accomplishments by score; total count stays at 6.
+- Reorder bullets within each role by score.
 
-## Phase 3: Rewrite Summary
+## Phase 3: Skills Selection
 
-Draft a 2-3 sentence summary that:
+Read `references/skills-master.md`. Select 10:
 
-- Leads with the strongest signal for this specific role
-- References specific numbers and outcomes from the canonical resume
-- Uses the candidate's voice (from `references/voice-guide.md`):
-  - Concrete before abstract — lead with the number, then the meaning
-  - "We" for team work, "I" for personal decisions
-  - No buzzwords, no performative language
-  - Friendly pragmatist tone
-- Positions at VP/Senior Director scope
+- 5 floor (always-tagged)
+- 5 JD-overlay (situational, ranked by JD-keyword match)
 
-**Anti-patterns:**
-- "I'm passionate about driving organizational excellence"
-- "I'm uniquely positioned to leverage my experience"
-- "I've been fortunate enough to lead..."
-- Anything that sounds like a LinkedIn influencer or career coach
+Output: ` | `-delimited single line under `## Skills`.
 
-## Markdown Structure (Critical)
+## Phase 4: Summary Lead-Clause Swap
 
-The markdown MUST conform exactly to the structure that
-`scripts/generate_resume_docx.js` expects. The parser is rigid.
+Use the recruiter draft from `references/resume.md` as the baseline. Swap the lead
+clause ("Senior Engineering Leader specializing in ___") with the JD's top requirement.
+Preserve the rest verbatim.
 
-```
-# Candidate Name
-**Tagline — e.g., Engineering Leader | Platform & Infrastructure | Scaling Teams**
-contact@email.com | City, State | linkedin.com/in/handle
+## Phase 5: Compose
 
-Summary paragraph — 2-3 sentences, rewritten for this role per Phase 3.
+Compose tailored markdown via `composeTailoredResumeMarkdown`. Schema:
 
+```markdown
 ---
+generated: <date>
+company: <name>
+role: <title>
+posting_url: <url>
+template_version: 1
+canonical_version: <date from resume.md>
+---
+
+# Christopher Cantu
+
+**<Tagline>**
+
+<contact line>
+
+<Summary paragraph — recruiter draft, lead clause swapped per JD>
 
 ## Key Accomplishments
 
-| **Label** — description | **Label** — description |
-| **Label** — description | **Label** — description |
+- **<Label>** — <description> | **Impact:** <outcome>
+- ...(6 total)
 
----
+## Skills
+
+A | B | C | D | E | F | G | H | I | J
 
 ## Professional Experience
 
@@ -68,48 +68,40 @@ Summary paragraph — 2-3 sentences, rewritten for this role per Phase 3.
 
 *Location | Date range | Team size context*
 
-**Challenge:** (verbatim from canonical resume — do NOT remove)
-
-**Action:** (verbatim from canonical resume — do NOT remove)
-
-**Results:**
-
-- Bullet point (most relevant to this role first)
-- Bullet point
-- Bullet point
-
-### Title | Company
-
-*Location | Date range*
-
-- Bullet point
-- Bullet point
-
----
+- Bullet text. **Impact:** outcome.
+- ...
 
 ## Education
 
-**Degree**              ← must come first (parser captures as degree)
-University Name         ← must come second (parser captures as school)
-**Core Expertise:** Comma-separated skills  ← must come last
+**Degrees**
+
+School
 ```
 
-**Order matters in Education.** The parser reads lines sequentially.
-Reordering silently corrupts the .docx.
+**Schema rules (binding):**
 
-## Content Rules
+- No `Challenge:`/`Action:`/`Results:` literals.
+- Every bullet ends with `**Impact:** <clause>.`
+- Skills line: single line, ` | `-delimited, max 10.
+- Key Accomplishments: pipe-delimited fields per the schema.
 
-- Accomplishments table: all 6 items, reordered by scoring relevance. `**Bold Label** — description with numbers` format.
-- Experience bullets: reordered per scoring. Facts/numbers verbatim from canonical resume. Light phrasing edits allowed: reorder clauses, lead with relevant phrase, echo synonymous keywords. No new claims, no inflated scope.
-- Summary: rewritten version from Phase 3
-- Education: copied verbatim — ALL degrees, school, full Core Expertise list
-- All other content (name, tagline, contact, titles, dates): verbatim
+## Phase 6: Render and Enforce
+
+Render via `renderResume`. Verify page count via `pageCount`. If > 2 pages, run
+`enforceTwoPages` per `drop-strategy.md`.
+
+## Anti-Patterns (Summary)
+
+- "I'm passionate about driving organizational excellence"
+- "I'm uniquely positioned to leverage my experience"
+- "I've been fortunate enough to lead..."
+- Anything LinkedIn-influencer flavored.
 
 ## Key Constraints
 
-- **Never fabricate experience** — only reorder and re-emphasize
-- **Never remove sections, bullets, or narrative blocks** — Challenge/Action/Results are core content
-- **Never remove accomplishment cards** — reorder and swap, never drop
-- **Bullet facts are sacred** — numbers, scope, outcomes verbatim
-- **Education and Core Expertise are verbatim** — no trimming
-- **Flag gaps honestly** in the decisions summary
+- **Never fabricate experience** — only reorder, re-emphasize, swap lead clauses.
+- **Drop content for 2-page fit per `drop-strategy.md`.** This SUPERSEDES the
+  legacy "never remove" rule.
+- **Bullet facts are sacred** — numbers, scope, outcomes verbatim from canonical.
+- **Education and Header are verbatim** — no trimming.
+- **Flag gaps honestly** in the decisions log.

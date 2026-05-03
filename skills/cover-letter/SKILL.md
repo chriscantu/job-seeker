@@ -19,7 +19,7 @@ could only have been written for this specific role.
 Read `skills/_shared/preflight.md` and execute.
 
 Then read these additional files:
-- `references/resume.pdf` — for full detailed accomplishments
+- `references/resume.md` — canonical markdown resume for full detailed accomplishments
 - Glob `references/writing-samples/*.md` — if any files exist, read them to
   calibrate tone and voice before writing. Fall back to `references/voice-guide.md`
   if the directory is empty or missing.
