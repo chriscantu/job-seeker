@@ -31,7 +31,11 @@ doing anything else so the user sees the full picture.
 1. **config/candidate.md** — does it exist? If yes, run
    `bun scripts/validate-config.js` and check for field-level issues.
 2. **config/search.md** — same as above (validate-config.js covers both).
-3. **references/resume.pdf** — does the file exist?
+3. **references/resume.md** — primary canonical resume. Does it exist?
+   - If `references/resume.md` is missing AND `references/resume.pdf` exists,
+     treat as a "needs extraction" state — the PDF is a legacy fallback that
+     downstream skills can no longer parse directly. Prompt the user to
+     extract markdown using the resume-tailor pipeline (see Phase 2a).
 
 ### Optional checks
 
@@ -49,7 +53,7 @@ Setup Status
 ─────────────────────────────────────────────────
 ✓ config/candidate.md              configured
 ✓ config/search.md                 configured
-✗ references/resume.pdf            missing
+✗ references/resume.md             missing
 ○ integrations/theirstack          optional · not configured
 ○ integrations/apple-notes         optional · not configured
 ─────────────────────────────────────────────────
@@ -67,29 +71,36 @@ Legend:
 ## Phase 2 — Guided Fix
 
 Work through missing items in this order:
-1. Required items first (candidate.md, search.md, resume.pdf)
+1. Required items first (candidate.md, search.md, resume.md)
 2. Optional items second (TheirStack, Apple Notes)
 
 For each missing item, follow the specific guide below.
 
-### 2a — references/resume.pdf (if missing)
+### 2a — references/resume.md (if missing)
 
-Tell the user:
-> "Place your resume PDF at `references/resume.pdf`. This is the source of
-> truth for detailed accomplishments — skills like cover-letter and
-> interview-prep read it directly.
+The canonical resume is `references/resume.md` — markdown is the source of
+truth for downstream skills (cover-letter, interview-prep, why-this-company,
+evaluate, resume-tailor). Tell the user:
+
+> "Place your resume at `references/resume.md` (markdown). This is the
+> canonical source for downstream skills.
 >
-> Once you've placed it there, say 'done' and I'll continue."
+> If you only have a PDF (`references/resume.pdf`), extract markdown using
+> the resume-tailor pipeline before continuing — `parseCanonical` requires
+> the markdown form.
+>
+> Once `references/resume.md` is in place, say 'done' and I'll continue."
 
 Wait for confirmation. Do NOT proceed to candidate.md or search.md until
-the resume is in place (or the user explicitly says to skip it). The resume
-enables the smart pre-population flow for the config files.
+the canonical markdown resume is in place (or the user explicitly says to
+skip it). The resume enables the smart pre-population flow for the config
+files.
 
 ### 2b — config/candidate.md (if missing or invalid)
 
-**Resume-first flow (preferred):** If `references/resume.pdf` exists:
+**Resume-first flow (preferred):** If `references/resume.md` exists:
 
-1. Read `references/resume.pdf`
+1. Read `references/resume.md`
 2. Extract: name, current role/company, years of experience, core strengths,
    previous companies, education, location
 3. Extract all quantified accomplishments (look for dollar amounts,
