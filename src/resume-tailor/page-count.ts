@@ -1,6 +1,7 @@
 import { resolve } from 'node:path';
+import type { PageCount } from './types';
 
-export type PageCount = number & { readonly __brand: 'PageCount' };
+export type { PageCount };
 
 const DEFAULT_SCRIPT = resolve(import.meta.dir, '../../scripts/resume-page-count.fish');
 
