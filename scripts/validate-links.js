@@ -76,6 +76,9 @@ function looksLikeFilePath(ref) {
 
 const allMdFiles = collectMarkdownFiles(root);
 const mdFiles = allMdFiles.filter(file => {
+  // path.relative always returns a string per Node API contract;
+  // collectMarkdownFiles only emits string paths from fs.readdirSync.
+  // No null guard needed.
   const rel = path.relative(root, file);
   return !skipSourcePrefixes.some(prefix => rel.startsWith(prefix));
 });

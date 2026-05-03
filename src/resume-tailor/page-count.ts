@@ -18,6 +18,9 @@ export async function pageCount(
     throw new Error(`page-count failed (exit ${exitCode}): ${err.trim()}`);
   }
   const trimmed = (await new Response(proc.stdout).text()).trim();
+  // Stdout must be a bare positive integer (one or more digits, nothing else).
+  // Rejects: empty string, "Pages: 3", "1.5", "3xyz" — defends against future
+  // fish script edits that accidentally print debug text or change pdfinfo parsing.
   if (!/^\d+$/.test(trimmed)) {
     throw new Error(`page-count returned non-integer: ${trimmed}`);
   }

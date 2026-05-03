@@ -11,7 +11,7 @@
  *   Heading 1, Heading 2, Heading 3, Tagline, Contact, Role Meta,
  *   List Bullet, Skills Line, Accomplishment, Body Text (Summary)
  *
- * Page geometry: US Letter, 0.75in margins all sides (1080 DXA).
+ * Page geometry: US Letter, 0.75in margins all sides.
  *
  * Tooling: docx npm package (already in package.json deps). Per the Renderer
  * decision in the spec's Approach Decisions table: no Python source in this
@@ -26,13 +26,54 @@ const {
   AlignmentType,
   BorderStyle,
   LevelFormat,
+  convertInchesToTwip,
 } = require('docx');
 
+// ── docx unit converters ─────────────────────────────────────────────────────
+// docx OOXML uses three different unit systems for different fields:
+//   run.size              → half-points  (22pt body → 44)
+//   paragraph.spacing/ind → twips        (1pt = 20 twips)
+//   border.size           → eighth-points (0.5pt = 4)
+const halfPt = pts => pts * 2;
+const twips = pts => pts * 20;
+const eighthPt = pts => pts * 8;
+
+// ── Palette + font (per spec's Render Pipeline style table) ──────────────────
 const NAVY = '1F3A5F';
 const DARK_GRAY = '3A3A3A';
 const MID_GRAY = '5A5A5A';
 const BLACK = '000000';
 const FONT = 'Calibri';
+
+// ── Geometry constants (declarative — derived from spec) ─────────────────────
+const MARGIN = convertInchesToTwip(0.75);
+const BULLET_INDENT = convertInchesToTwip(0.15);
+const LINE_SPACING_SINGLE = twips(12); // 12pt line height for 11pt body = 1.0
+
+const RULE = {
+  spec: BorderStyle.SINGLE,
+  thicknessHalfPt: eighthPt(0.5), // 0.5pt navy bottom border on Heading 2
+};
+
+// ── Per-style typography (size in pt, spacing in pt) ─────────────────────────
+const SIZE_PT = {
+  nameH1: 22,
+  sectionH2: 14,
+  roleH3: 12,
+  tagline: 12,
+  contact: 10,
+  roleMeta: 10,
+  body: 11,
+};
+
+const SPACE_PT = {
+  none: 0,
+  xsTight: 2,
+  xs: 4,
+  sm: 6,
+  md: 8,
+  lg: 12,
+};
 
 const OUTPUT_PATH = path.resolve(__dirname, '..', 'references', 'resume-template.docx');
 
@@ -40,27 +81,27 @@ const OUTPUT_PATH = path.resolve(__dirname, '..', 'references', 'resume-template
 // added via styles.paragraphStyles. Avoids duplicate-styleId XML bloat.
 const defaultStyles = {
   heading1: {
-    run: { font: FONT, size: 44, bold: true, color: NAVY },
-    paragraph: { alignment: AlignmentType.CENTER, spacing: { after: 120 } },
+    run: { font: FONT, size: halfPt(SIZE_PT.nameH1), bold: true, color: NAVY },
+    paragraph: { alignment: AlignmentType.CENTER, spacing: { after: twips(SPACE_PT.sm) } },
   },
   heading2: {
-    run: { font: FONT, size: 28, bold: true, color: NAVY, allCaps: true },
+    run: { font: FONT, size: halfPt(SIZE_PT.sectionH2), bold: true, color: NAVY, allCaps: true },
     paragraph: {
-      spacing: { before: 160, after: 80 },
+      spacing: { before: twips(SPACE_PT.md), after: twips(SPACE_PT.xs) },
       border: {
-        bottom: { color: NAVY, space: 1, style: BorderStyle.SINGLE, size: 4 },
+        bottom: { color: NAVY, space: 1, style: RULE.spec, size: RULE.thicknessHalfPt },
       },
     },
   },
   heading3: {
-    run: { font: FONT, size: 24, bold: true, color: NAVY },
-    paragraph: { spacing: { before: 120, after: 40 } },
+    run: { font: FONT, size: halfPt(SIZE_PT.roleH3), bold: true, color: NAVY },
+    paragraph: { spacing: { before: twips(SPACE_PT.sm), after: twips(SPACE_PT.xsTight) } },
   },
   listParagraph: {
-    run: { font: FONT, size: 22, color: BLACK },
+    run: { font: FONT, size: halfPt(SIZE_PT.body), color: BLACK },
     paragraph: {
-      spacing: { before: 40, after: 40, line: 240 },
-      indent: { left: 216, hanging: 216 },
+      spacing: { before: twips(SPACE_PT.xsTight), after: twips(SPACE_PT.xsTight), line: LINE_SPACING_SINGLE },
+      indent: { left: BULLET_INDENT, hanging: BULLET_INDENT },
     },
   },
 };
@@ -71,24 +112,30 @@ const paragraphStyles = [
     name: 'Tagline',
     basedOn: 'Normal',
     next: 'Normal',
-    run: { font: FONT, size: 24, italics: true, color: NAVY },
-    paragraph: { alignment: AlignmentType.CENTER, spacing: { before: 0, after: 80 } },
+    run: { font: FONT, size: halfPt(SIZE_PT.tagline), italics: true, color: NAVY },
+    paragraph: {
+      alignment: AlignmentType.CENTER,
+      spacing: { before: twips(SPACE_PT.none), after: twips(SPACE_PT.xs) },
+    },
   },
   {
     id: 'Contact',
     name: 'Contact',
     basedOn: 'Normal',
     next: 'Normal',
-    run: { font: FONT, size: 20, color: DARK_GRAY },
-    paragraph: { alignment: AlignmentType.CENTER, spacing: { before: 0, after: 240 } },
+    run: { font: FONT, size: halfPt(SIZE_PT.contact), color: DARK_GRAY },
+    paragraph: {
+      alignment: AlignmentType.CENTER,
+      spacing: { before: twips(SPACE_PT.none), after: twips(SPACE_PT.lg) },
+    },
   },
   {
     id: 'RoleMeta',
     name: 'Role Meta',
     basedOn: 'Normal',
     next: 'Normal',
-    run: { font: FONT, size: 20, italics: true, color: MID_GRAY },
-    paragraph: { spacing: { before: 0, after: 80 } },
+    run: { font: FONT, size: halfPt(SIZE_PT.roleMeta), italics: true, color: MID_GRAY },
+    paragraph: { spacing: { before: twips(SPACE_PT.none), after: twips(SPACE_PT.xs) } },
   },
   {
     id: 'ListBullet',
@@ -96,10 +143,14 @@ const paragraphStyles = [
     basedOn: 'Normal',
     next: 'Normal',
     quickFormat: true,
-    run: { font: FONT, size: 22, color: BLACK },
+    run: { font: FONT, size: halfPt(SIZE_PT.body), color: BLACK },
     paragraph: {
-      spacing: { before: 40, after: 40, line: 240 },
-      indent: { left: 216, hanging: 216 },
+      spacing: {
+        before: twips(SPACE_PT.xsTight),
+        after: twips(SPACE_PT.xsTight),
+        line: LINE_SPACING_SINGLE,
+      },
+      indent: { left: BULLET_INDENT, hanging: BULLET_INDENT },
       numbering: { reference: 'resume-bullets', level: 0 },
     },
   },
@@ -108,18 +159,18 @@ const paragraphStyles = [
     name: 'Skills Line',
     basedOn: 'Normal',
     next: 'Normal',
-    run: { font: FONT, size: 22, color: BLACK },
-    paragraph: { spacing: { before: 0, after: 160 } },
+    run: { font: FONT, size: halfPt(SIZE_PT.body), color: BLACK },
+    paragraph: { spacing: { before: twips(SPACE_PT.none), after: twips(SPACE_PT.md) } },
   },
   {
     id: 'Accomplishment',
     name: 'Accomplishment',
     basedOn: 'ListBullet',
     next: 'Normal',
-    run: { font: FONT, size: 22, color: BLACK },
+    run: { font: FONT, size: halfPt(SIZE_PT.body), color: BLACK },
     paragraph: {
-      spacing: { before: 40, after: 40 },
-      indent: { left: 216, hanging: 216 },
+      spacing: { before: twips(SPACE_PT.xsTight), after: twips(SPACE_PT.xsTight) },
+      indent: { left: BULLET_INDENT, hanging: BULLET_INDENT },
       numbering: { reference: 'resume-bullets', level: 0 },
     },
   },
@@ -128,8 +179,11 @@ const paragraphStyles = [
     name: 'Body Text (Summary)',
     basedOn: 'Normal',
     next: 'Normal',
-    run: { font: FONT, size: 22, color: BLACK },
-    paragraph: { alignment: AlignmentType.JUSTIFIED, spacing: { before: 0, after: 160 } },
+    run: { font: FONT, size: halfPt(SIZE_PT.body), color: BLACK },
+    paragraph: {
+      alignment: AlignmentType.JUSTIFIED,
+      spacing: { before: twips(SPACE_PT.none), after: twips(SPACE_PT.md) },
+    },
   },
 ];
 
@@ -142,7 +196,7 @@ const numberingConfig = [
         format: LevelFormat.BULLET,
         text: '•',
         alignment: AlignmentType.LEFT,
-        style: { paragraph: { indent: { left: 216, hanging: 216 } } },
+        style: { paragraph: { indent: { left: BULLET_INDENT, hanging: BULLET_INDENT } } },
       },
     ],
   },
@@ -155,7 +209,7 @@ const doc = new Document({
     {
       properties: {
         page: {
-          margin: { top: 1080, right: 1080, bottom: 1080, left: 1080 },
+          margin: { top: MARGIN, right: MARGIN, bottom: MARGIN, left: MARGIN },
         },
       },
       children: [],

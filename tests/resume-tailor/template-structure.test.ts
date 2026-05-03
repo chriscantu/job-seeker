@@ -33,11 +33,10 @@ describe.skipIf(!existsSync(TEMPLATE) || !unzipAvailable)('resume-template.docx 
   });
 
   test('uses 0.75in (1080 DXA) margins on all four sides', () => {
-    const doc = readPart('word/document.xml');
-    expect(doc).toMatch(/<w:pgMar\b[^>]*\bw:top="1080"/);
-    expect(doc).toMatch(/<w:pgMar\b[^>]*\bw:right="1080"/);
-    expect(doc).toMatch(/<w:pgMar\b[^>]*\bw:bottom="1080"/);
-    expect(doc).toMatch(/<w:pgMar\b[^>]*\bw:left="1080"/);
+    const pgMar = readPart('word/document.xml').match(/<w:pgMar\b[^/]*\/>/)?.[0] ?? '';
+    for (const side of ['top', 'right', 'bottom', 'left']) {
+      expect(pgMar).toContain(`w:${side}="1080"`);
+    }
   });
 
   test('body has no content paragraphs (empty template)', () => {
