@@ -1,14 +1,23 @@
 import type { ResumeAST, Role, SubRole } from './types';
 import type { DropTarget } from './drop-target';
 
+type RoleWithSubRoles = Role & { subRoles: [SubRole, ...SubRole[]] };
+
 /**
- * Remove a bullet from the AST in place, identified by `target`. The
- * `bulletIndex` on `target` is interpreted against the role at
- * `target.roleIndex`: if the role has sub-roles, the index is into the
- * flattened sub-role bullet sequence (sub-role 0 bullets first, then
- * sub-role 1, etc.) — symmetric with `selectDropTarget`'s collection order.
+ * Remove a bullet from the AST in place. `bulletIndex` is interpreted
+ * against the role at `target.roleIndex`: if the role has sub-roles, the
+ * index addresses the FLATTENED sub-role bullet sequence (sub-role 0
+ * bullets first, then sub-role 1, …) — symmetric with `selectDropTarget`'s
+ * `flattenSubRoleBullets` collection order.
  *
- * @throws Error when the bulletIndex does not land on a sub-role bullet.
+ * Throws when the index falls outside any sub-role's bullet range. For
+ * roles WITHOUT sub-roles, `Array.prototype.splice` no-ops on out-of-bounds
+ * — the caller is trusted because `selectDropTarget` only emits valid
+ * indices, but a malicious caller can pass an out-of-bounds index and get
+ * silent no-op behavior on the flat-bullet path. If you ever construct
+ * `DropTarget` outside `selectDropTarget`, validate the index yourself.
+ *
+ * @throws Error when sub-role flattened index is out of bounds.
  */
 export function removeBulletFromAst(ast: ResumeAST, target: DropTarget): void {
   const role = ast.roles[target.roleIndex];
@@ -19,11 +28,14 @@ export function removeBulletFromAst(ast: ResumeAST, target: DropTarget): void {
   role.bullets.splice(target.bulletIndex, 1);
 }
 
-function hasSubRoles(role: Role): role is Role & { subRoles: SubRole[] } {
-  return !!role.subRoles?.length;
+function hasSubRoles(role: Role): role is RoleWithSubRoles {
+  return !!role.subRoles && role.subRoles.length > 0;
 }
 
-function removeFromSubRoles(subRoles: SubRole[], target: DropTarget): void {
+function removeFromSubRoles(
+  subRoles: RoleWithSubRoles['subRoles'],
+  target: DropTarget,
+): void {
   let cursor = 0;
   for (const sub of subRoles) {
     const localIndex = target.bulletIndex - cursor;

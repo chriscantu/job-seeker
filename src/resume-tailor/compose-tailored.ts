@@ -1,27 +1,35 @@
 import type { ResumeAST, Role, Bullet, KeyAccomplishment, SubRole } from './types';
 
-export type TailoredFrontmatter = {
+type TailoredFrontmatterRequired = {
   company: string;
   role: string;
-  posting_url: string;
   generated: string;
 };
 
-const REQUIRED_FRONTMATTER_KEYS: (keyof TailoredFrontmatter)[] = [
+export type TailoredFrontmatter = TailoredFrontmatterRequired & {
+  posting_url?: string;
+};
+
+const REQUIRED_FRONTMATTER_KEYS = [
   'company',
   'role',
   'generated',
-];
+] as const satisfies readonly (keyof TailoredFrontmatterRequired)[];
 
 /**
- * Render a tailored `ResumeAST` to schema-conforming markdown — the inverse
- * of `parseCanonicalResume`. Output round-trips through the parser.
+ * Inverse of `parseCanonicalResume`. Output round-trips through the parser.
  *
- * Validates that the AST has the required structural sections and that the
- * frontmatter has the required keys. Throws on missing fields rather than
- * emitting `undefined` literals into the output.
+ * Validates required AST sections and required frontmatter keys before
+ * emitting any template literals. `posting_url` is optional (legitimately
+ * blank for postings without a URL) and falls through as an empty value;
+ * other missing required fields throw with a `compose: <field> missing`
+ * message rather than silently emitting "undefined" into the output.
  *
- * @throws Error when the AST or frontmatter is missing a required field.
+ * Empty arrays in `skills`, `roles`, `keyAccomplishments` are NOT rejected
+ * — upstream selection layers may legitimately produce a slimmed AST. The
+ * guard here is "no `undefined` leakage", not "every section non-empty".
+ *
+ * @throws Error when AST or frontmatter is missing a required field.
  */
 export function composeTailoredResumeMarkdown(
   ast: ResumeAST,
@@ -46,6 +54,10 @@ function assertAstShape(ast: ResumeAST): void {
   if (!ast.header?.name) throw new Error('compose: ast.header.name missing');
   if (!ast.header.tagline) throw new Error('compose: ast.header.tagline missing');
   if (!ast.header.contact) throw new Error('compose: ast.header.contact missing');
+  if (typeof ast.summary !== 'string') throw new Error('compose: ast.summary missing');
+  if (!ast.keyAccomplishments) throw new Error('compose: ast.keyAccomplishments missing');
+  if (!ast.skills) throw new Error('compose: ast.skills missing');
+  if (!ast.roles) throw new Error('compose: ast.roles missing');
   if (!ast.education?.degrees) throw new Error('compose: ast.education.degrees missing');
   if (!ast.education.school) throw new Error('compose: ast.education.school missing');
   if (!ast.frontmatter) throw new Error('compose: ast.frontmatter missing');

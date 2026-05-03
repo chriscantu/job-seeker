@@ -12,13 +12,14 @@ type IndexedBullet = { bullet: Bullet; index: number };
 const CURRENT_ROLE_INDEX = 0;
 
 /**
- * Pick the next bullet to drop when a tailored resume exceeds 2 pages. The
- * current role (index 0) is always protected; selection walks roles from
- * oldest to newest, and within each role chooses the lowest-relevance bullet
- * with a bottom-first tiebreak.
+ * Walk roles oldest → newest (current role at index 0 is protected); within
+ * each role, pick the lowest-relevance bullet with a bottom-first tiebreak.
+ * Bullets missing from the score map default to score 0 — sparse maps are
+ * treated as "drop-first eligible", not as a missing-data error, so callers
+ * can pass partial scoring without per-bullet pre-population.
  *
- * Returns `null` when every eligible role's bullets are already gone — the
- * caller should treat this as a hard failure (drop pool exhausted).
+ * Returns `null` when every eligible role's bullets are gone (drop pool
+ * exhausted) — caller treats as hard failure.
  */
 export function selectDropTarget(
   ast: ResumeAST,

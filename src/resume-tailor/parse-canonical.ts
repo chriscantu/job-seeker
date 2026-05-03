@@ -10,12 +10,12 @@ const KEY_ACCOMPLISHMENT_RE =
 const BULLET_IMPACT_RE = /^(.+?)\s+\*\*Impact:\*\*\s+(.+)$/;
 
 /**
- * Parse the canonical resume markdown (`references/resume.md`) into a typed
- * AST. Throws on schema violations: missing frontmatter, missing skills line,
- * malformed Key Accomplishment line, bullet without `**Impact:**` clause.
+ * AST is the single source of truth downstream — throw on schema violation
+ * rather than degrade silently. Spec:
+ * `docs/superpowers/specs/2026-05-01-ats-resume-template-design.md`.
  *
- * @throws Error when the input does not satisfy the schema in
- *   `docs/superpowers/specs/2026-05-01-ats-resume-template-design.md`.
+ * @throws Error on missing frontmatter, missing skills line, malformed
+ *   Key Accomplishment, or bullet without `**Impact:**` clause.
  */
 export function parseCanonicalResume(md: string): ResumeAST {
   const frontmatter = parseYamlFrontmatter(md);
