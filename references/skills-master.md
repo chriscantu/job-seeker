@@ -38,7 +38,7 @@
 
 ## Technical
 
-- React [situational]
+- Frontend Frameworks [situational]
 - TypeScript [situational]
 - JavaScript [situational]
 - GraphQL [situational]

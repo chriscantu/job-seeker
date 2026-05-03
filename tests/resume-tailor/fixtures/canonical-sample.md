@@ -7,7 +7,7 @@ canonical_version: 2026-05-01
 
 **Senior Engineering Leader | Delivery Transformation Specialist**
 
-christopher.cantu@gmail.com | Austin, TX | linkedin.com/in/christophermcantu
+christopher.cantu@gmail.com | Austin, TX | linkedin.com/in/christophercantu
 
 Senior Engineering Leader specializing in delivery transformation at post-IPO and enterprise technology companies. Expert in rescuing broken delivery systems and building scalable platforms that enable consistent time to market. 15+ years leading multinational engineering organizations (60+ engineers) through complex transformations while maintaining quality and compliance. Track record: transformed CI/CD reliability from 1% to 95%; reduced deployment cycles from 6 months to minutes; unlocked $18M+ in business value.
 
@@ -22,7 +22,7 @@ Senior Engineering Leader specializing in delivery transformation at post-IPO an
 
 ## Skills
 
-Delivery Transformation | Multinational Team Leadership | Engineering Strategy | Cost Optimization | Strategic Technology Planning | Stakeholder Management | OKRs | ShapeUp | Agile | Platform Engineering | Design Systems | Micro-Frontends | Monolith-to-Microservices Migration | System Architecture | CI/CD Optimization | Quality Automation | Feature Flags | Progressive Rollouts | Chaos Engineering | Observability | SRE | Performance Testing | Platform Automation | React | TypeScript | JavaScript | GraphQL | Node.js | AWS | Accessibility (WCAG) | A/B Testing | Automated Testing | GitHub | Jenkins | Docker | Kubernetes | Terraform | Datadog | Grafana
+Delivery Transformation | Multinational Team Leadership | Engineering Strategy | Cost Optimization | Strategic Technology Planning | Stakeholder Management | OKRs | ShapeUp | Agile | Platform Engineering | Design Systems | Micro-Frontends | Monolith-to-Microservices Migration | System Architecture | CI/CD Optimization | Quality Automation | Feature Flags | Progressive Rollouts | Chaos Engineering | Observability | SRE | Performance Testing | Platform Automation | Frontend Frameworks | TypeScript | JavaScript | GraphQL | Node.js | AWS | Accessibility (WCAG) | A/B Testing | Automated Testing | GitHub | Jenkins | Docker | Kubernetes | Terraform | Datadog | Grafana
 
 ## Professional Experience
 
