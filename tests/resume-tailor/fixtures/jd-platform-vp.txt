@@ -1,0 +1,11 @@
+We are hiring a VP of Engineering, Platform to scale our developer platform across
+multiple international engineering teams. You will own CI/CD modernization, design
+system adoption, and platform strategy. You will partner with product and customer
+success leadership to drive a measurable increase in delivery velocity.
+
+Requirements:
+- 10+ years engineering leadership
+- Experience scaling platforms across 50+ engineers
+- Proven CI/CD transformation
+- Design system and micro-frontend experience
+- International team leadership
