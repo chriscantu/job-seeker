@@ -39,7 +39,7 @@
 
 | Decision | Choice | Rationale |
 |---|---|---|
-| Renderer | `anthropic-skills:docx` skill | Avoid custom parser, no Python in repo, maintained upstream |
+| Renderer | `pandoc --reference-doc=template.docx` | Spec/reality gap (2026-05-03): the `anthropic-skills:docx` skill exposes no markdown→docx API — its write path is `docx-js` (programmatic constructors). Pandoc honors all three original rationales (no custom parser, no Python in repo, maintained upstream) and preserves named styles via `--reference-doc`. Iterate-and-measure stays in the outer enforcement loop calling pandoc N times. |
 | Canonical source | Promote to `references/resume.md` | Markdown-native pipeline; PDF retired to archive |
 | 2-page enforcement | Heuristic budget + post-render verify (hybrid) | HARD constraint demands ground-truth; heuristic keeps common path fast |
 | Skill structure | Rewrite `resume-tailor` in place | Old rules contradict recruiter spec; net code decrease |
