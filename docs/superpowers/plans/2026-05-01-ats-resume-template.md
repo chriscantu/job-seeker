@@ -1443,6 +1443,12 @@ git commit -m "feat(resume): compose tailored markdown from AST"
 - Create: `src/resume-tailor/render.ts`
 - Create: `tests/resume-tailor/render.test.ts`
 
+**Carry-forward review notes from PR #96:**
+
+- **I3 (Skills line ordering trap)** — `references/resume.md` Skills line is *category-ordered* (Leadership → Platform → DevOps → Technical → Tools, with `[always]` first within each category), NOT priority-ordered. Floor entries appear at positions 1, 2, 3, 10, 15 — NOT positions 1-5. Renderer MUST consult `skills-master.md` tags when selecting the 5 floor + 5 overlay entries; it MUST NOT read Skills line positionally. Add a header comment to `render.ts` documenting this contract. Add a renderer guard that fails loudly if `skills-master.md` is missing or has fewer than 5 `[always]` entries.
+
+- **M3 (Vrbo subrole labels)** — `references/resume.md` lines 52 (`As Director of Engineering (July 2020 – February 2021):`) and 59 (`As Senior Software Engineering Manager (November 2016 – June 2020):`) are bare prose paragraphs separating Vrbo's two subroles. Spec render-mapping table (lines 257-269 of design doc) has no style assigned to this case. Decision needed in this task: either (a) map to existing `Role Meta` style with extra spacing, or (b) introduce a new `SubRoleLabel` style in the template. If (b), update `scripts/build-resume-template.js` to add the style and re-run the generator. Document the chosen approach in `render.md` (Task 6.4).
+
 - [ ] **Step 1: Write failing integration test.**
 
 ```typescript
