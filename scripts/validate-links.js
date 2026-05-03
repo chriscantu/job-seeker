@@ -74,14 +74,22 @@ function looksLikeFilePath(ref) {
   return true;
 }
 
-const mdFiles = collectMarkdownFiles(root).filter(file => {
+const allMdFiles = collectMarkdownFiles(root);
+const mdFiles = allMdFiles.filter(file => {
   const rel = path.relative(root, file);
   return !skipSourcePrefixes.some(prefix => rel.startsWith(prefix));
 });
+const skippedCount = allMdFiles.length - mdFiles.length;
 
 for (const mdFile of mdFiles) {
-  const content = fs.readFileSync(mdFile, 'utf8');
   const relSource = path.relative(root, mdFile);
+  let content;
+  try {
+    content = fs.readFileSync(mdFile, 'utf8');
+  } catch (err) {
+    issues.push(`${relSource}: could not read file (${err.code})`);
+    continue;
+  }
   let match;
 
   pathPattern.lastIndex = 0;
@@ -108,7 +116,7 @@ for (const mdFile of mdFiles) {
 // --- Report ---
 
 if (issues.length === 0) {
-  console.log(`✓ All links valid (scanned ${mdFiles.length} files)`);
+  console.log(`✓ All links valid (scanned ${mdFiles.length} files, skipped ${skippedCount} plan/spec files)`);
   process.exit(0);
 } else {
   console.log(`✗ ${issues.length} broken link(s) found:\n`);

@@ -2,18 +2,20 @@
  * scripts/build-resume-template.js
  *
  * Generates references/resume-template.docx — empty-bodied Word template with
- * 10 named paragraph styles consumed by the resume-tailor render layer
- * (Task 5.1). Run idempotently: `node scripts/build-resume-template.js`.
+ * 10 named paragraph styles consumed by the resume-tailor render layer.
+ * Run idempotently: `bun scripts/build-resume-template.js`.
  *
- * Output styles (names exact, case-sensitive — must match render contract in
- * docs/superpowers/specs/2026-05-01-ats-resume-template-design.md lines 257-269):
+ * Output styles (names exact, case-sensitive — must match the render contract
+ * in docs/superpowers/specs/2026-05-01-ats-resume-template-design.md, "Render
+ * Pipeline > docx skill invocation" section):
  *   Heading 1, Heading 2, Heading 3, Tagline, Contact, Role Meta,
  *   List Bullet, Skills Line, Accomplishment, Body Text (Summary)
  *
  * Page geometry: US Letter, 0.75in margins all sides (1080 DXA).
  *
- * Tooling: docx npm package (already in package.json deps). No Python — see
- * spec line 42: "no Python in repo".
+ * Tooling: docx npm package (already in package.json deps). Per the Renderer
+ * decision in the spec's Approach Decisions table: no Python source in this
+ * repo (Python deps live in installed plugin packages like anthropic-skills:docx).
  */
 
 const fs = require('node:fs');
@@ -161,7 +163,12 @@ const doc = new Document({
   ],
 });
 
-Packer.toBuffer(doc).then(buf => {
-  fs.writeFileSync(OUTPUT_PATH, buf);
-  console.log(`wrote ${OUTPUT_PATH} (${buf.length} bytes)`);
-});
+Packer.toBuffer(doc)
+  .then(buf => {
+    fs.writeFileSync(OUTPUT_PATH, buf);
+    console.log(`wrote ${OUTPUT_PATH} (${buf.length} bytes)`);
+  })
+  .catch(err => {
+    console.error(`build-resume-template failed: ${err.message}`);
+    process.exit(1);
+  });

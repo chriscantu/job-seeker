@@ -150,7 +150,7 @@ TypeScript pipeline modules consumed by the Bun runtime. Organized by skill
 (e.g., `src/resume-tailor/` for the resume-tailor pipeline).
 
 Modules here are pure TS (no executable shebang). They may shell out to
-fish/Python tools in `scripts/` via `Bun.spawn`. Tests live in `tests/`
+fish/JS tools in `scripts/` via `Bun.spawn`. Tests live in `tests/`
 mirroring the directory layout (e.g., `tests/resume-tailor/page-count.test.ts`).
 
 **What belongs here**: TypeScript modules with one clear responsibility per file.

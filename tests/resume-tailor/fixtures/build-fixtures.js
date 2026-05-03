@@ -1,20 +1,13 @@
 /**
- * tests/resume-tailor/fixtures/build-fixtures.js
+ * Generates minimal .docx fixtures for page-count integration tests.
+ * One- and three-page counts verified against soffice conversion.
  *
- * Generates minimal .docx test fixtures for page-count integration tests.
- * Idempotent — safe to re-run; overwrites existing files.
- *
- * Outputs:
- *   one-page.docx   — single paragraph; soffice reports 1 page
- *   three-page.docx — three paragraphs separated by page breaks; soffice reports 3 pages
- *
- * Usage:
- *   node tests/resume-tailor/fixtures/build-fixtures.js
+ * Run: bun tests/resume-tailor/fixtures/build-fixtures.js
  */
 
 const fs = require('node:fs');
 const path = require('node:path');
-const { Document, Packer, Paragraph, TextRun, PageBreak } = require('docx');
+const { Document, Packer, Paragraph, PageBreak } = require('docx');
 
 const HERE = __dirname;
 
@@ -42,4 +35,7 @@ async function build() {
   console.log('wrote three-page.docx');
 }
 
-build();
+build().catch(err => {
+  console.error(`build-fixtures failed: ${err.message}`);
+  process.exit(1);
+});
