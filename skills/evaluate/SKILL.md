@@ -21,7 +21,7 @@ global 1–5 score and a recommendation (apply / borderline / pass).
 Read `skills/_shared/preflight.md` and execute.
 
 Read these files in the same parallel batch:
-- `references/resume-ats.md` — markdown resume for exact line citations (Block B)
+- `references/resume.md` — markdown resume for exact line citations (Block B)
 - `skills/evaluate/scoring-rules.md` — scoring dimensions and weights
 - `skills/evaluate/archetypes.md` — VPE archetype definitions and proof points
 
@@ -83,7 +83,7 @@ scoring criteria throughout.
 
 ### Block B — CV Match
 
-Read `references/resume-ats.md`. For each JD requirement:
+Read `references/resume.md`. For each JD requirement:
 1. Find the closest matching line in the resume
 2. Quote it **exactly** — exact text, no paraphrasing
 3. Rate the match: **Direct**, **Adjacent**, or **Gap**
@@ -175,7 +175,7 @@ For each of the 6–8 most important JD requirements:
 1. Search existing stories in `output/story-bank.md` by tags
 2. If a matching story exists: surface it with a suggested framing adjustment for
    this role — note it as **existing**
-3. If no match: generate a new STAR+R story from `references/resume-ats.md` —
+3. If no match: generate a new STAR+R story from `references/resume.md` —
    note it as **new**
 
 **Before appending any new story**, check whether `output/story-bank.md` already

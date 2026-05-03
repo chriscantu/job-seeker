@@ -12,7 +12,7 @@ Six archetypes for VP / Senior Director of Engineering roles. For each:
 **Key JD signals:** "scale the engineering org", "grow the team", "Series B/C/D",
 "build infrastructure for growth", "reliability at scale", "platform organization"
 
-**Lead proof points from resume-ats.md:**
+**Lead proof points from resume.md:**
 - "Led 60 engineers across 8 international teams"
 - "Led $50M+ frontend modernization across 125+ repositories and 65+ global teams"
 - "Led 25+ engineers across 5 international platform teams supporting $2.4B in booking revenue"
@@ -31,7 +31,7 @@ across 8 time zones. Connect delivery transformation work to the scaling context
 "founding team", "0 to 1", "seed/Series A", "define engineering culture",
 "hire the first engineers"
 
-**Lead proof points from resume-ats.md:**
+**Lead proof points from resume.md:**
 - "Director of Front End Platforms | Babylon Health" — joined during rapid international expansion, built platform capability across US and Europe
 - "Pioneered weekly mobile release cadence" — established new practices from scratch
 - "Architected micro-frontend infrastructure" — foundational architecture work
@@ -51,7 +51,7 @@ Vrbo was enterprise. Don't overclaim 0→1 startup experience.
 "improve delivery", "reduce tech debt", "engineering effectiveness", "change
 management", "enable product velocity", "broken delivery"
 
-**Lead proof points from resume-ats.md:**
+**Lead proof points from resume.md:**
 - "Transformed CI/CD from 1-5% to 95-99% reliability" — the anchor transformation story
 - "Reduced localization deployment from 6 months to minutes, unlocking $12M+ revenue"
 - "Achieved 85% design system adoption across 185 repositories in 6 months via AI-driven automation"
@@ -72,7 +72,7 @@ as a specialization, not a coincidence: "This is the work I seek out."
 "engineering credibility", "previous leadership didn't work out",
 "team morale", "delivery has stalled", "technical debt has accumulated"
 
-**Lead proof points from resume-ats.md:**
+**Lead proof points from resume.md:**
 - "Transformed CI/CD from 1% to 95% success rate" (Babylon) — inherited a broken system
 - "Transformed CI/CD from 1-5% to 95-99% reliability" (Procore) — same pattern, larger scale
 - "Led migration from monolithic to microservices architecture" (Vrbo)
@@ -92,7 +92,7 @@ reset, not just technical fix.
 "design systems", "CI/CD", "developer productivity", "tooling", "frontend platform",
 "monorepo", "developer tooling", "DX team", "platform team"
 
-**Lead proof points from resume-ats.md:**
+**Lead proof points from resume.md:**
 - "Director of Front End Platforms | Babylon Health" — exact title match
 - "Led 30 engineers across 5 platform teams (US, Europe)"
 - "85% design system adoption across 185 repositories in 6 months via AI-driven automation"
@@ -114,7 +114,7 @@ strong because it shows platform work that actually gets adopted.
 "AI tooling", "LLM integration", "developer AI", "AI-assisted engineering",
 "embed AI across the org", "AI productivity"
 
-**Lead proof points from resume-ats.md:**
+**Lead proof points from resume.md:**
 - "Achieved 85% design system adoption across 185 repositories in 6 months via AI-driven automation"
 - "Created contextual, customizable platform enabling product re-envisioning and supporting AI-powered product initiatives"
 - "Partnered with VP of Product, VP of Engineering, and VP of Customer Success on technology strategy"
