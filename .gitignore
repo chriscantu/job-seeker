@@ -15,6 +15,9 @@ config/search.md
 # Personal references — PII (deny by default, allowlist shared files)
 /references/*
 !/references/email-patterns.md
+!/references/skills-master.md
+!/references/resume.md
+!/references/resume-template.docx
 
 # Outdated files
 job-search-system.md

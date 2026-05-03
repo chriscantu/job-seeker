@@ -83,7 +83,11 @@ job-seeker/
 │   └── scripts/
 │       └── pii-guard.js     ← PII blocking script for Write/Edit
 │
-├── scripts/                 ← Executable scripts only (AppleScript, Swift, JS)
+├── src/                     ← TypeScript pipeline modules (consumed via Bun)
+│   └── resume-tailor/       ← Parse/score/select/compose/render pipeline for tailored resumes
+│       └── page-count.ts    ← TS wrapper around scripts/resume-page-count.fish
+│
+├── scripts/                 ← Executable scripts only (AppleScript, Swift, JS, fish)
 │   ├── apple_notes_create.applescript
 │   ├── apple_notes_read.applescript
 │   ├── apple_notes_update.applescript
@@ -141,14 +145,28 @@ validation, state I/O, ATS verification, and URL quality rules.
 **What belongs here**: Skill orchestrators, local sub-modules, shared modules.
 **What does not belong here**: Config values, executable scripts, specs.
 
+### `src/`
+TypeScript pipeline modules consumed by the Bun runtime. Organized by skill
+(e.g., `src/resume-tailor/` for the resume-tailor pipeline).
+
+Modules here are pure TS (no executable shebang). They may shell out to
+fish/JS tools in `scripts/` via `Bun.spawn`. Tests live in `tests/`
+mirroring the directory layout (e.g., `tests/resume-tailor/page-count.test.ts`).
+
+**What belongs here**: TypeScript modules with one clear responsibility per file.
+**What does not belong here**: Executable scripts (use `scripts/`), tests
+(use `tests/`), generated output (use `output/`).
+
 ### `scripts/`
 Executable scripts only. No documentation files.
 
 Script-level documentation belongs in a docstring/header comment within the
 script file itself, or in `integrations/docs/`.
 
-**What belongs here**: AppleScript, Swift, shell scripts.
-**What does not belong here**: Specs, adapter docs, README files.
+**What belongs here**: AppleScript, Swift, shell/fish scripts, JS generators.
+**What does not belong here**: Specs, adapter docs, README files, TS modules
+(use `src/`), Python source (Python deps live in installed plugin packages,
+not in this repo).
 
 ### `integrations/`
 All integration-related files live here, organized into four subdirectories.
@@ -195,6 +213,7 @@ Test suites and manual test protocols.
 1a. **Is it logic shared across multiple skills?** → `skills/_shared/`
 1b. **Is it skill-specific logic extracted from a SKILL.md?** → `skills/{skill-name}/`
 2. **Is it an executable script?** → `scripts/`
+2a. **Is it a TypeScript pipeline module (no shebang, imported by tests)?** → `src/{skill-name}/`
 3. **Is it a user-specific value (folder name, plugin path)?** → `integrations/config/` as `.example` + gitignored actual
 4. **Is it an adapter doc (how to talk to a system)?** → `integrations/adapters/`
 5. **Is it a feature spec written before implementation?** → `integrations/specs/`
