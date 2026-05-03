@@ -87,7 +87,7 @@ job-seeker/
 │   └── resume-tailor/       ← Parse/score/select/compose/render pipeline for tailored resumes
 │       └── page-count.ts    ← TS wrapper around scripts/resume-page-count.fish
 │
-├── scripts/                 ← Executable scripts only (AppleScript, Swift, JS, fish, Python)
+├── scripts/                 ← Executable scripts only (AppleScript, Swift, JS, fish)
 │   ├── apple_notes_create.applescript
 │   ├── apple_notes_read.applescript
 │   ├── apple_notes_update.applescript
@@ -163,9 +163,10 @@ Executable scripts only. No documentation files.
 Script-level documentation belongs in a docstring/header comment within the
 script file itself, or in `integrations/docs/`.
 
-**What belongs here**: AppleScript, Swift, shell/fish scripts, Python generators.
+**What belongs here**: AppleScript, Swift, shell/fish scripts, JS generators.
 **What does not belong here**: Specs, adapter docs, README files, TS modules
-(use `src/`).
+(use `src/`), Python source (Python deps live in installed plugin packages,
+not in this repo).
 
 ### `integrations/`
 All integration-related files live here, organized into four subdirectories.
