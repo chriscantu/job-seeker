@@ -1,8 +1,11 @@
 // src/resume-tailor/page-count.ts
 import { spawn } from 'bun';
+import { resolve } from 'node:path';
+
+const SCRIPT = resolve(import.meta.dir, '../../scripts/resume-page-count.fish');
 
 export async function pageCount(docxPath: string): Promise<number> {
-  const proc = spawn(['scripts/resume-page-count.fish', docxPath], {
+  const proc = spawn([SCRIPT, docxPath], {
     stdout: 'pipe',
     stderr: 'pipe',
   });
@@ -11,10 +14,9 @@ export async function pageCount(docxPath: string): Promise<number> {
     const err = await new Response(proc.stderr).text();
     throw new Error(`page-count failed (exit ${exitCode}): ${err.trim()}`);
   }
-  const out = await new Response(proc.stdout).text();
-  const n = parseInt(out.trim(), 10);
-  if (!Number.isFinite(n)) {
-    throw new Error(`page-count returned non-integer: ${out}`);
+  const trimmed = (await new Response(proc.stdout).text()).trim();
+  if (!/^\d+$/.test(trimmed)) {
+    throw new Error(`page-count returned non-integer: ${trimmed}`);
   }
-  return n;
+  return parseInt(trimmed, 10);
 }
