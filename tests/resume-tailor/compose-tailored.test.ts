@@ -1,25 +1,25 @@
 import { describe, expect, test } from 'bun:test';
-import { composeTailored } from '../../src/resume-tailor/compose-tailored';
-import { parseCanonical } from '../../src/resume-tailor/parse-canonical';
+import { composeTailoredResumeMarkdown } from '../../src/resume-tailor/compose-tailored';
+import { parseCanonicalResume } from '../../src/resume-tailor/parse-canonical';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const md = readFileSync(resolve(__dirname, 'fixtures/canonical-sample.md'), 'utf8');
 
-describe('composeTailored', () => {
+describe('composeTailoredResumeMarkdown', () => {
   test('round-trips through parse without losing structure', () => {
-    const ast = parseCanonical(md);
-    const out = composeTailored(ast, {
+    const ast = parseCanonicalResume(md);
+    const out = composeTailoredResumeMarkdown(ast, {
       company: 'Acme', role: 'VP', posting_url: 'https://x', generated: '2026-05-01',
     });
-    const reparsed = parseCanonical(out);
+    const reparsed = parseCanonicalResume(out);
     expect(reparsed.header.name).toBe(ast.header.name);
     expect(reparsed.roles).toHaveLength(ast.roles.length);
   });
 
   test('writes frontmatter with company/role/posting_url', () => {
-    const ast = parseCanonical(md);
-    const out = composeTailored(ast, {
+    const ast = parseCanonicalResume(md);
+    const out = composeTailoredResumeMarkdown(ast, {
       company: 'Acme Corp', role: 'VP Engineering', posting_url: 'https://x', generated: '2026-05-01',
     });
     expect(out).toContain('company: Acme Corp');
@@ -27,17 +27,17 @@ describe('composeTailored', () => {
   });
 
   test('skills line is single line, pipe-delimited', () => {
-    const ast = parseCanonical(md);
+    const ast = parseCanonicalResume(md);
     ast.skills = ['A', 'B', 'C'];
-    const out = composeTailored(ast, {
+    const out = composeTailoredResumeMarkdown(ast, {
       company: 'X', role: 'Y', posting_url: '', generated: '2026-05-01',
     });
     expect(out).toMatch(/## Skills\n\nA \| B \| C\n/);
   });
 
   test('every bullet preserves Impact clause', () => {
-    const ast = parseCanonical(md);
-    const out = composeTailored(ast, {
+    const ast = parseCanonicalResume(md);
+    const out = composeTailoredResumeMarkdown(ast, {
       company: 'X', role: 'Y', posting_url: '', generated: '2026-05-01',
     });
     const bulletLines = out.split('\n').filter((l) => l.trim().startsWith('- ') && !l.includes('**Revenue Impact**'));
@@ -49,8 +49,8 @@ describe('composeTailored', () => {
   });
 
   test('no Challenge:/Action:/Results: literals', () => {
-    const ast = parseCanonical(md);
-    const out = composeTailored(ast, {
+    const ast = parseCanonicalResume(md);
+    const out = composeTailoredResumeMarkdown(ast, {
       company: 'X', role: 'Y', posting_url: '', generated: '2026-05-01',
     });
     expect(out).not.toContain('**Challenge:**');

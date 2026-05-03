@@ -1,9 +1,9 @@
 import { describe, expect, test } from 'bun:test';
-import { parseCanonical } from '../../src/resume-tailor/parse-canonical';
+import { parseCanonicalResume } from '../../src/resume-tailor/parse-canonical';
 import { extractKeywords, scoreBullet } from '../../src/resume-tailor/score-bullets';
 import { selectSkills } from '../../src/resume-tailor/select-skills';
 import { swapLeadClause } from '../../src/resume-tailor/summary-swap';
-import { composeTailored } from '../../src/resume-tailor/compose-tailored';
+import { composeTailoredResumeMarkdown } from '../../src/resume-tailor/compose-tailored';
 import { renderResume } from '../../src/resume-tailor/render';
 import { enforceTwoPages } from '../../src/resume-tailor/enforce-pages';
 import { pageCount } from '../../src/resume-tailor/page-count';
@@ -34,7 +34,7 @@ describe.skipIf(!integrationReady)('e2e tailor', () => {
       const masterMd = readFileSync(masterPath, 'utf8');
       const jd = readFileSync(fixturePath, 'utf8');
 
-      const ast = parseCanonical(canonical);
+      const ast = parseCanonicalResume(canonical);
       const keywords = extractKeywords(jd);
       const master = parseSkillsMaster(masterMd);
       ast.skills = selectSkills(master, keywords);
@@ -55,7 +55,7 @@ describe.skipIf(!integrationReady)('e2e tailor', () => {
       const renderAndCount = async (currentAST: typeof ast) => {
         writeFileSync(
           mdPath,
-          composeTailored(currentAST, {
+          composeTailoredResumeMarkdown(currentAST, {
             generated: '2026-05-01',
             company: 'TestCo',
             role: f.replace(/\.txt$/, ''),

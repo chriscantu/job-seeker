@@ -1,5 +1,5 @@
 import { selectDropTarget } from './drop-target';
-import { applyDrop } from './apply-drop';
+import { removeBulletFromAst } from './apply-drop';
 import type { ResumeAST } from './types';
 
 export type EnforceOpts = {
@@ -25,7 +25,7 @@ export async function enforceTwoPages(
     if (target === null) {
       throw new Error(`drop pool exhausted; pages=${pages} after ${iter - 1} drops`);
     }
-    applyDrop(ast, target);
+    removeBulletFromAst(ast, target);
     dropped.push({
       roleCompany: target.roleCompany,
       bulletText: target.bulletText,

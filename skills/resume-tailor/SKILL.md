@@ -55,7 +55,7 @@ Read `skills/resume-tailor/tailoring-rules.md` and execute. The pipeline:
 3. Reorder Key Accomplishments (6 fixed, by relevance).
 4. Select 10 skills (5 floor + 5 JD-overlay) from `references/skills-master.md`.
 5. Swap summary lead clause with the JD's top requirement.
-6. Compose tailored markdown via `composeTailored`.
+6. Compose tailored markdown via `composeTailoredResumeMarkdown`.
 
 Cache analysis results before composing:
 

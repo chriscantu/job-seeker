@@ -48,7 +48,9 @@ job-seeker/
 │   │   └── SKILL.md
 │   ├── resume-tailor/
 │   │   ├── SKILL.md
-│   │   └── tailoring-rules.md
+│   │   ├── tailoring-rules.md
+│   │   ├── drop-strategy.md
+│   │   └── render.md
 │   ├── company-research/
 │   │   └── SKILL.md
 │   ├── interview-prep/
@@ -85,7 +87,18 @@ job-seeker/
 │
 ├── src/                     ← TypeScript pipeline modules (consumed via Bun)
 │   └── resume-tailor/       ← Parse/score/select/compose/render pipeline for tailored resumes
-│       └── page-count.ts    ← TS wrapper around scripts/resume-page-count.fish
+│       ├── types.ts                ← AST types (ResumeAST, Role, SubRole, Bullet, …) + PageCount brand
+│       ├── parse-canonical.ts      ← parseCanonicalResume — markdown → typed AST
+│       ├── score-bullets.ts        ← extractKeywords + scoreBullet against JD text
+│       ├── skills-master.ts        ← parseSkillsMaster — references/skills-master.md
+│       ├── select-skills.ts        ← 5 always + 5 JD-overlay selection
+│       ├── summary-swap.ts         ← summary lead-clause swap per JD
+│       ├── drop-target.ts          ← selectDropTarget — oldest-first, lowest-score, current-role protected
+│       ├── apply-drop.ts           ← removeBulletFromAst — in-place AST mutation
+│       ├── compose-tailored.ts     ← composeTailoredResumeMarkdown — AST → markdown (round-trips)
+│       ├── render.ts               ← renderResume — pandoc bridge via scripts/render-resume.fish
+│       ├── enforce-pages.ts        ← enforceTwoPages — render → drop → repeat until ≤ 2 pages
+│       └── page-count.ts           ← TS wrapper around scripts/resume-page-count.fish
 │
 ├── scripts/                 ← Executable scripts only (AppleScript, Swift, JS, fish)
 │   ├── apple_notes_create.applescript
@@ -99,6 +112,8 @@ job-seeker/
 │   ├── gmail.js             ← Gmail CLI (auth, profile, search, create-draft, trash)
 │   ├── generate_coverletter_docx.js
 │   ├── docx-styles.js
+│   ├── resume-page-count.fish  ← soffice + pdfinfo wrapper (resume page count)
+│   ├── render-resume.fish      ← pandoc + reference-doc wrapper (resume render)
 │   └── lib/                 ← Script-local modules
 │       └── gmail-auth.js    ← OAuth2 client + token persistence for gmail.js
 │
@@ -109,13 +124,36 @@ job-seeker/
 │   └── docs/                ← Implementation notes, ADRs, test protocols — written AFTER
 │
 ├── references/              ← Shared permanent reference material (committed)
-│   ├── resume.pdf           ← Canonical resume (source of truth)
+│   ├── resume.md            ← Canonical resume (source of truth — markdown)
+│   ├── resume.pdf           ← Legacy archive (used as extraction source if .md missing)
+│   ├── skills-master.md     ← Master skills list with [always]/[situational] tags
+│   ├── resume-template.docx ← Word template with named styles for pandoc rendering
 │   ├── voice-guide.md       ← Writing voice calibration
 │   ├── email-patterns.md    ← Job alert email classification patterns
 │   ├── blog-88-deployments.pdf
 │   └── blog-team-building.pdf
 │
 ├── tests/                   ← Test suites and manual test protocols
+│   └── resume-tailor/       ← Mirrors src/resume-tailor/ — one .test.ts per module
+│       ├── parse-canonical.test.ts
+│       ├── score-bullets.test.ts
+│       ├── select-skills.test.ts
+│       ├── summary-swap.test.ts
+│       ├── drop-target.test.ts
+│       ├── apply-drop.test.ts
+│       ├── compose-tailored.test.ts
+│       ├── render.test.ts            ← integration gated on Bun.which('pandoc')
+│       ├── enforce-pages.test.ts
+│       ├── page-count.test.ts        ← integration gated on soffice/pdfinfo
+│       ├── template-structure.test.ts
+│       ├── e2e.test.ts               ← full pipeline, gated on pandoc + soffice + pdfinfo
+│       ├── ats-smoke-PENDING.md      ← manual jobscan.co smoke template
+│       └── fixtures/
+│           ├── canonical-sample.md       ← snapshot of references/resume.md
+│           ├── oversize-canonical.md     ← > 2-page fixture for enforcement loop
+│           ├── jd-platform-vp.txt        ← JD fixture: VP Platform
+│           ├── jd-scaling-director.txt   ← JD fixture: Scaling Director
+│           └── jd-ai-infra.txt           ← JD fixture: AI Infrastructure
 │
 └── output/                  ← Generated materials + state files (gitignored)
     ├── YYYY-MM-DD-seen-postings.md    ← Dedup log (state)

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { applyDrop } from '../../src/resume-tailor/apply-drop';
+import { removeBulletFromAst } from '../../src/resume-tailor/apply-drop';
 import type { ResumeAST } from '../../src/resume-tailor/types';
 
 const baseAST = (): ResumeAST => ({
@@ -13,10 +13,10 @@ const baseAST = (): ResumeAST => ({
   ],
 });
 
-describe('applyDrop', () => {
+describe('removeBulletFromAst', () => {
   test('removes the targeted bullet by index', () => {
     const ast = baseAST();
-    applyDrop(ast, { roleIndex: 0, roleCompany: 'A', bulletIndex: 1, bulletText: 'a2' });
+    removeBulletFromAst(ast, { roleIndex: 0, roleCompany: 'A', bulletIndex: 1, bulletText: 'a2' });
     expect(ast.roles[0].bullets).toHaveLength(1);
     expect(ast.roles[0].bullets[0].text).toBe('a1');
   });
@@ -27,7 +27,7 @@ describe('applyDrop', () => {
     ast.roles[0].subRoles = [
       { label: 'sub', bullets: [{ text: 's1', impact: 'i' }, { text: 's2', impact: 'i' }] },
     ];
-    applyDrop(ast, { roleIndex: 0, roleCompany: 'A', bulletIndex: 0, bulletText: 's1' });
+    removeBulletFromAst(ast, { roleIndex: 0, roleCompany: 'A', bulletIndex: 0, bulletText: 's1' });
     expect(ast.roles[0].subRoles[0].bullets).toHaveLength(1);
     expect(ast.roles[0].subRoles[0].bullets[0].text).toBe('s2');
   });

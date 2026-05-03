@@ -86,7 +86,7 @@ evaluate, resume-tailor). Tell the user:
 > canonical source for downstream skills.
 >
 > If you only have a PDF (`references/resume.pdf`), extract markdown using
-> the resume-tailor pipeline before continuing — `parseCanonical` requires
+> the resume-tailor pipeline before continuing — `parseCanonicalResume` requires
 > the markdown form.
 >
 > Once `references/resume.md` is in place, say 'done' and I'll continue."

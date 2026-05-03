@@ -33,7 +33,7 @@ Preserve the rest verbatim.
 
 ## Phase 5: Compose
 
-Compose tailored markdown via `composeTailored`. Schema:
+Compose tailored markdown via `composeTailoredResumeMarkdown`. Schema:
 
 ```markdown
 ---

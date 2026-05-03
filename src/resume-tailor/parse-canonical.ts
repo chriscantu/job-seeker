@@ -1,14 +1,29 @@
 import type { ResumeAST, Bullet, Role, KeyAccomplishment, SubRole } from './types';
 
 const FRONTMATTER_RE = /^---\n([\s\S]*?)\n---\n/;
+const SECTION_HEADING_RE = /^## (.+)$/;
+const ROLE_HEADING_SPLIT_RE = /^### /m;
+const SUBROLE_LABEL_RE = /^As (.+?):$/;
+const BULLET_PREFIX = '- ';
+const KEY_ACCOMPLISHMENT_RE =
+  /^- \*\*(.+?)\*\* — (.+?)\s*\|\s*\*\*Impact:\*\*\s*(.+)$/;
+const BULLET_IMPACT_RE = /^(.+?)\s+\*\*Impact:\*\*\s+(.+)$/;
 
-export function parseCanonical(md: string): ResumeAST {
-  const fm = parseFrontmatter(md);
+/**
+ * Parse the canonical resume markdown (`references/resume.md`) into a typed
+ * AST. Throws on schema violations: missing frontmatter, missing skills line,
+ * malformed Key Accomplishment line, bullet without `**Impact:**` clause.
+ *
+ * @throws Error when the input does not satisfy the schema in
+ *   `docs/superpowers/specs/2026-05-01-ats-resume-template-design.md`.
+ */
+export function parseCanonicalResume(md: string): ResumeAST {
+  const frontmatter = parseYamlFrontmatter(md);
   const body = md.replace(FRONTMATTER_RE, '');
-  const sections = splitSections(body);
+  const sections = splitByH2Sections(body);
 
   return {
-    frontmatter: fm,
+    frontmatter,
     header: parseHeader(sections.header),
     summary: parseSummary(sections.header),
     keyAccomplishments: parseKeyAccomplishments(sections['Key Accomplishments']),
@@ -18,38 +33,42 @@ export function parseCanonical(md: string): ResumeAST {
   };
 }
 
-function parseFrontmatter(md: string) {
+function parseYamlFrontmatter(md: string) {
   const match = md.match(FRONTMATTER_RE);
   if (!match) throw new Error('frontmatter missing');
-  const lines = match[1].split('\n');
-  const result: Record<string, string> = {};
-  for (const line of lines) {
-    const [k, ...rest] = line.split(':');
-    if (!k) continue;
-    result[k.trim()] = rest.join(':').trim();
-  }
+  const fields = parseKeyValueLines(match[1]);
   return {
-    template_version: parseInt(result.template_version, 10),
-    canonical_version: result.canonical_version,
+    template_version: parseInt(fields.template_version, 10),
+    canonical_version: fields.canonical_version,
   };
 }
 
-function splitSections(body: string): Record<string, string> {
+function parseKeyValueLines(block: string): Record<string, string> {
+  const result: Record<string, string> = {};
+  for (const line of block.split('\n')) {
+    const [key, ...rest] = line.split(':');
+    if (!key) continue;
+    result[key.trim()] = rest.join(':').trim();
+  }
+  return result;
+}
+
+function splitByH2Sections(body: string): Record<string, string> {
   const out: Record<string, string> = {};
   const lines = body.split('\n');
-  let current = 'header';
-  let buf: string[] = [];
+  let currentSection = 'header';
+  let buffer: string[] = [];
   for (const line of lines) {
-    const h2 = line.match(/^## (.+)$/);
-    if (h2) {
-      out[current] = buf.join('\n').trim();
-      current = h2[1].trim();
-      buf = [];
+    const heading = line.match(SECTION_HEADING_RE);
+    if (heading) {
+      out[currentSection] = buffer.join('\n').trim();
+      currentSection = heading[1].trim();
+      buffer = [];
     } else {
-      buf.push(line);
+      buffer.push(line);
     }
   }
-  out[current] = buf.join('\n').trim();
+  out[currentSection] = buffer.join('\n').trim();
   return out;
 }
 
@@ -71,17 +90,19 @@ function parseKeyAccomplishments(section: string): KeyAccomplishment[] {
     .split('\n')
     .map((l) => l.trim())
     .filter((l) => l.startsWith('- **'))
-    .map((line) => {
-      const labelMatch = line.match(/^- \*\*(.+?)\*\* — (.+?)\s*\|\s*\*\*Impact:\*\*\s*(.+)$/);
-      if (!labelMatch) {
-        throw new Error(`key accomplishment malformed: ${line}`);
-      }
-      return {
-        label: labelMatch[1].trim(),
-        description: labelMatch[2].trim(),
-        impact: labelMatch[3].trim(),
-      };
-    });
+    .map(parseKeyAccomplishmentLine);
+}
+
+function parseKeyAccomplishmentLine(line: string): KeyAccomplishment {
+  const match = line.match(KEY_ACCOMPLISHMENT_RE);
+  if (!match) {
+    throw new Error(`key accomplishment malformed: ${line}`);
+  }
+  return {
+    label: match[1].trim(),
+    description: match[2].trim(),
+    impact: match[3].trim(),
+  };
 }
 
 function parseSkills(section: string): string[] {
@@ -91,51 +112,70 @@ function parseSkills(section: string): string[] {
 }
 
 function parseRoles(section: string): Role[] {
-  const roles: Role[] = [];
-  const blocks = section.split(/^### /m).slice(1);
-  for (const block of blocks) {
-    const lines = block.split('\n');
-    const heading = lines[0];
-    const [title, company] = heading.split(' | ').map((s) => s.trim());
-    const meta = (lines.find((l) => l.startsWith('*')) ?? '').replace(/^\*|\*$/g, '').trim();
-    const role: Role = { title, company, meta, bullets: [] };
+  const blocks = section.split(ROLE_HEADING_SPLIT_RE).slice(1);
+  return blocks.map(parseRoleBlock);
+}
 
-    const subRolePattern = /^As (.+?):$/;
-    const hasSubRoles = lines.some((l) => subRolePattern.test(l));
-    if (hasSubRoles) {
-      role.subRoles = [];
-      let currentSub: SubRole | null = null;
-      for (const line of lines) {
-        const subMatch = line.match(subRolePattern);
-        if (subMatch) {
-          if (currentSub) role.subRoles.push(currentSub);
-          currentSub = { label: subMatch[1], bullets: [] };
-        } else if (currentSub && line.trim().startsWith('- ')) {
-          currentSub.bullets.push(parseBullet(line));
-        }
-      }
-      if (currentSub) role.subRoles.push(currentSub);
-    } else {
-      for (const line of lines) {
-        if (line.trim().startsWith('- ')) {
-          role.bullets.push(parseBullet(line));
-        }
-      }
-    }
-    roles.push(role);
+function parseRoleBlock(block: string): Role {
+  const lines = block.split('\n');
+  const { title, company } = parseRoleHeading(lines[0]);
+  const meta = parseRoleMeta(lines);
+  const role: Role = { title, company, meta, bullets: [] };
+
+  if (containsSubRoleLabels(lines)) {
+    role.subRoles = parseSubRoles(lines);
+  } else {
+    role.bullets = parseFlatBullets(lines);
   }
-  return roles;
+  return role;
+}
+
+function parseRoleHeading(headingLine: string): { title: string; company: string } {
+  const [title, company] = headingLine.split(' | ').map((s) => s.trim());
+  return { title, company };
+}
+
+function parseRoleMeta(lines: string[]): string {
+  const metaLine = lines.find((l) => l.startsWith('*')) ?? '';
+  return metaLine.replace(/^\*|\*$/g, '').trim();
+}
+
+function containsSubRoleLabels(lines: string[]): boolean {
+  return lines.some((l) => SUBROLE_LABEL_RE.test(l));
+}
+
+function parseSubRoles(lines: string[]): SubRole[] {
+  const subRoles: SubRole[] = [];
+  let active: SubRole | null = null;
+
+  for (const line of lines) {
+    const labelMatch = line.match(SUBROLE_LABEL_RE);
+    if (labelMatch) {
+      if (active) subRoles.push(active);
+      active = { label: labelMatch[1], bullets: [] };
+    } else if (active && line.trim().startsWith(BULLET_PREFIX)) {
+      active.bullets.push(parseBullet(line));
+    }
+  }
+  if (active) subRoles.push(active);
+  return subRoles;
+}
+
+function parseFlatBullets(lines: string[]): Bullet[] {
+  return lines
+    .filter((l) => l.trim().startsWith(BULLET_PREFIX))
+    .map(parseBullet);
 }
 
 function parseBullet(line: string): Bullet {
   const trimmed = line.trim().replace(/^- /, '');
-  const impactMatch = trimmed.match(/^(.+?)\s+\*\*Impact:\*\*\s+(.+)$/);
-  if (!impactMatch) {
+  const match = trimmed.match(BULLET_IMPACT_RE);
+  if (!match) {
     throw new Error(`bullet missing **Impact:** clause: ${trimmed}`);
   }
   return {
-    text: impactMatch[1].trim().replace(/\.$/, ''),
-    impact: impactMatch[2].trim(),
+    text: match[1].trim().replace(/\.$/, ''),
+    impact: match[2].trim(),
   };
 }
 
