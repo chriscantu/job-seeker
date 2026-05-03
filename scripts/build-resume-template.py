@@ -223,6 +223,10 @@ def style_list_bullet(doc):
     s = doc.styles["List Bullet"]
     _set_font(s.font, "Calibri", 11, color=BLACK)
     pf = s.paragraph_format
+    # Note: python-docx serialises WD_LINE_SPACING.SINGLE + line_val=Pt(12) as
+    # w:lineRule="exact" w:line="240". At 11pt Calibri this is functionally
+    # equivalent to auto single-spacing (109%). For lineRule="auto" (true dynamic
+    # single-spacing), omit line_val and pass only the rule constant.
     _set_para_spacing(pf, before_pt=2, after_pt=2,
                       line_rule=WD_LINE_SPACING.SINGLE, line_val=Pt(12))
     pf.left_indent = Inches(0.15)
@@ -249,29 +253,10 @@ def _set_list_bullet_glyph(doc, style):
     that uses the • glyph and attach it to the style. If a numbering part
     already exists we append to it; otherwise we create one.
     """
-    from docx.opc.part import Part
-    from docx.opc.packuri import PackURI
     from lxml import etree
 
-    # Access or create the numbering part
-    try:
-        num_part = doc.part.numbering_part
-    except AttributeError:
-        # No numbering part yet — create one
-        num_xml = (
-            b'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-            b'<w:numbering xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"/>'
-        )
-        num_part = Part(
-            PackURI("/word/numbering.xml"),
-            "application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml",
-            etree.fromstring(num_xml),
-            doc.part.package,
-        )
-        doc.part.relate_to(
-            num_part,
-            "http://schemas.openxmlformats.org/officeDocument/2006/relationships/numbering",
-        )
+    num_part = doc.part.numbering_part
+    # python-docx 1.2.0 default template always provides a numbering part.
 
     # Assign a deterministic abstract num id and num id to avoid duplicates
     ABSTRACT_ID = 100
@@ -397,11 +382,8 @@ def build():
     style_accomplishment(doc)
     style_body_text_summary(doc)
 
-    # Remove the default empty paragraph that Document() always adds.
-    # The template body must be empty (no sample content).
-    # We cannot fully remove the last paragraph in docx (Word requires >=1),
-    # so we leave the single empty paragraph with no style assignment.
-    # It will not appear in the rendered output as visible content.
+    # python-docx 1.2.0: Document() initialises with an empty body (sectPr only).
+    # No default paragraph to remove. Template body is already empty.
 
     doc.save(OUTPUT_PATH)
     print(f"Template written to: {OUTPUT_PATH}")
