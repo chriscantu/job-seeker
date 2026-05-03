@@ -23,9 +23,15 @@ const ignoredPrefixes = [
   'credentials/',
 ];
 
-// Directories to skip when scanning for markdown source files.
-// docs/superpowers/specs describe future state — paths may reference planned files.
+// Directories to skip when scanning for markdown source files (basename match).
 const skipDirs = new Set(['node_modules', '.git', 'output', 'memory', '.worktrees']);
+
+// Markdown source prefixes (relative to repo root) to skip wholesale.
+// Plans and specs describe future state — paths reference files yet to be created.
+const skipSourcePrefixes = [
+  'docs/superpowers/plans/',
+  'docs/superpowers/specs/',
+];
 
 function isIgnoredPath(filePath) {
   return ignoredPrefixes.some(prefix => filePath.startsWith(prefix));
@@ -68,7 +74,10 @@ function looksLikeFilePath(ref) {
   return true;
 }
 
-const mdFiles = collectMarkdownFiles(root);
+const mdFiles = collectMarkdownFiles(root).filter(file => {
+  const rel = path.relative(root, file);
+  return !skipSourcePrefixes.some(prefix => rel.startsWith(prefix));
+});
 
 for (const mdFile of mdFiles) {
   const content = fs.readFileSync(mdFile, 'utf8');
