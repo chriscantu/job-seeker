@@ -9,8 +9,8 @@
 - Delivery Transformation [always]
 - Multinational Team Leadership [always]
 - Engineering Strategy [always]
+- Strategic Technology Planning [always]
 - Cost Optimization [situational]
-- Strategic Technology Planning [situational]
 - Stakeholder Management [situational]
 - OKRs [situational]
 - ShapeUp [situational]
@@ -26,7 +26,7 @@
 
 ## DevOps
 
-- CI/CD Optimization [always]
+- CI/CD Optimization [situational]
 - Quality Automation [situational]
 - Feature Flags [situational]
 - Progressive Rollouts [situational]
@@ -38,7 +38,7 @@
 
 ## Technical
 
-- React [situational]
+- Frontend Frameworks [situational]
 - TypeScript [situational]
 - JavaScript [situational]
 - GraphQL [situational]

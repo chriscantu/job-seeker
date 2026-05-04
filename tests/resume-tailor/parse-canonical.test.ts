@@ -9,7 +9,7 @@ describe('parseCanonicalResume', () => {
   test('parses frontmatter', () => {
     const ast = parseCanonicalResume(fixture);
     expect(ast.frontmatter.template_version).toBe(1);
-    expect(ast.frontmatter.canonical_version).toBe('2026-05-01');
+    expect(ast.frontmatter.canonical_version).toBe('2026-05-03');
   });
 
   test('parses header', () => {
@@ -24,17 +24,18 @@ describe('parseCanonicalResume', () => {
     expect(ast.summary).toContain('Senior Engineering Leader specializing');
   });
 
-  test('parses 6 key accomplishments with label/description/impact', () => {
+  test('parses 6 key accomplishments with label and single-sentence description', () => {
     const ast = parseCanonicalResume(fixture);
     expect(ast.keyAccomplishments).toHaveLength(6);
     expect(ast.keyAccomplishments[0].label).toBe('Revenue Impact');
-    expect(ast.keyAccomplishments[0].impact).toContain('European/Asian');
+    expect(ast.keyAccomplishments[0].description).toContain('Delivered $18M+');
+    expect(ast.keyAccomplishments[0].description).toContain('ahead of schedule');
   });
 
   test('parses skills as array', () => {
     const ast = parseCanonicalResume(fixture);
     expect(Array.isArray(ast.skills)).toBe(true);
-    expect(ast.skills.length).toBeGreaterThan(10);
+    expect(ast.skills.length).toBe(10);
     expect(ast.skills).toContain('Delivery Transformation');
   });
 
@@ -52,14 +53,14 @@ describe('parseCanonicalResume', () => {
     expect(vrbo.subRoles![0].label).toContain('Director of Engineering');
   });
 
-  test('every bullet has impact text', () => {
+  test('every bullet has non-empty text (single-sentence CAR)', () => {
     const ast = parseCanonicalResume(fixture);
     for (const role of ast.roles) {
       const allBullets = role.subRoles
         ? role.subRoles.flatMap((s) => s.bullets)
         : role.bullets;
       for (const b of allBullets) {
-        expect(b.impact.length).toBeGreaterThan(0);
+        expect(b.text.length).toBeGreaterThan(0);
       }
     }
   });

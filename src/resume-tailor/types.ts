@@ -13,7 +13,6 @@ export type ResumeAST = {
 export type KeyAccomplishment = {
   label: string;
   description: string;
-  impact: string;
 };
 
 export type Role = {
@@ -31,5 +30,4 @@ export type SubRole = {
 
 export type Bullet = {
   text: string;
-  impact: string;
 };

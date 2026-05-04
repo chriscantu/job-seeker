@@ -29,7 +29,11 @@
   - Summary: tightened, leadership-positioned (recruiter draft = default)
   - Skills: max 10, ` | `-delimited, role-tailored
   - CAR: implicit by ordering — never literal "Challenge:/Action:/Results:" labels
-  - Every Result has Impact (additive, no rewording existing wins)
+  - **Schema reversal (2026-05-03):** Recruiter feedback was misread on the
+    original spec. She did NOT request `**Impact:**` as an additive label.
+    Bullets and Key Accomplishments now fold the outcome into a single CAR
+    sentence — no literal `**Impact:**` label anywhere. Implicit CAR via
+    ordering preserved.
 
 **Drop heuristic:** oldest role's bottom bullets first; relevance-tiebreak within role; current role + structural sections (Summary, Skills, Key Accomplishments, Education) protected.
 
@@ -129,8 +133,8 @@ christopher.cantu@gmail.com | Austin, TX | linkedin.com/in/christophermcantu
 
 ## Key Accomplishments
 
-- **Revenue Impact** — Delivered $18M+ in business value through delivery transformation and international expansion | **Impact:** Unlocked European/Asian market revenue ahead of plan
-- **Delivery Excellence** — Transformed CI/CD from 1-5% to 95-99% reliability | **Impact:** Enabled 3x faster product release cadence
+- **Revenue Impact** — Delivered $18M+ in business value through delivery transformation and international expansion, unlocking new market revenue 6 months ahead of schedule.
+- **Delivery Excellence** — Transformed CI/CD from 1% to 95% reliability for the organization, improving delivery 2x for all product teams.
 - ...(6 total)
 
 ## Skills
@@ -143,9 +147,9 @@ Delivery Transformation | Multinational Team Leadership | Platform Engineering |
 
 *Austin, TX (Hybrid) | September 2023 – April 2026 | 60 engineers, 8 international teams*
 
-- Led $50M+ frontend modernization across 125+ repos and 65+ global teams. **Impact:** $12M+ revenue unlocked in European/Asian markets within first year.
-- Achieved 85% design system adoption across 185 repos in 6 months via AI-driven automation. **Impact:** Fastest design-system rollout in company history.
-- Partnered with VP Product, VP Engineering, VP Customer Success on tech strategy. **Impact:** Aligned international growth roadmap across 3 regions.
+- Led $50M+ frontend modernization across 125+ repos and 65+ global teams, unlocking $12M+ in revenue across all markets by enabling faster delivery and unblocking strategic customer features.
+- Drove 85% design system adoption across 185 repos in 6 months via automation, fastest rollout in company history and the foundation for product-wide UI consistency.
+- Partnered with VP Product, VP Engineering, and VP Customer Success on international platform roadmap, surpassing original timeline by 1 year across European and Asian markets.
 
 ### Director of Front End Platforms | Babylon Health
 ...
@@ -159,11 +163,12 @@ Baylor University
 
 ### Schema rules
 
-- **Key Accomplishments**: `**Label** — what | **Impact:** outcome` per line. Pipe separates label/desc/impact for ATS parseability.
+- **Key Accomplishments**: `- **Label** — single sentence.` per line. No pipe-delimited Impact field.
 - **Skills**: single line, ` | `-delimited, max 10. No category headers.
-- **No `Challenge:` / `Action:` / `Results:` literal labels.** Implicit CAR by bullet ordering: lead bullet = challenge framing, mid bullets = actions, every bullet ends with `**Impact:**` clause.
-- **Every bullet has Impact.** Additive — preserve canonical scope and numbers, append impact clause if missing.
-- Pipe (`|`) reserved for Skills line and Key Accomplishment fields. Bullets use prose + bold Impact.
+- **No `Challenge:` / `Action:` / `Results:` literal labels.** Implicit CAR by bullet ordering and sentence shape: action verb + scope/numbers + outcome clause.
+- **No `**Impact:**` literal label.** Outcome is folded into the bullet's single sentence (via -ing clause, "with"-clause, em-dash continuation, etc).
+- **Every bullet is one sentence ending in `.`.** Preserve canonical scope and numbers verbatim.
+- Pipe (`|`) reserved for the Skills line. Bullets and Key Accomplishments are prose + bold label only (KA).
 
 ---
 
@@ -316,7 +321,7 @@ echo $pages
 | Master skill list <5 `[always]` tags | HARD FAIL — under-defined floor |
 | Pages > 2 + drop pool exhausted | HARD FAIL with diagnostics — dump rendered docx, list drops, suggest template review |
 | Iteration > 5 | HARD FAIL — drop loop did not converge |
-| Bullet missing Impact in canonical | WARN once per run; tailoring proceeds; flagged in decisions.md |
+| Bullet text empty in canonical | HARD FAIL; parser throws `bullet missing text` |
 | `output/{slug}/` missing | Create silently |
 | Existing tailored output present | Overwrite without prompt |
 | Downstream skills break on new schema | OUT OF SCOPE for this skill; flag in implementation plan as audit task |
@@ -331,12 +336,12 @@ echo $pages
 
 `tests/resume-tailor/`:
 
-- `parse-canonical.test.ts` — resume.md parses cleanly into AST. Property: every bullet has Impact OR is flagged.
+- `parse-canonical.test.ts` — resume.md parses cleanly into AST. Property: every bullet has non-empty `text`.
 - `score-bullets.test.ts` — JD keyword extraction → relevance score per bullet (3 sample JDs).
 - `select-skills.test.ts` — 5 floor + ≤5 JD-overlay, deduped, max 10.
 - `summary-lead-clause-swap.test.ts` — Lead clause swap; rest verbatim. No new claims.
 - `drop-target-select.test.ts` — Oldest-role bottom-up; relevance tiebreak; current-role protection; exhaustion.
-- `compose-tailored.test.ts` — Schema conformance: pipe-delimited Skills, every bullet has Impact, no literal CAR labels.
+- `compose-tailored.test.ts` — Schema conformance: pipe-delimited Skills, every bullet ends in `.`, no literal CAR labels, no `**Impact:**` literal.
 
 ### Integration tests (TypeScript, shell out via `Bun.spawn`)
 
@@ -362,7 +367,7 @@ Before declaring skill done:
 ### Regression protection
 
 - Snapshot tests on canonical fixtures; diff fails on drift
-- Pre-commit `references/resume.md` schema validator: fails commit if Impact missing on a bullet, Skills > 10, etc.
+- Pre-commit `references/resume.md` schema validator: fails commit if a bullet is empty, Skills > 10, or `**Impact:**` literal sneaks back in.
 
 ---
 
@@ -380,14 +385,14 @@ Before declaring skill done:
 
 1. **Master skill list curation** — `references/skills-master.md` does not exist yet. Implementation plan must include one-time authoring pass (~10 min): tag every skill from current resume `[always]` or `[situational]`, with at least 5 `[always]`.
 2. **Template authoring** — `references/resume-template.docx` does not exist. Implementation plan must include one-time Word authoring (~30 min): create named styles per the render mapping, apply navy / Calibri / 0.75in / centered.
-3. **Canonical extract** — `references/resume.pdf` → `references/resume.md` requires one-time extract + manual cleanup (~30 min) to align with new schema (Impact clauses, pipe-delimited Skills, etc.).
+3. **Canonical extract** — `references/resume.pdf` → `references/resume.md` already done; canonical_version `2026-05-03` reflects the schema reversal (single-sentence bullets, no Impact label).
 4. **Recruiter Summary length** — recruiter draft is 4 sentences; ATS norm is 2–3. Decision: keep verbatim per user's pick, revisit if too long after first render.
 
 ---
 
 ## Acceptance Criteria
 
-- `references/resume.md` exists, schema-valid, full bullet inventory with Impact clauses
+- `references/resume.md` exists, schema-valid, full bullet inventory as single-sentence CAR (no Impact label)
 - `references/skills-master.md` exists, ≥5 `[always]`-tagged skills
 - `references/resume-template.docx` exists with required named styles
 - `skills/resume-tailor/` rewritten per design; old contradicting rules removed

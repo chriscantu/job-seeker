@@ -101,6 +101,6 @@ Tailored .md preserved on failure.
 - Never fabricate experience.
 - Bullet facts (numbers, scope, outcomes) verbatim from canonical.
 - Education and Header are verbatim.
-- Recruiter spec (no CAR labels, every bullet has Impact, Skills max 10 pipe-delimited)
-  is binding.
+- Recruiter spec (no CAR labels, no `**Impact:**` literal label — outcome folded into
+  single sentence per bullet, Skills max 10 pipe-delimited) is binding.
 - 2-page limit is HARD — content drops first per drop-strategy.md.

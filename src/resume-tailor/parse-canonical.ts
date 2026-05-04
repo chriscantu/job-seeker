@@ -5,9 +5,7 @@ const SECTION_HEADING_RE = /^## (.+)$/;
 const ROLE_HEADING_SPLIT_RE = /^### /m;
 const SUBROLE_LABEL_RE = /^As (.+?):$/;
 const BULLET_PREFIX = '- ';
-const KEY_ACCOMPLISHMENT_RE =
-  /^- \*\*(.+?)\*\* — (.+?)\s*\|\s*\*\*Impact:\*\*\s*(.+)$/;
-const BULLET_IMPACT_RE = /^(.+?)\s+\*\*Impact:\*\*\s+(.+)$/;
+const KEY_ACCOMPLISHMENT_RE = /^- \*\*(.+?)\*\* — (.+)$/;
 
 /**
  * AST is the single source of truth downstream — throw on schema violation
@@ -73,16 +71,23 @@ function splitByH2Sections(body: string): Record<string, string> {
 }
 
 function parseHeader(headerSection: string) {
-  const lines = headerSection.split('\n').filter((l) => l.trim());
+  const lines = nonEmptyContentLines(headerSection);
   const name = lines[0].replace(/^# /, '').trim();
-  const tagline = lines[1].replace(/^\*\*|\*\*$/g, '').trim();
+  const tagline = lines[1].replace(/^\*\*|\*\*\\?$|\\$/g, '').trim();
   const contact = lines[2].trim();
   return { name, tagline, contact };
 }
 
 function parseSummary(headerSection: string) {
-  const lines = headerSection.split('\n').filter((l) => l.trim());
+  const lines = nonEmptyContentLines(headerSection);
   return lines.slice(3).join(' ').trim();
+}
+
+function nonEmptyContentLines(section: string): string[] {
+  return section
+    .split('\n')
+    .filter((l) => l.trim())
+    .filter((l) => !l.trim().startsWith(':::'));
 }
 
 function parseKeyAccomplishments(section: string): KeyAccomplishment[] {
@@ -100,9 +105,12 @@ function parseKeyAccomplishmentLine(line: string): KeyAccomplishment {
   }
   return {
     label: match[1].trim(),
-    description: match[2].trim(),
-    impact: match[3].trim(),
+    description: stripTrailingPeriod(match[2].trim()),
   };
+}
+
+function stripTrailingPeriod(text: string): string {
+  return text.replace(/\.$/, '');
 }
 
 function parseSkills(section: string): string[] {
@@ -168,15 +176,13 @@ function parseFlatBullets(lines: string[]): Bullet[] {
 }
 
 function parseBullet(line: string): Bullet {
-  const trimmed = line.trim().replace(/^- /, '');
-  const match = trimmed.match(BULLET_IMPACT_RE);
-  if (!match) {
-    throw new Error(`bullet missing **Impact:** clause: ${trimmed}`);
-  }
-  return {
-    text: match[1].trim().replace(/\.$/, ''),
-    impact: match[2].trim(),
-  };
+  const text = stripTrailingPeriod(stripBulletMarker(line));
+  if (!text) throw new Error('bullet missing text');
+  return { text };
+}
+
+function stripBulletMarker(line: string): string {
+  return line.trim().replace(/^- /, '').trim();
 }
 
 function parseEducation(section: string) {

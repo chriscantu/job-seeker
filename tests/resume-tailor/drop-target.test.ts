@@ -14,22 +14,22 @@ function makeAST(): ResumeAST {
       {
         title: 'Director', company: 'CurrentCo', meta: '',
         bullets: [
-          { text: 'recent top', impact: 'i' },
-          { text: 'recent bottom', impact: 'i' },
+          { text: 'recent top' },
+          { text: 'recent bottom' },
         ],
       },
       {
         title: 'Director', company: 'MidCo', meta: '',
         bullets: [
-          { text: 'mid top', impact: 'i' },
-          { text: 'mid bottom', impact: 'i' },
+          { text: 'mid top' },
+          { text: 'mid bottom' },
         ],
       },
       {
         title: 'Manager', company: 'OldestCo', meta: '',
         bullets: [
-          { text: 'old top relevant', impact: 'i' },
-          { text: 'old bottom irrelevant', impact: 'i' },
+          { text: 'old top relevant' },
+          { text: 'old bottom irrelevant' },
         ],
       },
     ],
@@ -99,15 +99,15 @@ describe('selectDropTarget', () => {
         {
           label: 'As Director',
           bullets: [
-            { text: 'sub1 top', impact: 'i' },
-            { text: 'sub1 bottom', impact: 'i' },
+            { text: 'sub1 top' },
+            { text: 'sub1 bottom' },
           ],
         },
         {
           label: 'As SSEM',
           bullets: [
-            { text: 'sub2 top', impact: 'i' },
-            { text: 'sub2 bottom', impact: 'i' },
+            { text: 'sub2 top' },
+            { text: 'sub2 bottom' },
           ],
         },
       ],
