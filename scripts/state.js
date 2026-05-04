@@ -18,6 +18,19 @@
 //
 // Exit codes: 0 = success, 1 = error (message on stderr)
 // Output: JSON on stdout
+//
+// JSON formatting rule:
+//   - Read / query / dedup-check / stale-applications  → pretty (indent: 2)
+//     Returned shape is array-of-objects or nested object intended for ad-hoc
+//     terminal inspection. Pretty-printed for readability.
+//   - Mutation acks (append, flag, create, update, close, reopen, add-note,
+//     flag-for-review, mark-status-changed) and small one-line shapes
+//     (infer-stage)                                    → compact (no indent)
+//     Returned shape is a `{ success: true, ... }` ack or one-key object
+//     intended to be parsed by skill orchestrators, not read by humans.
+//
+//   Both forms parse identically with JSON.parse — the rule is for human UX
+//   at the CLI, not machine consumers. New handlers should follow this rule.
 
 const path = require('path');
 const seenPostings = require('./lib/seen-postings');
@@ -49,10 +62,10 @@ const COMMANDS = {
   'add-note':            { handler: handleAddNote,             argShape: 'remaining', allowedTypes: ['applications'] },
   'close':               { handler: handleClose,               argShape: 'remaining', allowedTypes: ['applications'] },
   'reopen':              { handler: handleReopen,              argShape: 'remaining', allowedTypes: ['applications'] },
-  'create':              { handler: handleCreate,              argShape: 'type+json', allowedTypes: ['applications'] },
+  'create':              { handler: handleCreate,              argShape: 'json',      allowedTypes: ['applications'] },
   'stale-applications':  { handler: handleStaleApplications,   argShape: 'remaining', allowedTypes: ['applications'] },
-  'flag-for-review':     { handler: handleFlagForReview,       argShape: 'type+json', allowedTypes: ['applications'] },
-  'mark-status-changed': { handler: handleMarkStatusChanged,   argShape: 'type+json', allowedTypes: ['applications'] },
+  'flag-for-review':     { handler: handleFlagForReview,       argShape: 'json',      allowedTypes: ['applications'] },
+  'mark-status-changed': { handler: handleMarkStatusChanged,   argShape: 'json',      allowedTypes: ['applications'] },
   'infer-stage':         { handler: handleInferStage,          argShape: 'remaining', allowedTypes: ['applications'] },
 };
 
@@ -150,6 +163,9 @@ function main() {
         break;
       case 'type+json':
         entry.handler(type, args[2]);
+        break;
+      case 'json':
+        entry.handler(args[2]);
         break;
       case 'remaining':
         entry.handler(args.slice(2));
@@ -318,7 +334,7 @@ function handleReopen(remainingArgs) {
   console.log(JSON.stringify({ success: true }));
 }
 
-function handleCreate(type, jsonStr) {
+function handleCreate(jsonStr) {
   if (!jsonStr) {
     console.error('create requires a JSON argument');
     process.exit(1);
@@ -364,7 +380,7 @@ function handleInferStage(remainingArgs) {
   console.log(JSON.stringify({ stage }));
 }
 
-function handleMarkStatusChanged(type, jsonStr) {
+function handleMarkStatusChanged(jsonStr) {
   if (!jsonStr) {
     console.error('mark-status-changed requires a JSON argument');
     process.exit(1);
@@ -380,7 +396,7 @@ function handleMarkStatusChanged(type, jsonStr) {
   console.log(JSON.stringify({ success: true, ...result }));
 }
 
-function handleFlagForReview(type, jsonStr) {
+function handleFlagForReview(jsonStr) {
   if (!jsonStr) {
     console.error('flag-for-review requires a JSON argument');
     process.exit(1);
