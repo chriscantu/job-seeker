@@ -317,4 +317,48 @@ describe('state.js CLI', () => {
       assert.ok(exitCode !== 0);
     });
   });
+
+  describe('stale-applications', () => {
+    let staleTmp;
+
+    beforeEach(() => {
+      staleTmp = fs.mkdtempSync(path.join(TMP_DIR, 'stale-'));
+      fs.cpSync(path.join(__dirname, 'fixtures', 'applications.md'), path.join(staleTmp, '2026-05-04-applications.md'));
+    });
+
+    afterEach(() => {
+      fs.rmSync(staleTmp, { recursive: true, force: true });
+    });
+
+    it('returns active entries with daysSinceLastActivity', () => {
+      const { stdout } = run('stale-applications applications --today 2026-05-04', { outputDir: staleTmp });
+      const data = JSON.parse(stdout);
+      assert.ok(Array.isArray(data));
+      assert.ok(data.length > 0);
+      for (const entry of data) {
+        assert.ok(typeof entry.daysSinceLastActivity === 'number');
+        assert.equal(entry.stalenessLevel, undefined);
+      }
+    });
+
+    it('attaches stalenessLevel when --warn and --alert provided', () => {
+      const { stdout } = run('stale-applications applications --today 2026-05-04 --warn 14 --alert 21', { outputDir: staleTmp });
+      const data = JSON.parse(stdout);
+      for (const entry of data) {
+        assert.ok(['ok', 'warn', 'alert'].includes(entry.stalenessLevel));
+      }
+    });
+
+    it('rejects --warn that is not an integer', () => {
+      const { stderr, exitCode } = run('stale-applications applications --warn abc --alert 21', { expectError: true, outputDir: staleTmp });
+      assert.equal(exitCode, 1);
+      assert.match(stderr, /integer/);
+    });
+
+    it('only supports the applications type', () => {
+      const { stderr, exitCode } = run('stale-applications seen-postings', { expectError: true });
+      assert.equal(exitCode, 1);
+      assert.match(stderr, /only supported for applications/);
+    });
+  });
 });

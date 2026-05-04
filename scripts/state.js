@@ -11,6 +11,7 @@
 //   bun scripts/state.js query seen-postings --company natera --not-flagged RESEARCHED
 //   bun scripts/state.js dedup-check seen-postings --url "..." --company "..." --title "..."
 //   bun scripts/state.js flag seen-postings --url "..." --add RESEARCHED
+//   bun scripts/state.js stale-applications applications [--today YYYY-MM-DD] [--warn N] [--alert N]
 //
 // Exit codes: 0 = success, 1 = error (message on stderr)
 // Output: JSON on stdout
@@ -25,7 +26,7 @@ const ROOT = path.resolve(__dirname, '..');
 const OUTPUT_DIR = process.env.OUTPUT_DIR || path.join(ROOT, 'output');
 
 const SEEN_POSTINGS_COMMANDS = ['query', 'dedup-check', 'flag'];
-const APPLICATIONS_COMMANDS = ['update', 'add-note', 'create', 'close', 'reopen'];
+const APPLICATIONS_COMMANDS = ['update', 'add-note', 'create', 'close', 'reopen', 'stale-applications', 'flag-for-review', 'mark-status-changed', 'infer-stage'];
 
 function usage() {
   console.error(`Usage: bun scripts/state.js <command> <type> [args]
@@ -41,6 +42,7 @@ Commands:
   close applications --company <name> --reason <reason> [--summary <text>]  Close an application
   reopen applications --company <name> --stage <stage> [--detail <text>]  Reopen a closed application
   add-note applications --company <name> --note <text>  Append a note to an application
+  stale-applications applications [--today YYYY-MM-DD] [--warn N] [--alert N]  Active entries enriched with daysSinceLastActivity
 
 Types: seen-postings, preferences, applications
 
@@ -139,6 +141,9 @@ function main() {
         break;
       case 'create':
         handleCreate(type, args[2]);
+        break;
+      case 'stale-applications':
+        handleStaleApplications(args.slice(2));
         break;
       default:
         console.error(`Unknown command: ${command}`);
@@ -335,6 +340,30 @@ function handleFlag(remainingArgs) {
     process.exit(1);
   }
   console.log(JSON.stringify(result));
+}
+
+function handleStaleApplications(remainingArgs) {
+  const opts = parseArgs(remainingArgs);
+  const aggregatorOpts = {};
+  if (opts.today) aggregatorOpts.today = opts.today;
+  if (opts.warn !== undefined) {
+    const n = Number(opts.warn);
+    if (!Number.isInteger(n)) {
+      console.error('--warn must be an integer');
+      process.exit(1);
+    }
+    aggregatorOpts.warn = n;
+  }
+  if (opts.alert !== undefined) {
+    const n = Number(opts.alert);
+    if (!Number.isInteger(n)) {
+      console.error('--alert must be an integer');
+      process.exit(1);
+    }
+    aggregatorOpts.alert = n;
+  }
+  const result = applications.staleApplications(OUTPUT_DIR, aggregatorOpts);
+  console.log(JSON.stringify(result, null, 2));
 }
 
 main();
