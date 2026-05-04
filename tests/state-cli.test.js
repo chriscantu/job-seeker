@@ -417,4 +417,53 @@ describe('state.js CLI', () => {
       assert.match(stderr, /only supported for applications/);
     });
   });
+
+  describe('mark-status-changed', () => {
+    let tmpFixtures;
+
+    beforeEach(() => {
+      tmpFixtures = fs.mkdtempSync(path.join(TMP_DIR, 'mark-status-'));
+      fs.cpSync(path.join(__dirname, 'fixtures', 'applications.md'), path.join(tmpFixtures, '2026-05-04-applications.md'));
+    });
+
+    afterEach(() => {
+      fs.rmSync(tmpFixtures, { recursive: true, force: true });
+    });
+
+    it('rejects when matchedEntry is missing', () => {
+      const json = JSON.stringify({
+        msgId: 'abc',
+        status: 'Interview',
+        atsSender: 'greenhouse',
+      });
+      const { stderr, exitCode } = run(`mark-status-changed applications '${json}'`, { expectError: true, outputDir: tmpFixtures });
+      assert.equal(exitCode, 1);
+      assert.match(stderr, /matchedEntry/);
+    });
+
+    it('passes through to lib.markStatusChanged when args complete', () => {
+      const data = JSON.parse(run('read applications', { outputDir: tmpFixtures }).stdout);
+      const active = data.find(e => !e.stage.startsWith('Closed'));
+      assert.ok(active, 'fixture must contain at least one active entry');
+
+      const json = JSON.stringify({
+        msgId: 'newmsg-001',
+        matchedEntry: { company: active.company, title: active.title, url: active.url || null, stage: active.stage, section: 'active' },
+        status: 'Interview',
+        signal: 'panel scheduled',
+        atsSender: 'greenhouse',
+        detectedAt: '2026-05-04',
+      });
+      const { stdout } = run(`mark-status-changed applications '${json}'`, { outputDir: tmpFixtures });
+      const result = JSON.parse(stdout);
+      assert.equal(result.success, true);
+      assert.equal(result.skipped, false);
+    });
+
+    it('only supports the applications type', () => {
+      const { stderr, exitCode } = run("mark-status-changed seen-postings '{}'", { expectError: true });
+      assert.equal(exitCode, 1);
+      assert.match(stderr, /only supported for applications/);
+    });
+  });
 });
