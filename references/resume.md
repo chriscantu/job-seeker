@@ -26,7 +26,7 @@ Senior Engineering Leader specializing in delivery transformation at post-IPO an
 ## Skills
 
 ::: {custom-style="SkillsLine"}
-Delivery Transformation | Multinational Team Leadership | Engineering Strategy | Platform Engineering | CI/CD Optimization | Strategic Technology Planning | System Architecture | Design Systems | Quality Automation | Observability
+Delivery Transformation | Multinational Team Leadership | Engineering Strategy | Platform Engineering | Strategic Technology Planning | Stakeholder Management | System Architecture | Monolith-to-Microservices Migration | Cost Optimization | OKRs
 :::
 
 ## Professional Experience
@@ -41,7 +41,7 @@ Delivery Transformation | Multinational Team Leadership | Engineering Strategy |
 - Built a contextual, customizable platform that enabled the AI product roadmap and empowered teams to re-envision core flows for the next product cycle.
 - Partnered with VP Product, VP Engineering, and VP Customer Success on international platform roadmap, surpassing original timeline by 1 year across European and Asian markets.
 
-### Director of Front End Platforms | Babylon Health
+### Director of Front-End Platforms | Babylon Health
 
 *Austin, TX (Remote) | September 2021 – August 2023 | 30 engineers, 5 platform teams*
 
