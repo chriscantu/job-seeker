@@ -1408,3 +1408,34 @@ describe('staleApplications', () => {
     );
   });
 });
+
+describe('flagForReview — empty-payload guard', () => {
+  let dir;
+
+  beforeEach(() => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'flag-empty-'));
+    const content = fs.readFileSync(path.join(__dirname, 'fixtures', 'status-emails', 'applications.md'), 'utf8');
+    fs.writeFileSync(path.join(dir, '2026-04-13-applications.md'), content);
+  });
+
+  afterEach(() => {
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it('throws when both company and msgId are missing (typo-protection)', () => {
+    assert.throws(
+      () => flagForReview(dir, { title: 'VP Eng', signal: 'rejected', status: 'Rejected' }),
+      /company.*msgId|identif/i
+    );
+  });
+
+  it('accepts when company is present even if msgId is missing', () => {
+    const result = flagForReview(dir, { company: 'Acme', title: 'VP Eng' });
+    assert.equal(result.skipped, false);
+  });
+
+  it('accepts when msgId is present even if company is missing', () => {
+    const result = flagForReview(dir, { msgId: 'msg-only-1', title: 'VP Eng' });
+    assert.equal(result.skipped, false);
+  });
+});

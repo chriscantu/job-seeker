@@ -572,6 +572,10 @@ function classifierStatusToStage(classifierStatus, currentStage) {
 }
 
 function flagForReview(dir, opts) {
+  if (!opts || (!opts.company && !opts.msgId)) {
+    throw new Error('flagForReview: at least one of company or msgId is required to identify the entry');
+  }
+
   const filePath = resolveStateFile(dir, 'applications');
   if (!filePath) throw new Error('No applications file found');
 
