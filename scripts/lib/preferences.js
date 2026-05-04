@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const { resolveStateFile, atomicWriteFileSync, ensureDir } = require('./util');
+const { resolveStateFile, atomicWriteFileSync, ensureDir, getTodayUtc } = require('./util');
 const { parseFrontmatter, serializeFrontmatter } = require('./frontmatter');
 
 const DATE_HEADER_RE = /^## (\d{4}-\d{2}-\d{2})/;
@@ -101,7 +101,7 @@ function appendPreferences(dir, entry) {
 
   ensureDir(dir);
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = getTodayUtc();
   const existing = resolveStateFile(dir, 'preferences');
 
   const sectionContent = `### ${entry.section}\n${entry.entries.map(e => `- ${e}`).join('\n')}\n`;

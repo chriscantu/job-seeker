@@ -5,9 +5,18 @@
 // derived from automated events (digest discovery, brief generation), not
 // from email or activity text.
 //
-// Rules are first-match-wins. The current ordering is "later lifecycle
-// stage first" so e.g. "got an offer, now negotiating" classifies as
-// Decision rather than Offer. Add new rules with that invariant in mind.
+// Rules are first-match-wins. The ordering invariant is "later lifecycle
+// stage first" — combined phrases resolve to the latest stage mentioned.
+//
+// Two canonical hazards motivating the ordering:
+//   1. "got an offer, now negotiating" → Decision (not Offer). Decision
+//      sits above Offer so the negotiating signal wins.
+//   2. "applied for the final round" → Final Round (not Applied). Applied
+//      sits last so it doesn't pre-empt later-stage phrases that happen
+//      to also contain the word "applied".
+//
+// Add new rules with the later-stage-wins invariant in mind. Reordering
+// breaks both hazards silently — tests pin each combined-phrase case.
 
 const { VALID_STAGES } = require('./validators');
 

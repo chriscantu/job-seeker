@@ -86,7 +86,7 @@ Commands:
   stale-applications applications [--today YYYY-MM-DD] [--warn N] [--alert N]  Active entries enriched with daysSinceLastActivity
   flag-for-review applications '<json>'  Append a flagged-for-review entry
   mark-status-changed applications '<json>'  Apply a status-change classifier result
-  infer-stage applications --from "<text>"  Infer canonical stage from natural-language activity text
+  infer-stage applications --from "<text>"  Infer canonical stage from natural-language activity text (pure function — type token ignored)
 
 Types: seen-postings, preferences, applications
 

@@ -25,4 +25,13 @@ function ensureDir(dir) {
   }
 }
 
-module.exports = { resolveStateFile, atomicWriteFileSync, ensureDir };
+// Returns today's date as YYYY-MM-DD in UTC. Centralizes the convention so
+// daysBetween (which interprets dates as UTC midnights) composes correctly
+// with all "today" defaults across the lib. Don't switch to
+// toLocaleDateString() or new Date().getDate() — local-tz output would
+// off-by-one around the local midnight boundary, hard to reproduce in tests.
+function getTodayUtc() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+module.exports = { resolveStateFile, atomicWriteFileSync, ensureDir, getTodayUtc };

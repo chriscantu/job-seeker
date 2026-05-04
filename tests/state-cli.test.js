@@ -523,5 +523,11 @@ describe('state.js CLI', () => {
       assert.equal(exitCode, 1);
       assert.match(stderr, /--from/);
     });
+
+    it('only supports the applications type', () => {
+      const { stderr, exitCode } = run('infer-stage seen-postings --from "applied"', { expectError: true });
+      assert.equal(exitCode, 1);
+      assert.match(stderr, /only supported for applications/);
+    });
   });
 });
