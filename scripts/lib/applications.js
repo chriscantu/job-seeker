@@ -698,6 +698,23 @@ function addNote(dir, { company, note }) {
   atomicWriteFileSync(filePath, formatApplicationsFile(data));
 }
 
+function staleApplications(dir, opts = {}) {
+  const today = opts.today || new Date().toISOString().slice(0, 10);
+  const filePath = resolveStateFile(dir, 'applications');
+  if (!filePath) return [];
+
+  const data = parseApplicationsFile(filePath);
+  return (data.active || []).map(entry => {
+    const referenceDate = entry.lastActivity?.date || entry.applied || today;
+    const days = daysBetween(referenceDate, today);
+    const enriched = { ...entry, daysSinceLastActivity: days };
+    if (typeof opts.warn === 'number' && typeof opts.alert === 'number') {
+      enriched.stalenessLevel = days >= opts.alert ? 'alert' : days >= opts.warn ? 'warn' : 'ok';
+    }
+    return enriched;
+  });
+}
+
 module.exports = {
   parseApplicationsContent,
   parseApplicationsFile,
@@ -714,4 +731,5 @@ module.exports = {
   flagForReview,
   markStatusChanged,
   daysBetween,
+  staleApplications,
 };

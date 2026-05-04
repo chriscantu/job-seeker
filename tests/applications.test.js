@@ -1312,3 +1312,74 @@ describe('daysBetween', () => {
     assert.throws(() => daysBetween(null, '2026-05-04'), /YYYY-MM-DD/);
   });
 });
+
+describe('staleApplications', () => {
+  const APPLICATIONS_FIXTURE = path.join(__dirname, 'fixtures', 'applications.md');
+  let tmpDir;
+
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'stale-'));
+    fs.cpSync(APPLICATIONS_FIXTURE, path.join(tmpDir, '2026-05-04-applications.md'));
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it('returns active entries enriched with daysSinceLastActivity', () => {
+    const result = staleApplications(tmpDir, { today: '2026-05-04' });
+    assert.ok(Array.isArray(result));
+    assert.ok(result.length > 0);
+    for (const entry of result) {
+      assert.ok(typeof entry.daysSinceLastActivity === 'number');
+      assert.ok(entry.daysSinceLastActivity >= 0);
+      assert.ok(entry.company);
+      assert.ok(entry.stage);
+    }
+  });
+
+  it('omits closed entries', () => {
+    const result = staleApplications(tmpDir, { today: '2026-05-04' });
+    for (const entry of result) {
+      assert.ok(!entry.stage.startsWith('Closed'));
+    }
+  });
+
+  it('uses lastActivity.date when present, falls back to applied date', () => {
+    const result = staleApplications(tmpDir, { today: '2026-05-04' });
+    const e = result.find(x => x.lastActivity?.date);
+    if (e) {
+      assert.equal(e.daysSinceLastActivity, daysBetween(e.lastActivity.date, '2026-05-04'));
+    }
+  });
+
+  it('tags stalenessLevel when --warn and --alert provided', () => {
+    const result = staleApplications(tmpDir, { today: '2026-05-04', warn: 14, alert: 21 });
+    for (const entry of result) {
+      assert.ok(['ok', 'warn', 'alert'].includes(entry.stalenessLevel));
+      if (entry.daysSinceLastActivity >= 21) {
+        assert.equal(entry.stalenessLevel, 'alert');
+      } else if (entry.daysSinceLastActivity >= 14) {
+        assert.equal(entry.stalenessLevel, 'warn');
+      } else {
+        assert.equal(entry.stalenessLevel, 'ok');
+      }
+    }
+  });
+
+  it('omits stalenessLevel when thresholds not provided', () => {
+    const result = staleApplications(tmpDir, { today: '2026-05-04' });
+    for (const entry of result) {
+      assert.equal(entry.stalenessLevel, undefined);
+    }
+  });
+
+  it('returns [] when no applications file exists', () => {
+    const empty = fs.mkdtempSync(path.join(os.tmpdir(), 'empty-'));
+    try {
+      assert.deepEqual(staleApplications(empty, { today: '2026-05-04' }), []);
+    } finally {
+      fs.rmSync(empty, { recursive: true, force: true });
+    }
+  });
+});
