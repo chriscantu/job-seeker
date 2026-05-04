@@ -38,11 +38,21 @@ On success, the command prints the authenticated email address.
 ## Phase 1 — Identify Stale Applications
 
 Read enriched application state via the CLI (each entry includes
-`daysSinceLastActivity`, computed once in `lib/applications`):
+`daysSinceLastActivity`, computed once in `lib/applications`; the
+fallback chain for the reference date is `lastActivity.date → applied → today`):
 
 ```bash
 bun scripts/state.js stale-applications applications
 ```
+
+If the command exits non-zero with `No applications file found`, this is
+a setup state — surface the error to the user verbatim ("No applications
+file found in `output/` — run `/application-tracker` to create one") and
+stop. Do NOT treat it as "no stale apps."
+
+If an entry includes an `error` field (per-entry resilience for corrupt
+dates), still display it but mark it `⚠️ {error}` instead of computing
+staleness against it.
 
 Parse the JSON array. Filter for entries whose `daysSinceLastActivity`
 meets the per-stage thresholds below — follow-up uses stricter thresholds

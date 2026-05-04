@@ -726,7 +726,9 @@ function staleApplications(dir, opts = {}) {
 
   const today = opts.today || new Date().toISOString().slice(0, 10);
   const filePath = resolveStateFile(dir, 'applications');
-  if (!filePath) return [];
+  if (!filePath) {
+    throw new Error(`No applications file found in ${dir}`);
+  }
 
   const data = parseApplicationsFile(filePath);
   return (data.active || []).map(entry => {

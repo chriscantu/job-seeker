@@ -1374,12 +1374,26 @@ describe('staleApplications', () => {
     }
   });
 
-  it('returns [] when no applications file exists', () => {
+  it('throws when no applications file exists (distinct from empty pipeline)', () => {
     const empty = fs.mkdtempSync(path.join(os.tmpdir(), 'empty-'));
     try {
-      assert.deepEqual(staleApplications(empty, { today: '2026-05-04' }), []);
+      assert.throws(
+        () => staleApplications(empty, { today: '2026-05-04' }),
+        /No applications file found/
+      );
     } finally {
       fs.rmSync(empty, { recursive: true, force: true });
+    }
+  });
+
+  it('returns [] for empty pipeline (file present, zero active entries)', () => {
+    const emptyPipelineDir = fs.mkdtempSync(path.join(os.tmpdir(), 'empty-pipeline-'));
+    try {
+      const md = `---\nformat_version: 1\nlast_updated: 2026-05-04\n---\n# Application Pipeline\n\nLast updated: 2026-05-04\n`;
+      fs.writeFileSync(path.join(emptyPipelineDir, '2026-05-04-applications.md'), md);
+      assert.deepEqual(staleApplications(emptyPipelineDir, { today: '2026-05-04' }), []);
+    } finally {
+      fs.rmSync(emptyPipelineDir, { recursive: true, force: true });
     }
   });
 

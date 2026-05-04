@@ -384,6 +384,17 @@ describe('state.js CLI', () => {
       assert.equal(exitCode, 1);
       assert.match(stderr, /alert must be an integer/);
     });
+
+    it('CLI exits non-zero with clear message when no applications file exists', () => {
+      const empty = fs.mkdtempSync(path.join(TMP_DIR, 'no-apps-'));
+      try {
+        const { stderr, exitCode } = run('stale-applications applications', { expectError: true, outputDir: empty });
+        assert.equal(exitCode, 1);
+        assert.match(stderr, /No applications file found/);
+      } finally {
+        fs.rmSync(empty, { recursive: true, force: true });
+      }
+    });
   });
 
   describe('flag-for-review', () => {
