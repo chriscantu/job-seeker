@@ -25,8 +25,8 @@ function assertDate(label, value) {
  * is positive when `toDate` is later, zero when equal, negative when
  * earlier. Throws if either input is not a YYYY-MM-DD string.
  *
- * @param {string} fromDate Earlier-or-equal date in YYYY-MM-DD.
- * @param {string} toDate   Later-or-equal date in YYYY-MM-DD.
+ * @param {string} fromDate Reference date in YYYY-MM-DD.
+ * @param {string} toDate   Comparison date in YYYY-MM-DD; result is toDate − fromDate (signed).
  * @returns {number}        Integer days; toDate − fromDate.
  */
 function daysBetween(fromDate, toDate) {
