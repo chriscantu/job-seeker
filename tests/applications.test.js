@@ -18,6 +18,8 @@ const {
   reopenApplication,
   flagForReview,
   markStatusChanged,
+  daysBetween,
+  staleApplications,
 } = require('../scripts/lib/applications');
 
 const FIXTURES = path.join(__dirname, 'fixtures');
@@ -1281,5 +1283,227 @@ format_version: 1
         /matchedEntry\.section is required/
       );
     });
+  });
+});
+
+describe('daysBetween', () => {
+  it('returns 0 for same date', () => {
+    assert.equal(daysBetween('2026-05-04', '2026-05-04'), 0);
+  });
+
+  it('returns positive integer days for later "to" date', () => {
+    assert.equal(daysBetween('2026-04-20', '2026-05-04'), 14);
+  });
+
+  it('returns negative for earlier "to" date', () => {
+    assert.equal(daysBetween('2026-05-04', '2026-04-20'), -14);
+  });
+
+  it('handles month boundaries', () => {
+    assert.equal(daysBetween('2026-04-30', '2026-05-02'), 2);
+  });
+
+  it('handles year boundaries', () => {
+    assert.equal(daysBetween('2025-12-31', '2026-01-02'), 2);
+  });
+
+  it('throws on invalid input', () => {
+    assert.throws(() => daysBetween('2026-05', '2026-05-04'), /YYYY-MM-DD/);
+    assert.throws(() => daysBetween(null, '2026-05-04'), /YYYY-MM-DD/);
+  });
+});
+
+describe('staleApplications', () => {
+  const APPLICATIONS_FIXTURE = path.join(__dirname, 'fixtures', 'applications.md');
+  let tmpDir;
+
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'stale-'));
+    fs.cpSync(APPLICATIONS_FIXTURE, path.join(tmpDir, '2026-05-04-applications.md'));
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it('returns active entries enriched with daysSinceLastActivity', () => {
+    const result = staleApplications(tmpDir, { today: '2026-05-04' });
+    assert.ok(Array.isArray(result));
+    assert.ok(result.length > 0);
+    for (const entry of result) {
+      assert.ok(typeof entry.daysSinceLastActivity === 'number');
+      assert.ok(entry.daysSinceLastActivity >= 0);
+      assert.ok(entry.company);
+      assert.ok(entry.stage);
+    }
+  });
+
+  it('omits closed entries', () => {
+    const result = staleApplications(tmpDir, { today: '2026-05-04' });
+    for (const entry of result) {
+      assert.ok(!entry.stage.startsWith('Closed'));
+    }
+  });
+
+  it('uses lastActivity.date when present (constructed inline since canonical fixture lacks the field)', () => {
+    // The shared fixture has no `**Last Activity**` lines, so the canonical
+    // priority path (lastActivity.date over applied) needs an inline fixture.
+    // Without this, the original `if (e) { ... }` test would silently no-op.
+    const lastActivityDir = fs.mkdtempSync(path.join(os.tmpdir(), 'last-activity-'));
+    try {
+      const md = `---\nformat_version: 1\nlast_updated: 2026-05-04\n---\n# Application Pipeline\n\nLast updated: 2026-05-04\n\n## Active Applications\n\n### Vector Co — VP Eng\n- **Stage**: Screen\n- **Applied**: 2026-04-01\n- **Last activity**: 2026-04-25 — Phone screen\n- **URL**: https://example.com/vector\n\n#### History\n- 2026-04-01: Applied — Submitted\n- 2026-04-25: Screen — Phone screen\n`;
+      fs.writeFileSync(path.join(lastActivityDir, '2026-05-04-applications.md'), md);
+      const result = staleApplications(lastActivityDir, { today: '2026-05-04' });
+      const e = result.find(x => x.company === 'Vector Co');
+      assert.ok(e, 'fixture must produce a Vector Co entry');
+      assert.ok(e.lastActivity?.date, 'entry must carry lastActivity.date');
+      // 2026-04-25 → 2026-05-04 is 9 days; using `applied` (2026-04-01)
+      // would yield 33 days. Verifies lastActivity.date wins.
+      assert.equal(e.daysSinceLastActivity, 9);
+    } finally {
+      fs.rmSync(lastActivityDir, { recursive: true, force: true });
+    }
+  });
+
+  it('falls back to applied date when lastActivity is absent', () => {
+    // Confirms the second leg of the fallback chain. Canonical fixture
+    // active entries all carry lastActivity, so use an inline fixture
+    // that omits it.
+    const fallbackDir = fs.mkdtempSync(path.join(os.tmpdir(), 'applied-fallback-'));
+    try {
+      const md = `---\nformat_version: 1\nlast_updated: 2026-05-04\n---\n# Application Pipeline\n\nLast updated: 2026-05-04\n\n## Active Applications\n\n### Bare Co — VP Eng\n- **Stage**: Applied\n- **Applied**: 2026-04-15\n- **URL**: https://example.com/bare\n\n#### History\n- 2026-04-15: Applied — Submitted\n`;
+      fs.writeFileSync(path.join(fallbackDir, '2026-05-04-applications.md'), md);
+      const result = staleApplications(fallbackDir, { today: '2026-05-04' });
+      const e = result.find(x => x.company === 'Bare Co');
+      assert.ok(e, 'fixture must produce Bare Co entry');
+      assert.ok(!e.lastActivity?.date, 'entry must NOT carry lastActivity.date');
+      // 2026-04-15 → 2026-05-04 = 19 days.
+      assert.equal(e.daysSinceLastActivity, 19);
+    } finally {
+      fs.rmSync(fallbackDir, { recursive: true, force: true });
+    }
+  });
+
+  it('tags stalenessLevel when --warn and --alert provided', () => {
+    const result = staleApplications(tmpDir, { today: '2026-05-04', warn: 14, alert: 21 });
+    for (const entry of result) {
+      assert.ok(['ok', 'warn', 'alert'].includes(entry.stalenessLevel));
+      if (entry.daysSinceLastActivity >= 21) {
+        assert.equal(entry.stalenessLevel, 'alert');
+      } else if (entry.daysSinceLastActivity >= 14) {
+        assert.equal(entry.stalenessLevel, 'warn');
+      } else {
+        assert.equal(entry.stalenessLevel, 'ok');
+      }
+    }
+  });
+
+  it('omits stalenessLevel when thresholds not provided', () => {
+    const result = staleApplications(tmpDir, { today: '2026-05-04' });
+    for (const entry of result) {
+      assert.equal(entry.stalenessLevel, undefined);
+    }
+  });
+
+  it('throws when no applications file exists (distinct from empty pipeline)', () => {
+    const empty = fs.mkdtempSync(path.join(os.tmpdir(), 'empty-'));
+    try {
+      assert.throws(
+        () => staleApplications(empty, { today: '2026-05-04' }),
+        /No applications file found/
+      );
+    } finally {
+      fs.rmSync(empty, { recursive: true, force: true });
+    }
+  });
+
+  it('returns [] for empty pipeline (file present, zero active entries)', () => {
+    const emptyPipelineDir = fs.mkdtempSync(path.join(os.tmpdir(), 'empty-pipeline-'));
+    try {
+      const md = `---\nformat_version: 1\nlast_updated: 2026-05-04\n---\n# Application Pipeline\n\nLast updated: 2026-05-04\n`;
+      fs.writeFileSync(path.join(emptyPipelineDir, '2026-05-04-applications.md'), md);
+      assert.deepEqual(staleApplications(emptyPipelineDir, { today: '2026-05-04' }), []);
+    } finally {
+      fs.rmSync(emptyPipelineDir, { recursive: true, force: true });
+    }
+  });
+
+  it('throws when only warn is provided (asymmetric thresholds)', () => {
+    assert.throws(
+      () => staleApplications(tmpDir, { today: '2026-05-04', warn: 14 }),
+      /both warn and alert|alert.*required/i
+    );
+  });
+
+  it('throws when only alert is provided (asymmetric thresholds)', () => {
+    assert.throws(
+      () => staleApplications(tmpDir, { today: '2026-05-04', alert: 21 }),
+      /both warn and alert|warn.*required/i
+    );
+  });
+
+  it('throws when warn >= alert (ordering violated)', () => {
+    assert.throws(
+      () => staleApplications(tmpDir, { today: '2026-05-04', warn: 21, alert: 14 }),
+      /warn.*alert|threshold.*ord/i
+    );
+    assert.throws(
+      () => staleApplications(tmpDir, { today: '2026-05-04', warn: 14, alert: 14 }),
+      /warn.*alert|threshold.*ord/i
+    );
+  });
+
+  it('per-entry resilience: corrupt date surfaces with error field, batch continues', () => {
+    // Construct a fixture with one good entry and one entry whose Applied
+    // date is malformed (passes parser, fails daysBetween's strict regex).
+    const corruptDir = fs.mkdtempSync(path.join(os.tmpdir(), 'stale-corrupt-'));
+    try {
+      const md = `---\nformat_version: 1\nlast_updated: 2026-05-04\n---\n# Application Pipeline\n\nLast updated: 2026-05-04\n\n## Active Applications\n\n### Good Co — VP Eng\n- **Stage**: Applied\n- **Applied**: 2026-04-20\n- **URL**: https://example.com/good\n\n#### History\n- 2026-04-20: Applied — Submitted\n\n### Bad Co — VP Eng\n- **Stage**: Applied\n- **Applied**: 04/20/2026\n- **URL**: https://example.com/bad\n\n#### History\n- 2026-04-20: Applied — Submitted\n`;
+      fs.writeFileSync(path.join(corruptDir, '2026-05-04-applications.md'), md);
+
+      const result = staleApplications(corruptDir, { today: '2026-05-04' });
+      assert.equal(result.length, 2, 'both entries should surface (no batch-loss)');
+
+      const good = result.find(e => e.company === 'Good Co');
+      assert.equal(good.daysSinceLastActivity, 14);
+      assert.equal(good.error, undefined);
+
+      const bad = result.find(e => e.company === 'Bad Co');
+      assert.equal(bad.daysSinceLastActivity, null);
+      assert.match(bad.error, /YYYY-MM-DD|invalid/i);
+    } finally {
+      fs.rmSync(corruptDir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('flagForReview — empty-payload guard', () => {
+  let dir;
+
+  beforeEach(() => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'flag-empty-'));
+    const content = fs.readFileSync(path.join(__dirname, 'fixtures', 'status-emails', 'applications.md'), 'utf8');
+    fs.writeFileSync(path.join(dir, '2026-04-13-applications.md'), content);
+  });
+
+  afterEach(() => {
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it('throws when both company and msgId are missing (typo-protection)', () => {
+    assert.throws(
+      () => flagForReview(dir, { title: 'VP Eng', signal: 'rejected', status: 'Rejected' }),
+      /company.*msgId|identif/i
+    );
+  });
+
+  it('accepts when company is present even if msgId is missing', () => {
+    const result = flagForReview(dir, { company: 'Acme', title: 'VP Eng' });
+    assert.equal(result.skipped, false);
+  });
+
+  it('accepts when msgId is present even if company is missing', () => {
+    const result = flagForReview(dir, { msgId: 'msg-only-1', title: 'VP Eng' });
+    assert.equal(result.skipped, false);
   });
 });

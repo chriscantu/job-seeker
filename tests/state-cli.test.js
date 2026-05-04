@@ -317,4 +317,211 @@ describe('state.js CLI', () => {
       assert.ok(exitCode !== 0);
     });
   });
+
+  describe('stale-applications', () => {
+    let staleTmp;
+
+    beforeEach(() => {
+      staleTmp = fs.mkdtempSync(path.join(TMP_DIR, 'stale-'));
+      fs.cpSync(path.join(__dirname, 'fixtures', 'applications.md'), path.join(staleTmp, '2026-05-04-applications.md'));
+    });
+
+    afterEach(() => {
+      fs.rmSync(staleTmp, { recursive: true, force: true });
+    });
+
+    it('returns active entries with daysSinceLastActivity', () => {
+      const { stdout } = run('stale-applications applications --today 2026-05-04', { outputDir: staleTmp });
+      const data = JSON.parse(stdout);
+      assert.ok(Array.isArray(data));
+      assert.ok(data.length > 0);
+      for (const entry of data) {
+        assert.ok(typeof entry.daysSinceLastActivity === 'number');
+        assert.equal(entry.stalenessLevel, undefined);
+      }
+    });
+
+    it('attaches stalenessLevel when --warn and --alert provided', () => {
+      const { stdout } = run('stale-applications applications --today 2026-05-04 --warn 14 --alert 21', { outputDir: staleTmp });
+      const data = JSON.parse(stdout);
+      for (const entry of data) {
+        assert.ok(['ok', 'warn', 'alert'].includes(entry.stalenessLevel));
+      }
+    });
+
+    it('rejects --warn that is not an integer', () => {
+      const { stderr, exitCode } = run('stale-applications applications --warn abc --alert 21', { expectError: true, outputDir: staleTmp });
+      assert.equal(exitCode, 1);
+      assert.match(stderr, /integer/);
+    });
+
+    it('only supports the applications type', () => {
+      const { stderr, exitCode } = run('stale-applications seen-postings', { expectError: true });
+      assert.equal(exitCode, 1);
+      assert.match(stderr, /only supported for applications/);
+    });
+
+    it('CLI surfaces the lib error when only --warn is provided (no --alert)', () => {
+      const { stderr, exitCode } = run('stale-applications applications --warn 14', { expectError: true, outputDir: staleTmp });
+      assert.equal(exitCode, 1);
+      assert.match(stderr, /both warn and alert/);
+    });
+
+    it('CLI surfaces the lib error when warn >= alert', () => {
+      const { stderr, exitCode } = run('stale-applications applications --warn 21 --alert 14', { expectError: true, outputDir: staleTmp });
+      assert.equal(exitCode, 1);
+      assert.match(stderr, /less than alert/);
+    });
+
+    it('CLI rejects a float --warn (parseIntegerOpt)', () => {
+      const { stderr, exitCode } = run('stale-applications applications --warn 14.5 --alert 21', { expectError: true, outputDir: staleTmp });
+      assert.equal(exitCode, 1);
+      assert.match(stderr, /integer/);
+    });
+
+    it('CLI rejects a non-integer --alert (parseIntegerOpt)', () => {
+      const { stderr, exitCode } = run('stale-applications applications --warn 14 --alert xyz', { expectError: true, outputDir: staleTmp });
+      assert.equal(exitCode, 1);
+      assert.match(stderr, /alert must be an integer/);
+    });
+
+    it('CLI exits non-zero with clear message when no applications file exists', () => {
+      const empty = fs.mkdtempSync(path.join(TMP_DIR, 'no-apps-'));
+      try {
+        const { stderr, exitCode } = run('stale-applications applications', { expectError: true, outputDir: empty });
+        assert.equal(exitCode, 1);
+        assert.match(stderr, /No applications file found/);
+        // Default mode shows message only — no internal stack frames bleed
+        // through to the user. Set DEBUG=1 to opt back into stacks.
+        assert.doesNotMatch(stderr, /at \w+ \(/);
+      } finally {
+        fs.rmSync(empty, { recursive: true, force: true });
+      }
+    });
+  });
+
+  describe('flag-for-review', () => {
+    let tmpFixtures;
+
+    beforeEach(() => {
+      tmpFixtures = fs.mkdtempSync(path.join(TMP_DIR, 'flag-review-'));
+      fs.cpSync(path.join(__dirname, 'fixtures', 'applications.md'), path.join(tmpFixtures, '2026-05-04-applications.md'));
+    });
+
+    afterEach(() => {
+      fs.rmSync(tmpFixtures, { recursive: true, force: true });
+    });
+
+    it('appends a flagged entry from JSON arg', () => {
+      const json = JSON.stringify({
+        company: 'Acme',
+        title: 'VP Eng',
+        signal: 'Application withdrawn',
+        status: 'Rejected',
+        sender: 'noreply@acme.com',
+        matchMethod: 'company-name',
+        msgId: 'abc-123',
+        detectedAt: '2026-05-04',
+      });
+      const { stdout } = run(`flag-for-review applications '${json}'`, { outputDir: tmpFixtures });
+      const result = JSON.parse(stdout);
+      assert.equal(result.success, true);
+      assert.equal(result.skipped, false);
+    });
+
+    it('returns skipped:true when msgId already processed', () => {
+      const json = JSON.stringify({
+        company: 'Acme',
+        title: 'VP Eng',
+        msgId: 'dup-id',
+        detectedAt: '2026-05-04',
+      });
+      run(`flag-for-review applications '${json}'`, { outputDir: tmpFixtures });
+      const { stdout } = run(`flag-for-review applications '${json}'`, { outputDir: tmpFixtures });
+      const result = JSON.parse(stdout);
+      assert.equal(result.skipped, true);
+      assert.match(result.reason, /msg-id/);
+    });
+
+    it('rejects malformed JSON', () => {
+      const { stderr, exitCode } = run("flag-for-review applications '{not json'", { expectError: true, outputDir: tmpFixtures });
+      assert.equal(exitCode, 1);
+      assert.match(stderr, /JSON/);
+    });
+
+    it('only supports the applications type', () => {
+      const { stderr, exitCode } = run("flag-for-review seen-postings '{}'", { expectError: true });
+      assert.equal(exitCode, 1);
+      assert.match(stderr, /only supported for applications/);
+    });
+  });
+
+  describe('mark-status-changed', () => {
+    let tmpFixtures;
+
+    beforeEach(() => {
+      tmpFixtures = fs.mkdtempSync(path.join(TMP_DIR, 'mark-status-'));
+      fs.cpSync(path.join(__dirname, 'fixtures', 'applications.md'), path.join(tmpFixtures, '2026-05-04-applications.md'));
+    });
+
+    afterEach(() => {
+      fs.rmSync(tmpFixtures, { recursive: true, force: true });
+    });
+
+    it('rejects when matchedEntry is missing', () => {
+      const json = JSON.stringify({
+        msgId: 'abc',
+        status: 'Interview',
+        atsSender: 'greenhouse',
+      });
+      const { stderr, exitCode } = run(`mark-status-changed applications '${json}'`, { expectError: true, outputDir: tmpFixtures });
+      assert.equal(exitCode, 1);
+      assert.match(stderr, /matchedEntry/);
+    });
+
+    it('passes through to lib.markStatusChanged when args complete', () => {
+      const data = JSON.parse(run('read applications', { outputDir: tmpFixtures }).stdout);
+      const active = data.find(e => !e.stage.startsWith('Closed'));
+      assert.ok(active, 'fixture must contain at least one active entry');
+
+      const json = JSON.stringify({
+        msgId: 'newmsg-001',
+        matchedEntry: { company: active.company, title: active.title, url: active.url || null, stage: active.stage, section: 'active' },
+        status: 'Interview',
+        signal: 'panel scheduled',
+        atsSender: 'greenhouse',
+        detectedAt: '2026-05-04',
+      });
+      const { stdout } = run(`mark-status-changed applications '${json}'`, { outputDir: tmpFixtures });
+      const result = JSON.parse(stdout);
+      assert.equal(result.success, true);
+      assert.equal(result.skipped, false);
+    });
+
+    it('only supports the applications type', () => {
+      const { stderr, exitCode } = run("mark-status-changed seen-postings '{}'", { expectError: true });
+      assert.equal(exitCode, 1);
+      assert.match(stderr, /only supported for applications/);
+    });
+  });
+
+  describe('infer-stage', () => {
+    it('returns the stage as JSON for a recognized phrase', () => {
+      const { stdout } = run(`infer-stage applications --from "phone screen tomorrow"`);
+      const result = JSON.parse(stdout);
+      assert.equal(result.stage, 'Screen');
+    });
+
+    it('returns null stage for unrecognized phrases', () => {
+      const { stdout } = run(`infer-stage applications --from "the weather is nice"`);
+      const result = JSON.parse(stdout);
+      assert.equal(result.stage, null);
+    });
+
+    it('rejects missing --from', () => {
+      const { stderr, exitCode } = run('infer-stage applications', { expectError: true });
+      assert.equal(exitCode, 1);
+      assert.match(stderr, /--from/);
+    });
+  });
 });

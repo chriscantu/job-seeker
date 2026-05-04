@@ -11,6 +11,10 @@
 //   bun scripts/state.js query seen-postings --company natera --not-flagged RESEARCHED
 //   bun scripts/state.js dedup-check seen-postings --url "..." --company "..." --title "..."
 //   bun scripts/state.js flag seen-postings --url "..." --add RESEARCHED
+//   bun scripts/state.js stale-applications applications [--today YYYY-MM-DD] [--warn N] [--alert N]
+//   bun scripts/state.js flag-for-review applications '{...}'
+//   bun scripts/state.js mark-status-changed applications '{...}'
+//   bun scripts/state.js infer-stage applications --from "<text>"
 //
 // Exit codes: 0 = success, 1 = error (message on stderr)
 // Output: JSON on stdout
@@ -19,13 +23,14 @@ const path = require('path');
 const seenPostings = require('./lib/seen-postings');
 const preferences = require('./lib/preferences');
 const applications = require('./lib/applications');
+const { inferStage } = require('./lib/stage-inference');
 const { resolveStateFile } = require('./lib/util');
 
 const ROOT = path.resolve(__dirname, '..');
 const OUTPUT_DIR = process.env.OUTPUT_DIR || path.join(ROOT, 'output');
 
 const SEEN_POSTINGS_COMMANDS = ['query', 'dedup-check', 'flag'];
-const APPLICATIONS_COMMANDS = ['update', 'add-note', 'create', 'close', 'reopen'];
+const APPLICATIONS_COMMANDS = ['update', 'add-note', 'create', 'close', 'reopen', 'stale-applications', 'flag-for-review', 'mark-status-changed', 'infer-stage'];
 
 function usage() {
   console.error(`Usage: bun scripts/state.js <command> <type> [args]
@@ -41,6 +46,10 @@ Commands:
   close applications --company <name> --reason <reason> [--summary <text>]  Close an application
   reopen applications --company <name> --stage <stage> [--detail <text>]  Reopen a closed application
   add-note applications --company <name> --note <text>  Append a note to an application
+  stale-applications applications [--today YYYY-MM-DD] [--warn N] [--alert N]  Active entries enriched with daysSinceLastActivity
+  flag-for-review applications '<json>'  Append a flagged-for-review entry
+  mark-status-changed applications '<json>'  Apply a status-change classifier result
+  infer-stage applications --from "<text>"  Infer canonical stage from natural-language activity text
 
 Types: seen-postings, preferences, applications
 
@@ -140,12 +149,30 @@ function main() {
       case 'create':
         handleCreate(type, args[2]);
         break;
+      case 'stale-applications':
+        handleStaleApplications(args.slice(2));
+        break;
+      case 'flag-for-review':
+        handleFlagForReview(type, args[2]);
+        break;
+      case 'mark-status-changed':
+        handleMarkStatusChanged(type, args[2]);
+        break;
+      case 'infer-stage':
+        handleInferStage(args.slice(2));
+        break;
       default:
         console.error(`Unknown command: ${command}`);
         usage();
     }
   } catch (err) {
-    console.error(err.stack || err.message);
+    // Default: clean message only (CLI users shouldn't see internal frames).
+    // Set DEBUG=1 to get the full stack for troubleshooting.
+    if (process.env.DEBUG) {
+      console.error(err.stack || err.message);
+    } else {
+      console.error(err.message || String(err));
+    }
     process.exit(1);
   }
 }
@@ -335,6 +362,70 @@ function handleFlag(remainingArgs) {
     process.exit(1);
   }
   console.log(JSON.stringify(result));
+}
+
+function handleInferStage(remainingArgs) {
+  const opts = parseArgs(remainingArgs);
+  if (!opts.from) {
+    console.error('infer-stage requires --from "<text>"');
+    process.exit(1);
+  }
+  const stage = inferStage(opts.from);
+  console.log(JSON.stringify({ stage }));
+}
+
+function handleMarkStatusChanged(type, jsonStr) {
+  if (!jsonStr) {
+    console.error('mark-status-changed requires a JSON argument');
+    process.exit(1);
+  }
+  let entry;
+  try {
+    entry = JSON.parse(jsonStr);
+  } catch (err) {
+    console.error(`Invalid JSON argument: ${err.message}`);
+    process.exit(1);
+  }
+  const result = applications.markStatusChanged(OUTPUT_DIR, entry);
+  console.log(JSON.stringify({ success: true, ...result }));
+}
+
+function handleFlagForReview(type, jsonStr) {
+  if (!jsonStr) {
+    console.error('flag-for-review requires a JSON argument');
+    process.exit(1);
+  }
+  let entry;
+  try {
+    entry = JSON.parse(jsonStr);
+  } catch (err) {
+    console.error(`Invalid JSON argument: ${err.message}`);
+    process.exit(1);
+  }
+  const result = applications.flagForReview(OUTPUT_DIR, entry);
+  console.log(JSON.stringify({ success: true, ...result }));
+}
+
+function parseIntegerOpt(opts, name) {
+  if (opts[name] === undefined) return undefined;
+  const n = Number(opts[name]);
+  if (!Number.isInteger(n)) {
+    console.error(`--${name} must be an integer`);
+    process.exit(1);
+  }
+  return n;
+}
+
+function handleStaleApplications(remainingArgs) {
+  const opts = parseArgs(remainingArgs);
+  const aggregatorOpts = {};
+  if (opts.today) aggregatorOpts.today = opts.today;
+  const warn = parseIntegerOpt(opts, 'warn');
+  if (warn !== undefined) aggregatorOpts.warn = warn;
+  const alert = parseIntegerOpt(opts, 'alert');
+  if (alert !== undefined) aggregatorOpts.alert = alert;
+  const result = applications.staleApplications(OUTPUT_DIR, aggregatorOpts);
+  console.log(JSON.stringify(result, null, 2));
 }
 
 main();

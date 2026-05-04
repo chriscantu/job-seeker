@@ -4,6 +4,33 @@ const { resolveStateFile, atomicWriteFileSync, ensureDir } = require('./util');
 const { validateApplicationEntry, VALID_STAGES } = require('./validators');
 const { parseFrontmatter, serializeFrontmatter } = require('./frontmatter');
 
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+function assertDate(label, value) {
+  if (typeof value !== 'string' || !DATE_RE.test(value)) {
+    throw new Error(`daysBetween: ${label} must be YYYY-MM-DD, got ${value}`);
+  }
+}
+
+/**
+ * Returns the signed integer count of calendar days from `fromDate` to
+ * `toDate`, both YYYY-MM-DD strings interpreted as UTC midnights. Result
+ * is positive when `toDate` is later, zero when equal, negative when
+ * earlier. Throws if either input is not a YYYY-MM-DD string.
+ *
+ * @param {string} fromDate Earlier-or-equal date in YYYY-MM-DD.
+ * @param {string} toDate   Later-or-equal date in YYYY-MM-DD.
+ * @returns {number}        Integer days; toDate − fromDate.
+ */
+function daysBetween(fromDate, toDate) {
+  assertDate('fromDate', fromDate);
+  assertDate('toDate', toDate);
+  const MS_PER_DAY = 86_400_000;
+  const from = Date.UTC(+fromDate.slice(0, 4), +fromDate.slice(5, 7) - 1, +fromDate.slice(8, 10));
+  const to = Date.UTC(+toDate.slice(0, 4), +toDate.slice(5, 7) - 1, +toDate.slice(8, 10));
+  return Math.round((to - from) / MS_PER_DAY);
+}
+
 const HEADING_RE = /^### (.+?) — (.+)$/;
 const KEY_VALUE_RE = /^- \*\*(.+?)\*\*:\s*(.*)$/;
 const HISTORY_RE = /^- (\d{4}-\d{2}-\d{2}):\s*(.+?)\s*—\s*(.+)$/;
@@ -545,6 +572,10 @@ function classifierStatusToStage(classifierStatus, currentStage) {
 }
 
 function flagForReview(dir, opts) {
+  if (!opts || (!opts.company && !opts.msgId)) {
+    throw new Error('flagForReview: at least one of company or msgId is required to identify the entry');
+  }
+
   const filePath = resolveStateFile(dir, 'applications');
   if (!filePath) throw new Error('No applications file found');
 
@@ -683,6 +714,42 @@ function addNote(dir, { company, note }) {
   atomicWriteFileSync(filePath, formatApplicationsFile(data));
 }
 
+function staleApplications(dir, opts = {}) {
+  const hasWarn = typeof opts.warn === 'number';
+  const hasAlert = typeof opts.alert === 'number';
+  if (hasWarn !== hasAlert) {
+    throw new Error('staleApplications: both warn and alert must be provided together (or neither)');
+  }
+  if (hasWarn && hasAlert && opts.warn >= opts.alert) {
+    throw new Error(`staleApplications: warn (${opts.warn}) must be less than alert (${opts.alert})`);
+  }
+
+  const today = opts.today || new Date().toISOString().slice(0, 10);
+  const filePath = resolveStateFile(dir, 'applications');
+  if (!filePath) {
+    throw new Error(`No applications file found in ${dir}`);
+  }
+
+  const data = parseApplicationsFile(filePath);
+  return (data.active || []).map(entry => {
+    const referenceDate = entry.lastActivity?.date || entry.applied || today;
+    let days;
+    try {
+      days = daysBetween(referenceDate, today);
+    } catch (err) {
+      // One malformed date should not lose the whole batch — surface this
+      // entry with daysSinceLastActivity:null + error message so callers
+      // (follow-up nags, dashboards) can still render the rest.
+      return { ...entry, daysSinceLastActivity: null, error: err.message };
+    }
+    const enriched = { ...entry, daysSinceLastActivity: days };
+    if (hasWarn && hasAlert) {
+      enriched.stalenessLevel = days >= opts.alert ? 'alert' : days >= opts.warn ? 'warn' : 'ok';
+    }
+    return enriched;
+  });
+}
+
 module.exports = {
   parseApplicationsContent,
   parseApplicationsFile,
@@ -698,4 +765,6 @@ module.exports = {
   addNote,
   flagForReview,
   markStatusChanged,
+  daysBetween,
+  staleApplications,
 };

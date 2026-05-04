@@ -25,10 +25,11 @@ follow the batching protocol.
 
 ## Phase 0a — State & Optional Config
 
-Read `skills/_shared/state-io.md` and execute the read pattern for:
-- `seen-postings` — build dedup set of known URLs. Do NOT resurface any
-  role already listed.
-- `preferences` — extract interest signals and `last_run_date`.
+Read state via the CLI (parse stdout JSON):
+- `bun scripts/state.js read seen-postings` — build dedup set of known
+  URLs from the returned entries. Do NOT resurface any role already listed.
+- `bun scripts/state.js read preferences` — extract interest signals and
+  `last_run_date` from the returned object.
 
 Read `skills/daily-digest/source-strategy.md` for reference — it defines
 how `search_since` is computed from `last_run_date`.
@@ -121,10 +122,12 @@ for the digest note.
 
 ## Phase 5 — State Updates
 
-Read `skills/_shared/state-io.md` and execute the append pattern for:
-- `seen-postings` — add all roles from the digest (both included and
-  excluded/closed) with posting dates
-- `preferences` — append source effectiveness counts
+Append state via the CLI (the CLI auto-creates today's file if none exists):
+- For each role from the digest (both included and excluded/closed):
+  `bun scripts/state.js append seen-postings '<json>'` with `company`,
+  `title`, `url`, `posted` (or `discovered`) date, and any flags.
+- `bun scripts/state.js append preferences '<json>'` for source
+  effectiveness counts.
 
 If Apple Notes is configured, read `skills/_shared/apple-notes.md` and
 execute the update operation for state notes (Seen Postings, Preferences).
