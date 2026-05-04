@@ -116,34 +116,39 @@ skills (cover-letter, interview-prep) read it for full detail. Requirements:
 
 ## Phase 4 — State Update
 
-Read `skills/_shared/state-io.md` and execute — read `seen-postings`, then use the append pattern to write updates.
+Read seen-postings via `bun scripts/state.js read seen-postings`. All
+mutations use the CLI subcommands below — never edit
+`output/*-seen-postings.md` directly.
 
 After writing the brief, annotate the company's entry in seen-postings:
 
-1. Find the line matching the company name and URL
-2. Append `| RESEARCHED` to that line
-
-**Before:**
 ```
-- Maven Clinic | VP Engineering | https://jobs.lever.co/mavenclinic/abc
+bun scripts/state.js flag seen-postings --url "<job-url>" --add RESEARCHED
 ```
 
-**After:**
+The `flag` subcommand finds the entry by URL and appends the `RESEARCHED`
+flag. If no matching entry exists, the command exits non-zero — fall through
+to the bootstrap path below.
+
+**If the company is NOT in seen-postings** (URL came from outside the
+digest, or the `flag` call exited non-zero), append a new entry tagged
+`RESEARCHED`. Include `posted:YYYY-MM-DD` if the posting date is visible on
+the job page (look for "Posted on", date metadata, or ATS date fields).
+If the posted date cannot be determined, use `discovered:YYYY-MM-DD`
+(today's date) — every entry must have one or the other so all roles can
+be aged:
+
 ```
-- Maven Clinic | VP Engineering | https://jobs.lever.co/mavenclinic/abc | RESEARCHED
+bun scripts/state.js append seen-postings '{
+  "company": "<Company>",
+  "title": "<Title>",
+  "url": "<URL>",
+  "posted": "<YYYY-MM-DD>",
+  "flags": ["RESEARCHED"]
+}'
 ```
 
-**If the company is NOT in seen-postings** (URL came from outside the digest),
-add a new entry under today's date section with the `RESEARCHED` flag.
-Include `posted:YYYY-MM-DD` if the posting date is visible on the job page
-(look for "Posted on", date metadata, or ATS date fields). If the posted date
-cannot be determined, use `discovered:YYYY-MM-DD` (today's date) instead —
-every entry must have one or the other so all roles can be aged:
-
-```
-## {YYYY-MM-DD}
-- {Company} | {Title} | {URL} | posted:YYYY-MM-DD | RESEARCHED
-```
+The CLI auto-creates `output/YYYY-MM-DD-seen-postings.md` if no file exists.
 
 **Do not** update `preferences.md` or `applications.md`. Research is not a
 pipeline event.
@@ -158,4 +163,4 @@ pipeline event.
 | Cannot determine company name | Stop: "Could not identify the company from this page. Try providing the company name directly." |
 | Research queries return thin results | Write the brief with gaps noted in "Gaps & Open Questions" — don't fail, don't retry |
 | `output/{company-slug}/` doesn't exist | Create it before writing the brief |
-| Seen-postings file doesn't exist | Create `output/YYYY-MM-DD-seen-postings.md` with the new entry |
+| Seen-postings file doesn't exist | `bun scripts/state.js append seen-postings '<json>'` — auto-creates today's file. |
