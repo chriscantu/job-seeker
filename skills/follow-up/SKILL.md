@@ -37,13 +37,16 @@ On success, the command prints the authenticated email address.
 
 ## Phase 1 — Identify Stale Applications
 
-Read application state:
+Read enriched application state via the CLI (each entry includes
+`daysSinceLastActivity`, computed once in `lib/applications`):
+
 ```bash
-bun scripts/state.js read applications
+bun scripts/state.js stale-applications applications
 ```
 
-Parse the JSON output. Filter for **active applications** that meet staleness
-thresholds:
+Parse the JSON array. Filter for entries whose `daysSinceLastActivity`
+meets the per-stage thresholds below — follow-up uses stricter thresholds
+than the view-mode 14/21 rule because action urgency varies by stage:
 
 | Stage | Days since last activity |
 | ----- | ----------------------- |
@@ -54,8 +57,6 @@ thresholds:
 | Final Round | 5 |
 | Offer | 3 |
 | Decision | 3 |
-
-Calculate days since last activity using `lastActivity.date` and today's date.
 
 **Skip** entries where:
 - Stage is Discovery, Research, or Closed
