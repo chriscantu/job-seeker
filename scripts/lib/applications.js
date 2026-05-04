@@ -6,13 +6,25 @@ const { parseFrontmatter, serializeFrontmatter } = require('./frontmatter');
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
+function assertDate(label, value) {
+  if (typeof value !== 'string' || !DATE_RE.test(value)) {
+    throw new Error(`daysBetween: ${label} must be YYYY-MM-DD, got ${value}`);
+  }
+}
+
+/**
+ * Returns the signed integer count of calendar days from `fromDate` to
+ * `toDate`, both YYYY-MM-DD strings interpreted as UTC midnights. Result
+ * is positive when `toDate` is later, zero when equal, negative when
+ * earlier. Throws if either input is not a YYYY-MM-DD string.
+ *
+ * @param {string} fromDate Earlier-or-equal date in YYYY-MM-DD.
+ * @param {string} toDate   Later-or-equal date in YYYY-MM-DD.
+ * @returns {number}        Integer days; toDate − fromDate.
+ */
 function daysBetween(fromDate, toDate) {
-  if (typeof fromDate !== 'string' || !DATE_RE.test(fromDate)) {
-    throw new Error(`daysBetween: fromDate must be YYYY-MM-DD, got ${fromDate}`);
-  }
-  if (typeof toDate !== 'string' || !DATE_RE.test(toDate)) {
-    throw new Error(`daysBetween: toDate must be YYYY-MM-DD, got ${toDate}`);
-  }
+  assertDate('fromDate', fromDate);
+  assertDate('toDate', toDate);
   const MS_PER_DAY = 86_400_000;
   const from = Date.UTC(+fromDate.slice(0, 4), +fromDate.slice(5, 7) - 1, +fromDate.slice(8, 10));
   const to = Date.UTC(+toDate.slice(0, 4), +toDate.slice(5, 7) - 1, +toDate.slice(8, 10));

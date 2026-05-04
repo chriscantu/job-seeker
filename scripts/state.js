@@ -400,26 +400,24 @@ function handleFlagForReview(type, jsonStr) {
   console.log(JSON.stringify({ success: true, ...result }));
 }
 
+function parseIntegerOpt(opts, name) {
+  if (opts[name] === undefined) return undefined;
+  const n = Number(opts[name]);
+  if (!Number.isInteger(n)) {
+    console.error(`--${name} must be an integer`);
+    process.exit(1);
+  }
+  return n;
+}
+
 function handleStaleApplications(remainingArgs) {
   const opts = parseArgs(remainingArgs);
   const aggregatorOpts = {};
   if (opts.today) aggregatorOpts.today = opts.today;
-  if (opts.warn !== undefined) {
-    const n = Number(opts.warn);
-    if (!Number.isInteger(n)) {
-      console.error('--warn must be an integer');
-      process.exit(1);
-    }
-    aggregatorOpts.warn = n;
-  }
-  if (opts.alert !== undefined) {
-    const n = Number(opts.alert);
-    if (!Number.isInteger(n)) {
-      console.error('--alert must be an integer');
-      process.exit(1);
-    }
-    aggregatorOpts.alert = n;
-  }
+  const warn = parseIntegerOpt(opts, 'warn');
+  if (warn !== undefined) aggregatorOpts.warn = warn;
+  const alert = parseIntegerOpt(opts, 'alert');
+  if (alert !== undefined) aggregatorOpts.alert = alert;
   const result = applications.staleApplications(OUTPUT_DIR, aggregatorOpts);
   console.log(JSON.stringify(result, null, 2));
 }
