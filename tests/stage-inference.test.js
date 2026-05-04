@@ -1,6 +1,7 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
-const { inferStage } = require('../scripts/lib/stage-inference');
+const { inferStage, INFERABLE_STAGES } = require('../scripts/lib/stage-inference');
+const { VALID_STAGES } = require('../scripts/lib/validators');
 
 describe('inferStage', () => {
   const cases = [
@@ -39,13 +40,39 @@ describe('inferStage', () => {
     assert.equal(inferStage('the weather is nice'), null);
   });
 
-  it('returns null on non-string input', () => {
-    assert.equal(inferStage(null), null);
-    assert.equal(inferStage(undefined), null);
-    assert.equal(inferStage(42), null);
+  it('throws on non-string input (programmer error, distinct from no-match)', () => {
+    assert.throws(() => inferStage(null), /string/i);
+    assert.throws(() => inferStage(undefined), /string/i);
+    assert.throws(() => inferStage(42), /string/i);
+    assert.throws(() => inferStage({}), /string/i);
   });
 
   it('first-match wins (rules ordered most-specific first)', () => {
     assert.equal(inferStage('second interview today'), 'Interview (2+)');
+  });
+});
+
+describe('INFERABLE_STAGES', () => {
+  it('exports an array of stage strings', () => {
+    assert.ok(Array.isArray(INFERABLE_STAGES));
+    assert.ok(INFERABLE_STAGES.length > 0);
+    for (const s of INFERABLE_STAGES) assert.equal(typeof s, 'string');
+  });
+
+  it('is a subset of VALID_STAGES (no schema drift)', () => {
+    for (const s of INFERABLE_STAGES) {
+      assert.ok(VALID_STAGES.includes(s), `INFERABLE_STAGES contains "${s}" not in VALID_STAGES`);
+    }
+  });
+
+  it('every inferStage output value is in INFERABLE_STAGES', () => {
+    const sampleHits = [
+      'applied', 'phone screen', 'first interview', 'second interview',
+      'final round', 'got an offer', 'negotiating', 'rejected',
+    ];
+    for (const text of sampleHits) {
+      const stage = inferStage(text);
+      assert.ok(INFERABLE_STAGES.includes(stage), `inferStage("${text}") = "${stage}" not in INFERABLE_STAGES`);
+    }
   });
 });
