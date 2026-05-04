@@ -50,6 +50,14 @@ describe('inferStage', () => {
   it('first-match wins (rules ordered most-specific first)', () => {
     assert.equal(inferStage('second interview today'), 'Interview (2+)');
   });
+
+  it('combined phrase resolves to later lifecycle stage (Offer + Decision)', () => {
+    assert.equal(inferStage('got an offer, now negotiating'), 'Decision');
+  });
+
+  it('combined phrase resolves to later lifecycle stage (Applied + Final Round)', () => {
+    assert.equal(inferStage('applied for the final round'), 'Final Round');
+  });
 });
 
 describe('INFERABLE_STAGES', () => {
