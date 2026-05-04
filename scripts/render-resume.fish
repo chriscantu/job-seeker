@@ -57,6 +57,9 @@ sed -i '' \
     -e 's|<w:pStyle w:val="Contact" /></w:pPr>|<w:pStyle w:val="Contact" /><w:jc w:val="center" /></w:pPr>|g' \
     -e 's|<w:rPr><w:b /><w:bCs /></w:rPr>|<w:rPr><w:b /><w:bCs /><w:color w:val="153D63" /></w:rPr>|g' \
     "$doc"
+
+set pagebreak_script (dirname (status filename))/babylon-pagebreak.py
+python3 "$pagebreak_script" "$doc"
 set tmp_out (mktemp -u).docx
 cd "$tmpdir"; zip -qr -X "$tmp_out" . -x ".*"; cd -
 mv "$tmp_out" "$out"
