@@ -1382,4 +1382,29 @@ describe('staleApplications', () => {
       fs.rmSync(empty, { recursive: true, force: true });
     }
   });
+
+  it('throws when only warn is provided (asymmetric thresholds)', () => {
+    assert.throws(
+      () => staleApplications(tmpDir, { today: '2026-05-04', warn: 14 }),
+      /both warn and alert|alert.*required/i
+    );
+  });
+
+  it('throws when only alert is provided (asymmetric thresholds)', () => {
+    assert.throws(
+      () => staleApplications(tmpDir, { today: '2026-05-04', alert: 21 }),
+      /both warn and alert|warn.*required/i
+    );
+  });
+
+  it('throws when warn >= alert (ordering violated)', () => {
+    assert.throws(
+      () => staleApplications(tmpDir, { today: '2026-05-04', warn: 21, alert: 14 }),
+      /warn.*alert|threshold.*ord/i
+    );
+    assert.throws(
+      () => staleApplications(tmpDir, { today: '2026-05-04', warn: 14, alert: 14 }),
+      /warn.*alert|threshold.*ord/i
+    );
+  });
 });

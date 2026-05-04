@@ -360,6 +360,30 @@ describe('state.js CLI', () => {
       assert.equal(exitCode, 1);
       assert.match(stderr, /only supported for applications/);
     });
+
+    it('CLI surfaces the lib error when only --warn is provided (no --alert)', () => {
+      const { stderr, exitCode } = run('stale-applications applications --warn 14', { expectError: true, outputDir: staleTmp });
+      assert.equal(exitCode, 1);
+      assert.match(stderr, /both warn and alert/);
+    });
+
+    it('CLI surfaces the lib error when warn >= alert', () => {
+      const { stderr, exitCode } = run('stale-applications applications --warn 21 --alert 14', { expectError: true, outputDir: staleTmp });
+      assert.equal(exitCode, 1);
+      assert.match(stderr, /less than alert/);
+    });
+
+    it('CLI rejects a float --warn (parseIntegerOpt)', () => {
+      const { stderr, exitCode } = run('stale-applications applications --warn 14.5 --alert 21', { expectError: true, outputDir: staleTmp });
+      assert.equal(exitCode, 1);
+      assert.match(stderr, /integer/);
+    });
+
+    it('CLI rejects a non-integer --alert (parseIntegerOpt)', () => {
+      const { stderr, exitCode } = run('stale-applications applications --warn 14 --alert xyz', { expectError: true, outputDir: staleTmp });
+      assert.equal(exitCode, 1);
+      assert.match(stderr, /alert must be an integer/);
+    });
   });
 
   describe('flag-for-review', () => {

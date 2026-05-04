@@ -711,6 +711,15 @@ function addNote(dir, { company, note }) {
 }
 
 function staleApplications(dir, opts = {}) {
+  const hasWarn = typeof opts.warn === 'number';
+  const hasAlert = typeof opts.alert === 'number';
+  if (hasWarn !== hasAlert) {
+    throw new Error('staleApplications: both warn and alert must be provided together (or neither)');
+  }
+  if (hasWarn && hasAlert && opts.warn >= opts.alert) {
+    throw new Error(`staleApplications: warn (${opts.warn}) must be less than alert (${opts.alert})`);
+  }
+
   const today = opts.today || new Date().toISOString().slice(0, 10);
   const filePath = resolveStateFile(dir, 'applications');
   if (!filePath) return [];
@@ -720,7 +729,7 @@ function staleApplications(dir, opts = {}) {
     const referenceDate = entry.lastActivity?.date || entry.applied || today;
     const days = daysBetween(referenceDate, today);
     const enriched = { ...entry, daysSinceLastActivity: days };
-    if (typeof opts.warn === 'number' && typeof opts.alert === 'number') {
+    if (hasWarn && hasAlert) {
       enriched.stalenessLevel = days >= opts.alert ? 'alert' : days >= opts.warn ? 'warn' : 'ok';
     }
     return enriched;
