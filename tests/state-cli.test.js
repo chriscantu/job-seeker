@@ -361,4 +361,60 @@ describe('state.js CLI', () => {
       assert.match(stderr, /only supported for applications/);
     });
   });
+
+  describe('flag-for-review', () => {
+    let tmpFixtures;
+
+    beforeEach(() => {
+      tmpFixtures = fs.mkdtempSync(path.join(TMP_DIR, 'flag-review-'));
+      fs.cpSync(path.join(__dirname, 'fixtures', 'applications.md'), path.join(tmpFixtures, '2026-05-04-applications.md'));
+    });
+
+    afterEach(() => {
+      fs.rmSync(tmpFixtures, { recursive: true, force: true });
+    });
+
+    it('appends a flagged entry from JSON arg', () => {
+      const json = JSON.stringify({
+        company: 'Acme',
+        title: 'VP Eng',
+        signal: 'Application withdrawn',
+        status: 'Rejected',
+        sender: 'noreply@acme.com',
+        matchMethod: 'company-name',
+        msgId: 'abc-123',
+        detectedAt: '2026-05-04',
+      });
+      const { stdout } = run(`flag-for-review applications '${json}'`, { outputDir: tmpFixtures });
+      const result = JSON.parse(stdout);
+      assert.equal(result.success, true);
+      assert.equal(result.skipped, false);
+    });
+
+    it('returns skipped:true when msgId already processed', () => {
+      const json = JSON.stringify({
+        company: 'Acme',
+        title: 'VP Eng',
+        msgId: 'dup-id',
+        detectedAt: '2026-05-04',
+      });
+      run(`flag-for-review applications '${json}'`, { outputDir: tmpFixtures });
+      const { stdout } = run(`flag-for-review applications '${json}'`, { outputDir: tmpFixtures });
+      const result = JSON.parse(stdout);
+      assert.equal(result.skipped, true);
+      assert.match(result.reason, /msg-id/);
+    });
+
+    it('rejects malformed JSON', () => {
+      const { stderr, exitCode } = run("flag-for-review applications '{not json'", { expectError: true, outputDir: tmpFixtures });
+      assert.equal(exitCode, 1);
+      assert.match(stderr, /JSON/);
+    });
+
+    it('only supports the applications type', () => {
+      const { stderr, exitCode } = run("flag-for-review seen-postings '{}'", { expectError: true });
+      assert.equal(exitCode, 1);
+      assert.match(stderr, /only supported for applications/);
+    });
+  });
 });

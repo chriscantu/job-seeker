@@ -12,6 +12,7 @@
 //   bun scripts/state.js dedup-check seen-postings --url "..." --company "..." --title "..."
 //   bun scripts/state.js flag seen-postings --url "..." --add RESEARCHED
 //   bun scripts/state.js stale-applications applications [--today YYYY-MM-DD] [--warn N] [--alert N]
+//   bun scripts/state.js flag-for-review applications '{...}'
 //
 // Exit codes: 0 = success, 1 = error (message on stderr)
 // Output: JSON on stdout
@@ -43,6 +44,7 @@ Commands:
   reopen applications --company <name> --stage <stage> [--detail <text>]  Reopen a closed application
   add-note applications --company <name> --note <text>  Append a note to an application
   stale-applications applications [--today YYYY-MM-DD] [--warn N] [--alert N]  Active entries enriched with daysSinceLastActivity
+  flag-for-review applications '<json>'  Append a flagged-for-review entry
 
 Types: seen-postings, preferences, applications
 
@@ -144,6 +146,9 @@ function main() {
         break;
       case 'stale-applications':
         handleStaleApplications(args.slice(2));
+        break;
+      case 'flag-for-review':
+        handleFlagForReview(type, args[2]);
         break;
       default:
         console.error(`Unknown command: ${command}`);
@@ -340,6 +345,22 @@ function handleFlag(remainingArgs) {
     process.exit(1);
   }
   console.log(JSON.stringify(result));
+}
+
+function handleFlagForReview(type, jsonStr) {
+  if (!jsonStr) {
+    console.error('flag-for-review requires a JSON argument');
+    process.exit(1);
+  }
+  let entry;
+  try {
+    entry = JSON.parse(jsonStr);
+  } catch (err) {
+    console.error(`Invalid JSON argument: ${err.message}`);
+    process.exit(1);
+  }
+  const result = applications.flagForReview(OUTPUT_DIR, entry);
+  console.log(JSON.stringify({ success: true, ...result }));
 }
 
 function handleStaleApplications(remainingArgs) {
