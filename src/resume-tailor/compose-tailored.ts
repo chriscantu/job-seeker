@@ -119,7 +119,7 @@ function renderEducationBlock(ast: ResumeAST): string {
 }
 
 function renderAccomplishment(a: KeyAccomplishment): string {
-  return `- **${a.label}** — ${a.description} | **Impact:** ${a.impact}`;
+  return `- **${a.label}** — ${a.description}.`;
 }
 
 function renderRole(role: Role): string {
@@ -135,5 +135,5 @@ function renderSubRole(sub: SubRole): string {
 }
 
 function renderBullet(b: Bullet): string {
-  return `- ${b.text}. **Impact:** ${b.impact}`;
+  return `- ${b.text}.`;
 }

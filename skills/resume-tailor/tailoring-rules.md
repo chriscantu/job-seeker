@@ -55,7 +55,7 @@ canonical_version: <date from resume.md>
 
 ## Key Accomplishments
 
-- **<Label>** — <description> | **Impact:** <outcome>
+- **<Label>** — <single sentence: action + scope + outcome>.
 - ...(6 total)
 
 ## Skills
@@ -68,7 +68,7 @@ A | B | C | D | E | F | G | H | I | J
 
 *Location | Date range | Team size context*
 
-- Bullet text. **Impact:** outcome.
+- Single-sentence bullet: action verb + scope/numbers + outcome clause.
 - ...
 
 ## Education
@@ -81,9 +81,11 @@ School
 **Schema rules (binding):**
 
 - No `Challenge:`/`Action:`/`Results:` literals.
-- Every bullet ends with `**Impact:** <clause>.`
+- No `**Impact:**` literal label — outcome folded into the bullet's single sentence
+  via -ing / -ing-clause / "with"-clause / em-dash continuation.
+- Each bullet is one sentence ending in `.`. CAR is implicit by ordering.
 - Skills line: single line, ` | `-delimited, max 10.
-- Key Accomplishments: pipe-delimited fields per the schema.
+- Key Accomplishments: `- **<Label>** — <single sentence>.` (no pipe-delimited Impact field).
 
 ## Phase 6: Render and Enforce
 

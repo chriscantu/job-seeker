@@ -35,16 +35,24 @@ describe('composeTailoredResumeMarkdown', () => {
     expect(out).toMatch(/## Skills\n\nA \| B \| C\n/);
   });
 
-  test('every bullet preserves Impact clause', () => {
+  test('emits no **Impact:** literal anywhere (CAR is implicit, single-sentence)', () => {
     const ast = parseCanonicalResume(md);
     const out = composeTailoredResumeMarkdown(ast, {
       company: 'X', role: 'Y', posting_url: '', generated: '2026-05-01',
     });
-    const bulletLines = out.split('\n').filter((l) => l.trim().startsWith('- ') && !l.includes('**Revenue Impact**'));
+    expect(out).not.toContain('**Impact:**');
+  });
+
+  test('every experience bullet ends with a period', () => {
+    const ast = parseCanonicalResume(md);
+    const out = composeTailoredResumeMarkdown(ast, {
+      company: 'X', role: 'Y', posting_url: '', generated: '2026-05-01',
+    });
+    const experienceSection = out.split('## Professional Experience')[1].split('## Education')[0];
+    const bulletLines = experienceSection.split('\n').filter((l) => l.startsWith('- '));
+    expect(bulletLines.length).toBeGreaterThan(0);
     for (const line of bulletLines) {
-      if (line.includes('## Key Accomplishments')) continue;
-      if (line.match(/^- \*\*[A-Z]/)) continue; // Key Accomplishments lines start with bold label
-      expect(line).toContain('**Impact:**');
+      expect(line).toMatch(/\.$/);
     }
   });
 

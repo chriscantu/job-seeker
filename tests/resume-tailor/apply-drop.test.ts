@@ -8,7 +8,7 @@ const baseAST = (): ResumeAST => ({
   keyAccomplishments: [], skills: [], education: { degrees: '', school: '' },
   roles: [
     { title: '', company: 'A', meta: '', bullets: [
-      { text: 'a1', impact: 'i' }, { text: 'a2', impact: 'i' },
+      { text: 'a1' }, { text: 'a2' },
     ] },
   ],
 });
@@ -25,7 +25,7 @@ describe('removeBulletFromAst', () => {
     const ast = baseAST();
     ast.roles[0].bullets = [];
     ast.roles[0].subRoles = [
-      { label: 'sub', bullets: [{ text: 's1', impact: 'i' }, { text: 's2', impact: 'i' }] },
+      { label: 'sub', bullets: [{ text: 's1' }, { text: 's2' }] },
     ];
     removeBulletFromAst(ast, { roleIndex: 0, roleCompany: 'A', bulletIndex: 0, bulletText: 's1' });
     expect(ast.roles[0].subRoles[0].bullets).toHaveLength(1);

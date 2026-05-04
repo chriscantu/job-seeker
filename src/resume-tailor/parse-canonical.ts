@@ -5,9 +5,7 @@ const SECTION_HEADING_RE = /^## (.+)$/;
 const ROLE_HEADING_SPLIT_RE = /^### /m;
 const SUBROLE_LABEL_RE = /^As (.+?):$/;
 const BULLET_PREFIX = '- ';
-const KEY_ACCOMPLISHMENT_RE =
-  /^- \*\*(.+?)\*\* — (.+?)\s*\|\s*\*\*Impact:\*\*\s*(.+)$/;
-const BULLET_IMPACT_RE = /^(.+?)\s+\*\*Impact:\*\*\s+(.+)$/;
+const KEY_ACCOMPLISHMENT_RE = /^- \*\*(.+?)\*\* — (.+)$/;
 
 /**
  * AST is the single source of truth downstream — throw on schema violation
@@ -100,8 +98,7 @@ function parseKeyAccomplishmentLine(line: string): KeyAccomplishment {
   }
   return {
     label: match[1].trim(),
-    description: match[2].trim(),
-    impact: match[3].trim(),
+    description: match[2].trim().replace(/\.$/, ''),
   };
 }
 
@@ -168,15 +165,9 @@ function parseFlatBullets(lines: string[]): Bullet[] {
 }
 
 function parseBullet(line: string): Bullet {
-  const trimmed = line.trim().replace(/^- /, '');
-  const match = trimmed.match(BULLET_IMPACT_RE);
-  if (!match) {
-    throw new Error(`bullet missing **Impact:** clause: ${trimmed}`);
-  }
-  return {
-    text: match[1].trim().replace(/\.$/, ''),
-    impact: match[2].trim(),
-  };
+  const text = line.trim().replace(/^- /, '').trim().replace(/\.$/, '');
+  if (!text) throw new Error('bullet missing text');
+  return { text };
 }
 
 function parseEducation(section: string) {
