@@ -1407,6 +1407,29 @@ describe('staleApplications', () => {
       /warn.*alert|threshold.*ord/i
     );
   });
+
+  it('per-entry resilience: corrupt date surfaces with error field, batch continues', () => {
+    // Construct a fixture with one good entry and one entry whose Applied
+    // date is malformed (passes parser, fails daysBetween's strict regex).
+    const corruptDir = fs.mkdtempSync(path.join(os.tmpdir(), 'stale-corrupt-'));
+    try {
+      const md = `---\nformat_version: 1\nlast_updated: 2026-05-04\n---\n# Application Pipeline\n\nLast updated: 2026-05-04\n\n## Active Applications\n\n### Good Co — VP Eng\n- **Stage**: Applied\n- **Applied**: 2026-04-20\n- **URL**: https://example.com/good\n\n#### History\n- 2026-04-20: Applied — Submitted\n\n### Bad Co — VP Eng\n- **Stage**: Applied\n- **Applied**: 04/20/2026\n- **URL**: https://example.com/bad\n\n#### History\n- 2026-04-20: Applied — Submitted\n`;
+      fs.writeFileSync(path.join(corruptDir, '2026-05-04-applications.md'), md);
+
+      const result = staleApplications(corruptDir, { today: '2026-05-04' });
+      assert.equal(result.length, 2, 'both entries should surface (no batch-loss)');
+
+      const good = result.find(e => e.company === 'Good Co');
+      assert.equal(good.daysSinceLastActivity, 14);
+      assert.equal(good.error, undefined);
+
+      const bad = result.find(e => e.company === 'Bad Co');
+      assert.equal(bad.daysSinceLastActivity, null);
+      assert.match(bad.error, /YYYY-MM-DD|invalid/i);
+    } finally {
+      fs.rmSync(corruptDir, { recursive: true, force: true });
+    }
+  });
 });
 
 describe('flagForReview — empty-payload guard', () => {

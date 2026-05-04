@@ -731,7 +731,15 @@ function staleApplications(dir, opts = {}) {
   const data = parseApplicationsFile(filePath);
   return (data.active || []).map(entry => {
     const referenceDate = entry.lastActivity?.date || entry.applied || today;
-    const days = daysBetween(referenceDate, today);
+    let days;
+    try {
+      days = daysBetween(referenceDate, today);
+    } catch (err) {
+      // One malformed date should not lose the whole batch — surface this
+      // entry with daysSinceLastActivity:null + error message so callers
+      // (follow-up nags, dashboards) can still render the rest.
+      return { ...entry, daysSinceLastActivity: null, error: err.message };
+    }
     const enriched = { ...entry, daysSinceLastActivity: days };
     if (hasWarn && hasAlert) {
       enriched.stalenessLevel = days >= opts.alert ? 'alert' : days >= opts.warn ? 'warn' : 'ok';
