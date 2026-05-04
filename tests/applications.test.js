@@ -1345,11 +1345,42 @@ describe('staleApplications', () => {
     }
   });
 
-  it('uses lastActivity.date when present, falls back to applied date', () => {
-    const result = staleApplications(tmpDir, { today: '2026-05-04' });
-    const e = result.find(x => x.lastActivity?.date);
-    if (e) {
-      assert.equal(e.daysSinceLastActivity, daysBetween(e.lastActivity.date, '2026-05-04'));
+  it('uses lastActivity.date when present (constructed inline since canonical fixture lacks the field)', () => {
+    // The shared fixture has no `**Last Activity**` lines, so the canonical
+    // priority path (lastActivity.date over applied) needs an inline fixture.
+    // Without this, the original `if (e) { ... }` test would silently no-op.
+    const lastActivityDir = fs.mkdtempSync(path.join(os.tmpdir(), 'last-activity-'));
+    try {
+      const md = `---\nformat_version: 1\nlast_updated: 2026-05-04\n---\n# Application Pipeline\n\nLast updated: 2026-05-04\n\n## Active Applications\n\n### Vector Co — VP Eng\n- **Stage**: Screen\n- **Applied**: 2026-04-01\n- **Last activity**: 2026-04-25 — Phone screen\n- **URL**: https://example.com/vector\n\n#### History\n- 2026-04-01: Applied — Submitted\n- 2026-04-25: Screen — Phone screen\n`;
+      fs.writeFileSync(path.join(lastActivityDir, '2026-05-04-applications.md'), md);
+      const result = staleApplications(lastActivityDir, { today: '2026-05-04' });
+      const e = result.find(x => x.company === 'Vector Co');
+      assert.ok(e, 'fixture must produce a Vector Co entry');
+      assert.ok(e.lastActivity?.date, 'entry must carry lastActivity.date');
+      // 2026-04-25 → 2026-05-04 is 9 days; using `applied` (2026-04-01)
+      // would yield 33 days. Verifies lastActivity.date wins.
+      assert.equal(e.daysSinceLastActivity, 9);
+    } finally {
+      fs.rmSync(lastActivityDir, { recursive: true, force: true });
+    }
+  });
+
+  it('falls back to applied date when lastActivity is absent', () => {
+    // Confirms the second leg of the fallback chain. Canonical fixture
+    // active entries all carry lastActivity, so use an inline fixture
+    // that omits it.
+    const fallbackDir = fs.mkdtempSync(path.join(os.tmpdir(), 'applied-fallback-'));
+    try {
+      const md = `---\nformat_version: 1\nlast_updated: 2026-05-04\n---\n# Application Pipeline\n\nLast updated: 2026-05-04\n\n## Active Applications\n\n### Bare Co — VP Eng\n- **Stage**: Applied\n- **Applied**: 2026-04-15\n- **URL**: https://example.com/bare\n\n#### History\n- 2026-04-15: Applied — Submitted\n`;
+      fs.writeFileSync(path.join(fallbackDir, '2026-05-04-applications.md'), md);
+      const result = staleApplications(fallbackDir, { today: '2026-05-04' });
+      const e = result.find(x => x.company === 'Bare Co');
+      assert.ok(e, 'fixture must produce Bare Co entry');
+      assert.ok(!e.lastActivity?.date, 'entry must NOT carry lastActivity.date');
+      // 2026-04-15 → 2026-05-04 = 19 days.
+      assert.equal(e.daysSinceLastActivity, 19);
+    } finally {
+      fs.rmSync(fallbackDir, { recursive: true, force: true });
     }
   });
 
