@@ -27,8 +27,9 @@ if not test -f "$template"
     exit 1
 end
 
+set lua_filter (dirname (status filename))/strip-bookmarks.lua
 set tmperr (mktemp)
-pandoc "$md" --reference-doc="$template" -o "$out" 2> "$tmperr"
+pandoc "$md" --reference-doc="$template" --lua-filter="$lua_filter" -o "$out" 2> "$tmperr"
 set pandoc_status $status
 
 if test $pandoc_status -ne 0

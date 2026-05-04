@@ -88,13 +88,21 @@ function renderTailoredFrontmatter(
 function renderHeaderBlock(ast: ResumeAST): string {
   return [
     `# ${ast.header.name}\n`,
-    `**${ast.header.tagline}**\n`,
-    `${ast.header.contact}\n`,
+    `::: {custom-style="Tagline"}`,
+    `**${ast.header.tagline}**`,
+    `:::\n`,
+    `::: {custom-style="Contact"}`,
+    `${ast.header.contact}`,
+    `:::\n`,
   ].join('\n');
 }
 
 function renderSummaryBlock(ast: ResumeAST): string {
-  return `${ast.summary}\n`;
+  return [
+    `::: {custom-style="BodyTextSummary"}`,
+    ast.summary,
+    `:::\n`,
+  ].join('\n');
 }
 
 function renderKeyAccomplishmentsBlock(ast: ResumeAST): string {
@@ -103,7 +111,13 @@ function renderKeyAccomplishmentsBlock(ast: ResumeAST): string {
 }
 
 function renderSkillsBlock(ast: ResumeAST): string {
-  return `## Skills\n\n${ast.skills.join(' | ')}\n`;
+  return [
+    `## Skills`,
+    ``,
+    `::: {custom-style="SkillsLine"}`,
+    ast.skills.join(' | '),
+    `:::\n`,
+  ].join('\n');
 }
 
 function renderExperienceBlock(ast: ResumeAST): string {

@@ -71,7 +71,7 @@ function splitByH2Sections(body: string): Record<string, string> {
 }
 
 function parseHeader(headerSection: string) {
-  const lines = headerSection.split('\n').filter((l) => l.trim());
+  const lines = nonEmptyContentLines(headerSection);
   const name = lines[0].replace(/^# /, '').trim();
   const tagline = lines[1].replace(/^\*\*|\*\*$/g, '').trim();
   const contact = lines[2].trim();
@@ -79,8 +79,15 @@ function parseHeader(headerSection: string) {
 }
 
 function parseSummary(headerSection: string) {
-  const lines = headerSection.split('\n').filter((l) => l.trim());
+  const lines = nonEmptyContentLines(headerSection);
   return lines.slice(3).join(' ').trim();
+}
+
+function nonEmptyContentLines(section: string): string[] {
+  return section
+    .split('\n')
+    .filter((l) => l.trim())
+    .filter((l) => !l.trim().startsWith(':::'));
 }
 
 function parseKeyAccomplishments(section: string): KeyAccomplishment[] {

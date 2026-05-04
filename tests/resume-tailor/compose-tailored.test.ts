@@ -32,7 +32,7 @@ describe('composeTailoredResumeMarkdown', () => {
     const out = composeTailoredResumeMarkdown(ast, {
       company: 'X', role: 'Y', posting_url: '', generated: '2026-05-01',
     });
-    expect(out).toMatch(/## Skills\n\nA \| B \| C\n/);
+    expect(out).toMatch(/## Skills\n\n::: \{custom-style="SkillsLine"\}\nA \| B \| C\n:::/);
   });
 
   test('emits no **Impact:** literal anywhere (CAR is implicit, single-sentence)', () => {
