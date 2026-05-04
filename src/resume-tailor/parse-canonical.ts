@@ -73,7 +73,7 @@ function splitByH2Sections(body: string): Record<string, string> {
 function parseHeader(headerSection: string) {
   const lines = nonEmptyContentLines(headerSection);
   const name = lines[0].replace(/^# /, '').trim();
-  const tagline = lines[1].replace(/^\*\*|\*\*$/g, '').trim();
+  const tagline = lines[1].replace(/^\*\*|\*\*\\?$/g, '').trim();
   const contact = lines[2].trim();
   return { name, tagline, contact };
 }
