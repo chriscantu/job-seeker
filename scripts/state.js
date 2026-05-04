@@ -29,8 +29,32 @@ const { resolveStateFile } = require('./lib/util');
 const ROOT = path.resolve(__dirname, '..');
 const OUTPUT_DIR = process.env.OUTPUT_DIR || path.join(ROOT, 'output');
 
-const SEEN_POSTINGS_COMMANDS = ['query', 'dedup-check', 'flag'];
-const APPLICATIONS_COMMANDS = ['update', 'add-note', 'create', 'close', 'reopen', 'stale-applications', 'flag-for-review', 'mark-status-changed', 'infer-stage'];
+// Command dispatch table. Each entry describes how main() routes the command:
+//   handler:     the function to invoke
+//   argShape:    'type' | 'type+json' | 'remaining'
+//                'type'       → handler(type)
+//                'type+json'  → handler(type, args[2])
+//                'remaining'  → handler(args.slice(2))
+//   allowedTypes (optional): if set, type must be in this list — otherwise
+//                we exit with "<command> is only supported for <allowedTypes[0]>"
+//
+// Adding a new subcommand = one entry here. No parallel membership arrays.
+const COMMANDS = {
+  'read':                { handler: handleRead,                argShape: 'type' },
+  'append':              { handler: handleAppend,              argShape: 'type+json' },
+  'query':               { handler: handleQuery,               argShape: 'remaining', allowedTypes: ['seen-postings'] },
+  'dedup-check':         { handler: handleDedupCheck,          argShape: 'remaining', allowedTypes: ['seen-postings'] },
+  'flag':                { handler: handleFlag,                argShape: 'remaining', allowedTypes: ['seen-postings'] },
+  'update':              { handler: handleUpdate,              argShape: 'remaining', allowedTypes: ['applications'] },
+  'add-note':            { handler: handleAddNote,             argShape: 'remaining', allowedTypes: ['applications'] },
+  'close':               { handler: handleClose,               argShape: 'remaining', allowedTypes: ['applications'] },
+  'reopen':              { handler: handleReopen,              argShape: 'remaining', allowedTypes: ['applications'] },
+  'create':              { handler: handleCreate,              argShape: 'type+json', allowedTypes: ['applications'] },
+  'stale-applications':  { handler: handleStaleApplications,   argShape: 'remaining', allowedTypes: ['applications'] },
+  'flag-for-review':     { handler: handleFlagForReview,       argShape: 'type+json', allowedTypes: ['applications'] },
+  'mark-status-changed': { handler: handleMarkStatusChanged,   argShape: 'type+json', allowedTypes: ['applications'] },
+  'infer-stage':         { handler: handleInferStage,          argShape: 'remaining', allowedTypes: ['applications'] },
+};
 
 function usage() {
   console.error(`Usage: bun scripts/state.js <command> <type> [args]
@@ -107,63 +131,29 @@ function main() {
     process.exit(1);
   }
 
-  if (SEEN_POSTINGS_COMMANDS.includes(command) && type !== 'seen-postings') {
-    console.error(`${command} is only supported for seen-postings`);
-    process.exit(1);
+  const entry = COMMANDS[command];
+  if (!entry) {
+    console.error(`Unknown command: ${command}`);
+    usage();
+    return;
   }
 
-  if (APPLICATIONS_COMMANDS.includes(command) && type !== 'applications') {
-    console.error(`${command} is only supported for applications`);
+  if (entry.allowedTypes && !entry.allowedTypes.includes(type)) {
+    console.error(`${command} is only supported for ${entry.allowedTypes[0]}`);
     process.exit(1);
   }
 
   try {
-    switch (command) {
-      case 'read':
-        handleRead(type);
+    switch (entry.argShape) {
+      case 'type':
+        entry.handler(type);
         break;
-      case 'append':
-        handleAppend(type, args[2]);
+      case 'type+json':
+        entry.handler(type, args[2]);
         break;
-      case 'query':
-        handleQuery(args.slice(2));
+      case 'remaining':
+        entry.handler(args.slice(2));
         break;
-      case 'dedup-check':
-        handleDedupCheck(args.slice(2));
-        break;
-      case 'flag':
-        handleFlag(args.slice(2));
-        break;
-      case 'update':
-        handleUpdate(args.slice(2));
-        break;
-      case 'add-note':
-        handleAddNote(args.slice(2));
-        break;
-      case 'close':
-        handleClose(args.slice(2));
-        break;
-      case 'reopen':
-        handleReopen(args.slice(2));
-        break;
-      case 'create':
-        handleCreate(type, args[2]);
-        break;
-      case 'stale-applications':
-        handleStaleApplications(args.slice(2));
-        break;
-      case 'flag-for-review':
-        handleFlagForReview(type, args[2]);
-        break;
-      case 'mark-status-changed':
-        handleMarkStatusChanged(type, args[2]);
-        break;
-      case 'infer-stage':
-        handleInferStage(args.slice(2));
-        break;
-      default:
-        console.error(`Unknown command: ${command}`);
-        usage();
     }
   } catch (err) {
     // Default: clean message only (CLI users shouldn't see internal frames).
