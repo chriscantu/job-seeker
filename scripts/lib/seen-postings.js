@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const { resolveStateFile, atomicWriteFileSync, ensureDir } = require('./util');
+const { resolveStateFile, atomicWriteFileSync, ensureDir, getTodayUtc } = require('./util');
 const { parseFrontmatter, serializeFrontmatter } = require('./frontmatter');
 
 const URL_RE = /https?:\/\/[^\s|[\]]+/;
@@ -285,7 +285,7 @@ function formatEntry(entry) {
 function appendSeenPosting(dir, entry) {
   ensureDir(dir);
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = getTodayUtc();
   const line = formatEntry(entry);
   const existing = resolveStateFile(dir, 'seen-postings');
 
@@ -338,7 +338,7 @@ function flagSeenPosting(dir, url, flag) {
   }
 
   const normalizedTarget = normalizeUrl(url);
-  const today = new Date().toISOString().slice(0, 10);
+  const today = getTodayUtc();
 
   for (const file of files) {
     const filePath = path.join(dir, file);

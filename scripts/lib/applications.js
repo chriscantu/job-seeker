@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const { resolveStateFile, atomicWriteFileSync, ensureDir } = require('./util');
+const { resolveStateFile, atomicWriteFileSync, ensureDir, getTodayUtc } = require('./util');
 const { validateApplicationEntry, VALID_STAGES } = require('./validators');
 const { parseFrontmatter, serializeFrontmatter } = require('./frontmatter');
 
@@ -331,7 +331,7 @@ function formatFlagged(entry) {
 }
 
 function formatApplicationsFile({ active, closed, flagged }) {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = getTodayUtc();
   const flaggedList = flagged || [];
   const parts = [];
 
@@ -374,7 +374,7 @@ function createApplication(dir, entry) {
 
   ensureDir(dir);
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = getTodayUtc();
   const applied = entry.applied || today;
 
   const newEntry = {
@@ -462,7 +462,7 @@ function updateApplication(dir, { company, stage, detail }) {
 
   const data = parseApplicationsFile(filePath);
   const entry = findInSection(data, company, 'active');
-  const today = new Date().toISOString().slice(0, 10);
+  const today = getTodayUtc();
   const detailText = detail || stage;
 
   entry.stage = stage;
@@ -482,7 +482,7 @@ function closeApplication(dir, { company, reason, summary }) {
 
   const data = parseApplicationsFile(filePath);
   const entry = findInSection(data, company, 'active');
-  const today = new Date().toISOString().slice(0, 10);
+  const today = getTodayUtc();
   const closedStage = `Closed (${reason.trim()})`;
   const detailText = summary || reason;
 
@@ -515,7 +515,7 @@ function reopenApplication(dir, { company, stage, detail }) {
   const data = parseApplicationsFile(filePath);
   const entry = findInSection(data, company, 'closed');
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = getTodayUtc();
   const detailText = detail || `Reopened at ${stage}`;
 
   // Remove from closed
@@ -594,7 +594,7 @@ function flagForReview(dir, opts) {
   data.flagged.push({
     company: opts.company || 'Unknown',
     title: opts.title || 'Unknown role',
-    detectedAt: opts.detectedAt || new Date().toISOString().slice(0, 10),
+    detectedAt: opts.detectedAt || getTodayUtc(),
     signal: opts.signal || null,
     status: opts.status || null,
     sender: opts.sender || null,
@@ -640,7 +640,7 @@ function markStatusChanged(dir, opts) {
   }
 
   const query = company.toLowerCase();
-  const detectedAt = opts.detectedAt || new Date().toISOString().slice(0, 10);
+  const detectedAt = opts.detectedAt || getTodayUtc();
   const detail = `scan-email detected ${opts.atsSender} ${status.toLowerCase()} (msg-id: ${opts.msgId})`;
 
   if (status === 'Rejected') {
@@ -712,7 +712,7 @@ function addNote(dir, { company, note }) {
   const data = parseApplicationsFile(filePath);
   const entry = findApplication(data, company);
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = getTodayUtc();
 
   entry.notes = entry.notes ? `${entry.notes}; ${note}` : note;
   entry.lastActivity = { date: today, detail: note };
@@ -731,7 +731,7 @@ function staleApplications(dir, opts = {}) {
     throw new Error(`staleApplications: warn (${opts.warn}) must be less than alert (${opts.alert})`);
   }
 
-  const today = opts.today || new Date().toISOString().slice(0, 10);
+  const today = opts.today || getTodayUtc();
   const filePath = resolveStateFile(dir, 'applications');
   if (!filePath) {
     throw new Error(`No applications file found in ${dir}`);
