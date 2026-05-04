@@ -391,6 +391,9 @@ describe('state.js CLI', () => {
         const { stderr, exitCode } = run('stale-applications applications', { expectError: true, outputDir: empty });
         assert.equal(exitCode, 1);
         assert.match(stderr, /No applications file found/);
+        // Default mode shows message only — no internal stack frames bleed
+        // through to the user. Set DEBUG=1 to opt back into stacks.
+        assert.doesNotMatch(stderr, /at \w+ \(/);
       } finally {
         fs.rmSync(empty, { recursive: true, force: true });
       }

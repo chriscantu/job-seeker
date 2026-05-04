@@ -166,7 +166,13 @@ function main() {
         usage();
     }
   } catch (err) {
-    console.error(err.stack || err.message);
+    // Default: clean message only (CLI users shouldn't see internal frames).
+    // Set DEBUG=1 to get the full stack for troubleshooting.
+    if (process.env.DEBUG) {
+      console.error(err.stack || err.message);
+    } else {
+      console.error(err.message || String(err));
+    }
     process.exit(1);
   }
 }
