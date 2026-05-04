@@ -10,6 +10,13 @@ function assertDate(label, value) {
   if (typeof value !== 'string' || !DATE_RE.test(value)) {
     throw new Error(`daysBetween: ${label} must be YYYY-MM-DD, got ${value}`);
   }
+  const y = +value.slice(0, 4);
+  const m = +value.slice(5, 7);
+  const day = +value.slice(8, 10);
+  const d = new Date(Date.UTC(y, m - 1, day));
+  if (d.toISOString().slice(0, 10) !== value) {
+    throw new Error(`daysBetween: ${label} must be YYYY-MM-DD, got ${value}`);
+  }
 }
 
 /**
@@ -18,8 +25,8 @@ function assertDate(label, value) {
  * is positive when `toDate` is later, zero when equal, negative when
  * earlier. Throws if either input is not a YYYY-MM-DD string.
  *
- * @param {string} fromDate Earlier-or-equal date in YYYY-MM-DD.
- * @param {string} toDate   Later-or-equal date in YYYY-MM-DD.
+ * @param {string} fromDate Reference date in YYYY-MM-DD.
+ * @param {string} toDate   Comparison date in YYYY-MM-DD; result is toDate − fromDate (signed).
  * @returns {number}        Integer days; toDate − fromDate.
  */
 function daysBetween(fromDate, toDate) {
