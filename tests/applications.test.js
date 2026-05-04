@@ -1319,6 +1319,18 @@ describe('daysBetween', () => {
   it('handles non-leap-year February correctly (2025)', () => {
     assert.equal(daysBetween('2025-02-28', '2025-03-01'), 1);
   });
+
+  it('throws on invalid month (13)', () => {
+    assert.throws(() => daysBetween('2026-13-01', '2026-05-04'), /YYYY-MM-DD/);
+  });
+
+  it('throws on invalid day (Feb 30)', () => {
+    assert.throws(() => daysBetween('2026-02-30', '2026-05-04'), /YYYY-MM-DD/);
+  });
+
+  it('throws on Feb 29 in non-leap year', () => {
+    assert.throws(() => daysBetween('2025-02-29', '2025-03-01'), /YYYY-MM-DD/);
+  });
 });
 
 describe('staleApplications', () => {

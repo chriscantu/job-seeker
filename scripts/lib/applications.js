@@ -10,6 +10,13 @@ function assertDate(label, value) {
   if (typeof value !== 'string' || !DATE_RE.test(value)) {
     throw new Error(`daysBetween: ${label} must be YYYY-MM-DD, got ${value}`);
   }
+  const y = +value.slice(0, 4);
+  const m = +value.slice(5, 7);
+  const day = +value.slice(8, 10);
+  const d = new Date(Date.UTC(y, m - 1, day));
+  if (d.toISOString().slice(0, 10) !== value) {
+    throw new Error(`daysBetween: ${label} must be YYYY-MM-DD, got ${value}`);
+  }
 }
 
 /**
