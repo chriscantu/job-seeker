@@ -1,6 +1,9 @@
 #!/usr/bin/env fish
 # Usage: render-resume.fish <markdown-path> <template-path> <output-path>
-# Renders markdown to docx via pandoc using the reference template.
+# Renders markdown to docx via pandoc using the reference template, then
+# applies post-render fixups (TS module: src/resume-tailor/post-render-fixups.ts)
+# to inject styling pandoc doesn't emit reliably (centering, color cascade,
+# Babylon page break, bookmark strip).
 # Exit codes: 0 success | 1 missing arg or input file | 2 pandoc non-zero exit | 3 pandoc produced no output | 4 pandoc not installed
 
 if test (count $argv) -lt 3
@@ -27,9 +30,8 @@ if not test -f "$template"
     exit 1
 end
 
-set lua_filter (dirname (status filename))/strip-bookmarks.lua
 set tmperr (mktemp)
-pandoc "$md" --reference-doc="$template" --lua-filter="$lua_filter" -o "$out" 2> "$tmperr"
+pandoc "$md" --reference-doc="$template" -o "$out" 2> "$tmperr"
 set pandoc_status $status
 
 if test $pandoc_status -ne 0
@@ -45,24 +47,7 @@ if not test -f "$out"
     exit 3
 end
 
-# Post-process: force explicit centering on Tagline + SkillsLine paragraphs.
-# Pandoc emits <w:pPr><w:pStyle .../></w:pPr> without explicit jc, and some
-# Word readers don't apply the style's jc=center reliably on paragraphs that
-# contain <w:br/> line breaks. Inject the alignment directly.
-set tmpdir (mktemp -d)
-unzip -q "$out" -d "$tmpdir"
-set doc "$tmpdir/word/document.xml"
-sed -i '' \
-    -e 's|<w:pStyle w:val="Tagline" /></w:pPr>|<w:pStyle w:val="Tagline" /><w:jc w:val="center" /></w:pPr>|g' \
-    -e 's|<w:pStyle w:val="Contact" /></w:pPr>|<w:pStyle w:val="Contact" /><w:jc w:val="center" /></w:pPr>|g' \
-    -e 's|<w:rPr><w:b /><w:bCs /></w:rPr>|<w:rPr><w:b /><w:bCs /><w:color w:val="153D63" /></w:rPr>|g' \
-    "$doc"
-
-set fixups_script (dirname (status filename))/post-render-fixups.py
-python3 "$fixups_script" "$doc"
-set tmp_out (mktemp -u).docx
-cd "$tmpdir"; zip -qr -X "$tmp_out" . -x ".*"; cd -
-mv "$tmp_out" "$out"
-rm -rf "$tmpdir"
+set fixups_module (dirname (status filename))/../src/resume-tailor/post-render-fixups.ts
+bun run "$fixups_module" "$out"
 
 exit 0

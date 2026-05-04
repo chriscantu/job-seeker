@@ -105,8 +105,12 @@ function parseKeyAccomplishmentLine(line: string): KeyAccomplishment {
   }
   return {
     label: match[1].trim(),
-    description: match[2].trim().replace(/\.$/, ''),
+    description: stripTrailingPeriod(match[2].trim()),
   };
+}
+
+function stripTrailingPeriod(text: string): string {
+  return text.replace(/\.$/, '');
 }
 
 function parseSkills(section: string): string[] {
@@ -172,9 +176,13 @@ function parseFlatBullets(lines: string[]): Bullet[] {
 }
 
 function parseBullet(line: string): Bullet {
-  const text = line.trim().replace(/^- /, '').trim().replace(/\.$/, '');
+  const text = stripTrailingPeriod(stripBulletMarker(line));
   if (!text) throw new Error('bullet missing text');
   return { text };
+}
+
+function stripBulletMarker(line: string): string {
+  return line.trim().replace(/^- /, '').trim();
 }
 
 function parseEducation(section: string) {
