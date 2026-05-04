@@ -1,8 +1,20 @@
-const ATS_SENDERS = {
+export type AtsName = 'greenhouse' | 'lever' | 'ashby';
+export type ClassifierStatus = 'Offer' | 'Rejected' | 'Interview' | 'Applied';
+export type ClassifierTier = 'HIGH' | 'MEDIUM' | 'LOW';
+export type MatchMethod = 'url' | 'name' | 'none';
+export type EntrySection = 'active' | 'closed' | 'flagged';
+
+export const ATS_SENDERS: Record<AtsName, RegExp[]> = {
   greenhouse: [/@greenhouse\.io$/i, /@greenhouse-mail\.io$/i],
   lever: [/@lever\.co$/i],
   ashby: [/@ashbyhq\.com$/i],
 };
+
+interface SignalRule {
+  status: ClassifierStatus;
+  priority: number;
+  patterns: RegExp[];
+}
 
 // Priority 1 (highest) wins if multiple match.
 //
@@ -14,7 +26,7 @@ const ATS_SENDERS = {
 // only carry soft phrases fall to LOW / Flagged for Review rather than
 // auto-applying a wrong status. Lone /unfortunately/ is also removed — on its
 // own it is ambiguous ("Unfortunately we need to reschedule your interview").
-const SIGNAL_RULES = [
+export const SIGNAL_RULES: SignalRule[] = [
   {
     status: 'Offer',
     priority: 1,
@@ -50,17 +62,23 @@ const SIGNAL_RULES = [
   },
 ];
 
-function matchAtsSender(sender) {
+export function matchAtsSender(sender: string | null | undefined): AtsName | null {
   if (!sender) return null;
-  for (const [name, patterns] of Object.entries(ATS_SENDERS)) {
+  for (const [name, patterns] of Object.entries(ATS_SENDERS) as [AtsName, RegExp[]][]) {
     if (patterns.some(re => re.test(sender))) return name;
   }
   return null;
 }
 
-function extractSignal({ subject, body }) {
+export interface ExtractedSignal {
+  priority: number;
+  status: ClassifierStatus;
+  signal: string;
+}
+
+export function extractSignal({ subject, body }: { subject?: string; body?: string }): ExtractedSignal | null {
   const haystack = `${subject || ''}\n${body || ''}`;
-  let best = null; // { priority, status, signal }
+  let best: ExtractedSignal | null = null;
   for (const rule of SIGNAL_RULES) {
     for (const re of rule.patterns) {
       const m = haystack.match(re);
@@ -74,7 +92,7 @@ function extractSignal({ subject, body }) {
 
 const URL_RE = /https?:\/\/[^\s<>"')]+/gi;
 
-function normalizeUrl(url) {
+export function normalizeUrl(url: string | null | undefined): string | null {
   if (!url) return null;
   try {
     const u = new URL(url);
@@ -86,10 +104,28 @@ function normalizeUrl(url) {
   }
 }
 
-function extractUrls(body) {
+export function extractUrls(body: string | null | undefined): string[] {
   if (!body) return [];
   const matches = body.match(URL_RE) || [];
-  return matches.map(normalizeUrl).filter(Boolean);
+  return matches.map(normalizeUrl).filter((u): u is string => Boolean(u));
+}
+
+interface MatchableEntry {
+  company: string;
+  title?: string | null;
+  url?: string | null;
+  stage?: string | null;
+}
+
+export interface ApplicationsData {
+  active?: MatchableEntry[];
+  closed?: MatchableEntry[];
+  flagged?: unknown[];
+}
+
+interface MatchPair {
+  entry: MatchableEntry;
+  section: EntrySection;
 }
 
 // Iterates active and closed entries with their section label. Flagged
@@ -100,12 +136,12 @@ function extractUrls(body) {
 // or closed; match only against those. Order matters: active is preferred
 // so a follow-up email to an active-but-also-previously-closed company
 // picks the active entry first.
-function* entriesForMatching(applicationsData) {
+function* entriesForMatching(applicationsData: ApplicationsData): Generator<MatchPair> {
   for (const e of applicationsData.active || []) yield { entry: e, section: 'active' };
   for (const e of applicationsData.closed || []) yield { entry: e, section: 'closed' };
 }
 
-function matchByUrl(body, applicationsData) {
+export function matchByUrl(body: string | null | undefined, applicationsData: ApplicationsData): MatchPair | null {
   const bodyUrls = new Set(extractUrls(body));
   if (bodyUrls.size === 0) return null;
   for (const pair of entriesForMatching(applicationsData)) {
@@ -115,7 +151,7 @@ function matchByUrl(body, applicationsData) {
   return null;
 }
 
-function normalizeName(name) {
+export function normalizeName(name: string | null | undefined): string | null {
   if (!name) return null;
   return name
     .toLowerCase()
@@ -124,7 +160,13 @@ function normalizeName(name) {
     .trim();
 }
 
-function extractCompanyFromSender({ sender, senderName, subject }) {
+export interface CompanyExtractionInput {
+  sender?: string | null;
+  senderName?: string | null;
+  subject?: string | null;
+}
+
+export function extractCompanyFromSender({ sender, senderName, subject }: CompanyExtractionInput): string | null {
   // Prefer senderName display (strip "via Lever" / "Talent Acquisition" / etc.).
   if (senderName) {
     const cleaned = senderName
@@ -155,7 +197,7 @@ function extractCompanyFromSender({ sender, senderName, subject }) {
   return null;
 }
 
-function matchByName({ sender, senderName, subject }, applicationsData) {
+export function matchByName({ sender, senderName, subject }: CompanyExtractionInput, applicationsData: ApplicationsData): MatchPair | null {
   const rawName = extractCompanyFromSender({ sender, senderName, subject });
   if (!rawName) return null;
   const normalized = normalizeName(rawName);
@@ -167,10 +209,18 @@ function matchByName({ sender, senderName, subject }, applicationsData) {
   return null;
 }
 
+export interface ProjectedMatch {
+  company: string;
+  title: string | null | undefined;
+  url: string | null;
+  stage: string | null | undefined;
+  section: EntrySection;
+}
+
 // Projects a parsed applications.md entry to the minimal shape callers need,
 // and freezes it so a caller can't mutate the pipeline through the classifier
 // result reference.
-function projectMatch(pair) {
+function projectMatch(pair: MatchPair | null): Readonly<ProjectedMatch> | null {
   if (!pair) return null;
   return Object.freeze({
     company: pair.entry.company,
@@ -181,7 +231,26 @@ function projectMatch(pair) {
   });
 }
 
-function classifyStatusEmail(input) {
+export interface ClassifyStatusEmailInput {
+  sender: string;
+  senderName?: string | null;
+  subject?: string | null;
+  body?: string | null;
+  msgId?: string;
+  applicationsData?: ApplicationsData;
+}
+
+export interface ClassifyStatusEmailResult {
+  tier: ClassifierTier;
+  status: ClassifierStatus | null;
+  matchMethod: MatchMethod;
+  signal: string | null;
+  atsSender: AtsName;
+  matchedEntry: Readonly<ProjectedMatch> | null;
+  msgId?: string;
+}
+
+export function classifyStatusEmail(input: ClassifyStatusEmailInput): Readonly<ClassifyStatusEmailResult> | null {
   if (!input || typeof input !== 'object') {
     throw new TypeError('classifyStatusEmail: input must be an object');
   }
@@ -195,15 +264,15 @@ function classifyStatusEmail(input) {
   const atsSender = matchAtsSender(sender);
   if (!atsSender) return null;
 
-  const sig = extractSignal({ subject, body });
-  const data = applicationsData || { active: [], closed: [], flagged: [] };
+  const sig = extractSignal({ subject: subject ?? undefined, body: body ?? undefined });
+  const data: ApplicationsData = applicationsData || { active: [], closed: [], flagged: [] };
 
   const urlMatch = matchByUrl(body, data);
   const nameMatch = urlMatch ? null : matchByName({ sender, senderName, subject }, data);
 
-  let tier = 'LOW';
-  let matchMethod = 'none';
-  let matchedEntry = null;
+  let tier: ClassifierTier = 'LOW';
+  let matchMethod: MatchMethod = 'none';
+  let matchedEntry: Readonly<ProjectedMatch> | null = null;
 
   if (urlMatch) {
     matchMethod = 'url';
@@ -225,17 +294,3 @@ function classifyStatusEmail(input) {
     msgId,
   });
 }
-
-module.exports = {
-  classifyStatusEmail,
-  ATS_SENDERS,
-  SIGNAL_RULES,
-  matchAtsSender,
-  extractSignal,
-  normalizeUrl,
-  extractUrls,
-  matchByUrl,
-  normalizeName,
-  extractCompanyFromSender,
-  matchByName,
-};

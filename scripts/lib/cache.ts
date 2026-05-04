@@ -1,18 +1,26 @@
-const fs = require('fs');
-const path = require('path');
-const { atomicWriteFileSync, ensureDir } = require('./util');
+import * as fs from 'fs';
+import * as path from 'path';
+import { atomicWriteFileSync, ensureDir } from './util';
 
-const CACHE_TTL_MS = 2 * 60 * 60 * 1000; // 2 hours
+export const CACHE_TTL_MS = 2 * 60 * 60 * 1000; // 2 hours
 
-function cacheDir(outputDir) {
+export interface CacheEntry {
+  skill: string;
+  phase: string;
+  cached_at: string;
+  expires_at: string;
+  data: unknown;
+}
+
+export function cacheDir(outputDir: string): string {
   return path.join(outputDir, '.cache');
 }
 
-function cacheFilePath(outputDir, skill, phase) {
+export function cacheFilePath(outputDir: string, skill: string, phase: string): string {
   return path.join(cacheDir(outputDir), `${skill}-${phase}.json`);
 }
 
-function writeCache(outputDir, skill, phase, data) {
+export function writeCache(outputDir: string, skill: string, phase: string, data: unknown): void {
   if (!skill || typeof skill !== 'string') throw new Error('skill is required');
   if (!phase || typeof phase !== 'string') throw new Error('phase is required');
   if (data === null || data === undefined) throw new Error('data is required');
@@ -21,7 +29,7 @@ function writeCache(outputDir, skill, phase, data) {
   ensureDir(dir);
 
   const now = new Date();
-  const content = {
+  const content: CacheEntry = {
     skill,
     phase,
     cached_at: now.toISOString(),
@@ -32,16 +40,16 @@ function writeCache(outputDir, skill, phase, data) {
   atomicWriteFileSync(cacheFilePath(outputDir, skill, phase), JSON.stringify(content, null, 2));
 }
 
-function readCache(outputDir, skill, phase) {
+export function readCache(outputDir: string, skill: string, phase: string): CacheEntry | null {
   const filePath = cacheFilePath(outputDir, skill, phase);
-  let raw;
+  let raw: string;
   try {
     raw = fs.readFileSync(filePath, 'utf8');
   } catch {
     return null;
   }
 
-  let content;
+  let content: CacheEntry;
   try {
     content = JSON.parse(raw);
   } catch {
@@ -54,15 +62,15 @@ function readCache(outputDir, skill, phase) {
   return content;
 }
 
-function listCaches(outputDir, skill) {
+export function listCaches(outputDir: string, skill?: string): CacheEntry[] {
   const dir = cacheDir(outputDir);
   if (!fs.existsSync(dir)) return [];
 
   const files = fs.readdirSync(dir).filter(f => f.endsWith('.json'));
-  const entries = [];
+  const entries: CacheEntry[] = [];
 
   for (const file of files) {
-    let content;
+    let content: CacheEntry;
     try {
       const raw = fs.readFileSync(path.join(dir, file), 'utf8');
       content = JSON.parse(raw);
@@ -76,7 +84,7 @@ function listCaches(outputDir, skill) {
   return entries;
 }
 
-function cleanCaches(outputDir, skill) {
+export function cleanCaches(outputDir: string, skill?: string): number {
   const dir = cacheDir(outputDir);
   if (!fs.existsSync(dir)) return 0;
 
@@ -85,7 +93,7 @@ function cleanCaches(outputDir, skill) {
 
   for (const file of files) {
     if (skill) {
-      let content;
+      let content: CacheEntry;
       try {
         const raw = fs.readFileSync(path.join(dir, file), 'utf8');
         content = JSON.parse(raw);
@@ -100,5 +108,3 @@ function cleanCaches(outputDir, skill) {
 
   return count;
 }
-
-module.exports = { writeCache, readCache, listCaches, cleanCaches, cacheDir, cacheFilePath, CACHE_TTL_MS };

@@ -1,35 +1,25 @@
-// scripts/lib/trash-tables.js
+// scripts/lib/trash-tables.ts
 //
 // Parser for the three "auto-trash" tables in config/search.md that
 // scan-email Phase 6 Step 1 reads to build its sender-pattern list.
-//
-// Shared between scripts/auto_trash_inbox.js (the runtime CLI) and
-// tests/auto-trash-tables.test.js (the schema contract test). A single
-// parser means a schema regression blows up in tests before it can
-// silently drop senders at runtime.
-//
-// Issue context:
-//   - #86 / #87: LinkedIn job alerts were leaking because Phase 6 Step 2
-//     (body-fetch trash-by-id) only caught body-fetched candidates. Fixed
-//     by adding the "Job Alert Senders to Auto-Trash After Scan" table.
-//   - #88: Ladders + Lensa + LinkedIn connection invites were accumulating
-//     in the inbox because Phase 6 Step 1 was an LLM-driven "read these
-//     markdown tables, concatenate, shell out" sequence that could be
-//     silently skipped or mis-executed. Fixed by making this lib + the
-//     auto_trash_inbox.js CLI the single deterministic path.
 
-const fs = require('fs');
+import * as fs from 'fs';
 
-const TABLE_HEADINGS = [
+export const TABLE_HEADINGS = [
   'Staffing/Aggregator Company Exclusions',
   'Marketing / Non-Job-Search Senders to Auto-Trash',
   'Job Alert Senders to Auto-Trash After Scan',
 ];
 
+export interface TrashTableEntry {
+  name: string;
+  pattern: string;
+}
+
 // Extract the "Trash Sender Substring" column (always the last cell of
 // each data row) from the first markdown table that follows the given
 // heading. Returns an array of substrings in document order.
-function extractTableSubstrings(markdown, headingText) {
+export function extractTableSubstrings(markdown: string, headingText: string): string[] {
   const headingIdx = markdown.indexOf(`## ${headingText}`);
   if (headingIdx === -1) {
     throw new Error(`Heading not found: ## ${headingText}`);
@@ -52,7 +42,7 @@ function extractTableSubstrings(markdown, headingText) {
         .filter((c) => c.length > 0);
       return cells[cells.length - 1];
     })
-    .filter((s) => s && s.length > 0);
+    .filter((s): s is string => Boolean(s) && s.length > 0);
 }
 
 // Derive iCloud "Hide My Email" relay variants for sender patterns.
@@ -60,20 +50,14 @@ function extractTableSubstrings(markdown, headingText) {
 // turning every `.` into `_` and every `@` into `_at_`. A configured pattern
 // like `topresume.com` won't match the relay address `topresume_com_xxx@icloud.com`
 // unless we also search for `topresume_com`.
-//
-// Returns the input array followed by any new variants, deduplicated.
-// Originals always appear before derived variants to preserve table order.
-// Patterns without `.` produce no variant (no transformation needed).
-function deriveRelayVariants(substrings) {
-  const variants = [];
+export function deriveRelayVariants(substrings: string[]): string[] {
+  const variants: string[] = [];
   const seen = new Set(substrings);
   for (const s of substrings) {
-    let variant = null;
+    let variant: string | null = null;
     if (s.includes('@') && s.includes('.')) {
-      // invitations@linkedin.com → invitations_at_linkedin_com
       variant = s.replace(/@/g, '_at_').replace(/\./g, '_');
     } else if (s.includes('.')) {
-      // topresume.com → topresume_com
       variant = s.replace(/\./g, '_');
     }
     if (variant !== null && !seen.has(variant)) {
@@ -85,13 +69,9 @@ function deriveRelayVariants(substrings) {
 }
 
 // Extract all substrings from all three auto-trash tables, in table order.
-// Throws if any heading is missing OR if any named table has zero data rows
-// — both are hard contracts, not warnings, because Phase 6 Step 1 silently
-// dropping a whole table is exactly the failure mode issue #88 was about,
-// and an emptied data section is issue #88 at the config layer (see #90
-// finding 2).
-function extractAllTrashSubstrings(markdown) {
-  const result = [];
+// Throws if any heading is missing OR if any named table has zero data rows.
+export function extractAllTrashSubstrings(markdown: string): string[] {
+  const result: string[] = [];
   for (const heading of TABLE_HEADINGS) {
     const substrings = extractTableSubstrings(markdown, heading);
     if (substrings.length === 0) {
@@ -113,7 +93,7 @@ function extractAllTrashSubstrings(markdown) {
 // splits its input on commas, so a substring containing a literal comma
 // would be silently split into two bogus patterns. Returns the offending
 // substring or null if the list is clean.
-function findSubstringWithComma(substrings) {
+export function findSubstringWithComma(substrings: string[]): string | null {
   for (const s of substrings) {
     if (s.includes(',')) return s;
   }
@@ -121,11 +101,8 @@ function findSubstringWithComma(substrings) {
 }
 
 // Append new rows to a specific auto-trash table in search.md.
-// Each entry is { name: string, pattern: string }.
-// Finds the table by heading, locates the last data row, and inserts
-// new rows after it (before the next heading or EOF).
 // WARNING: mutates the file at filePath in-place.
-function appendToTrashTable(filePath, headingText, entries) {
+export function appendToTrashTable(filePath: string, headingText: string, entries: TrashTableEntry[]): void {
   if (!entries || entries.length === 0) return;
   for (const e of entries) {
     if (!e.name || !e.pattern) {
@@ -154,13 +131,11 @@ function appendToTrashTable(filePath, headingText, entries) {
   }
   const afterHeading = content.slice(headingIdx);
   const nextHeadingMatch = afterHeading.match(/\n## (?!$)/m);
-  const sectionEnd = nextHeadingMatch
+  const sectionEnd = nextHeadingMatch && nextHeadingMatch.index !== undefined
     ? headingIdx + nextHeadingMatch.index
     : content.length;
 
-  // Find the last data row (line starting with |, excluding the header
-  // row and separator rows). The header is the first non-separator pipe
-  // row — skip it so we only track data rows.
+  // Find the last data row.
   const section = content.slice(headingIdx, sectionEnd);
   const lines = section.split('\n');
   let lastTableLineOffset = -1;
@@ -193,12 +168,3 @@ function appendToTrashTable(filePath, headingText, entries) {
 
   fs.writeFileSync(filePath, updated);
 }
-
-module.exports = {
-  TABLE_HEADINGS,
-  extractTableSubstrings,
-  extractAllTrashSubstrings,
-  findSubstringWithComma,
-  deriveRelayVariants,
-  appendToTrashTable,
-};
