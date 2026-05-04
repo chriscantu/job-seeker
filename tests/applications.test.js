@@ -18,6 +18,8 @@ const {
   reopenApplication,
   flagForReview,
   markStatusChanged,
+  daysBetween,
+  staleApplications,
 } = require('../scripts/lib/applications');
 
 const FIXTURES = path.join(__dirname, 'fixtures');
@@ -1281,5 +1283,32 @@ format_version: 1
         /matchedEntry\.section is required/
       );
     });
+  });
+});
+
+describe('daysBetween', () => {
+  it('returns 0 for same date', () => {
+    assert.equal(daysBetween('2026-05-04', '2026-05-04'), 0);
+  });
+
+  it('returns positive integer days for later "to" date', () => {
+    assert.equal(daysBetween('2026-04-20', '2026-05-04'), 14);
+  });
+
+  it('returns negative for earlier "to" date', () => {
+    assert.equal(daysBetween('2026-05-04', '2026-04-20'), -14);
+  });
+
+  it('handles month boundaries', () => {
+    assert.equal(daysBetween('2026-04-30', '2026-05-02'), 2);
+  });
+
+  it('handles year boundaries', () => {
+    assert.equal(daysBetween('2025-12-31', '2026-01-02'), 2);
+  });
+
+  it('throws on invalid input', () => {
+    assert.throws(() => daysBetween('2026-05', '2026-05-04'), /YYYY-MM-DD/);
+    assert.throws(() => daysBetween(null, '2026-05-04'), /YYYY-MM-DD/);
   });
 });

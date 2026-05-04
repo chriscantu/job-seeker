@@ -4,6 +4,21 @@ const { resolveStateFile, atomicWriteFileSync, ensureDir } = require('./util');
 const { validateApplicationEntry, VALID_STAGES } = require('./validators');
 const { parseFrontmatter, serializeFrontmatter } = require('./frontmatter');
 
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+function daysBetween(fromDate, toDate) {
+  if (typeof fromDate !== 'string' || !DATE_RE.test(fromDate)) {
+    throw new Error(`daysBetween: fromDate must be YYYY-MM-DD, got ${fromDate}`);
+  }
+  if (typeof toDate !== 'string' || !DATE_RE.test(toDate)) {
+    throw new Error(`daysBetween: toDate must be YYYY-MM-DD, got ${toDate}`);
+  }
+  const MS_PER_DAY = 86_400_000;
+  const from = Date.UTC(+fromDate.slice(0, 4), +fromDate.slice(5, 7) - 1, +fromDate.slice(8, 10));
+  const to = Date.UTC(+toDate.slice(0, 4), +toDate.slice(5, 7) - 1, +toDate.slice(8, 10));
+  return Math.round((to - from) / MS_PER_DAY);
+}
+
 const HEADING_RE = /^### (.+?) — (.+)$/;
 const KEY_VALUE_RE = /^- \*\*(.+?)\*\*:\s*(.*)$/;
 const HISTORY_RE = /^- (\d{4}-\d{2}-\d{2}):\s*(.+?)\s*—\s*(.+)$/;
@@ -698,4 +713,5 @@ module.exports = {
   addNote,
   flagForReview,
   markStatusChanged,
+  daysBetween,
 };
