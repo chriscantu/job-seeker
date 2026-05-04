@@ -293,7 +293,7 @@ bun scripts/state.js mark-status-changed applications "$CLASSIFIER_JSON"
 - Non-zero exit + stderr — surface the error, do NOT silently continue the batch.
 - `{success: true, skipped: false}` — applications.md was mutated.
 - `{success: true, skipped: true, reason: "msg-id already processed"}` — re-run idempotency; safe to ignore.
-- `{success: true, skipped: true, reason: "matched closed entry"}` — courtesy email for an already-closed app; safe to ignore, but log to the user so they know why Gate 2 approvals sometimes don't produce writes.
+- `{success: true, skipped: true, reason: "matched closed entry"}` OR `{… reason: "matched flagged entry"}` — courtesy email for an app the user already handled (closed manually, or earlier flagged-for-review); the reason takes the form `matched <section> entry` where `<section>` is `closed` or `flagged`. Safe to ignore in either case, but log to the user so they know why Gate 2 approvals sometimes don't produce writes.
 - `{success: true, skipped: false}` with a new flagged entry appearing in `## Flagged for Review` — the Active entry disappeared mid-batch; surface this to the user as a pipeline-integrity warning.
 
 ### Write Flagged for Review entries (LOW tier)
