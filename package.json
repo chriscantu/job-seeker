@@ -25,5 +25,9 @@
     "docx": "^9.6.1",
     "googleapis": "^171.4.0",
     "pdfkit": "^0.17.2"
+  },
+  "devDependencies": {
+    "@types/node": "^25.6.0",
+    "typescript": "^6.0.3"
   }
 }
