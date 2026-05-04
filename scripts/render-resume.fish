@@ -54,6 +54,7 @@ unzip -q "$out" -d "$tmpdir"
 set doc "$tmpdir/word/document.xml"
 sed -i '' \
     -e 's|<w:pStyle w:val="Tagline" /></w:pPr>|<w:pStyle w:val="Tagline" /><w:jc w:val="center" /></w:pPr>|g' \
+    -e 's|<w:pStyle w:val="Contact" /></w:pPr>|<w:pStyle w:val="Contact" /><w:jc w:val="center" /></w:pPr>|g' \
     "$doc"
 set tmp_out (mktemp -u).docx
 cd "$tmpdir"; zip -qr -X "$tmp_out" . -x ".*"; cd -
