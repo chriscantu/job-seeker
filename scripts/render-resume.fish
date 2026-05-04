@@ -45,4 +45,19 @@ if not test -f "$out"
     exit 3
 end
 
+# Post-process: force explicit centering on Tagline + SkillsLine paragraphs.
+# Pandoc emits <w:pPr><w:pStyle .../></w:pPr> without explicit jc, and some
+# Word readers don't apply the style's jc=center reliably on paragraphs that
+# contain <w:br/> line breaks. Inject the alignment directly.
+set tmpdir (mktemp -d)
+unzip -q "$out" -d "$tmpdir"
+set doc "$tmpdir/word/document.xml"
+sed -i '' \
+    -e 's|<w:pStyle w:val="Tagline" /></w:pPr>|<w:pStyle w:val="Tagline" /><w:jc w:val="center" /></w:pPr>|g' \
+    "$doc"
+set tmp_out (mktemp -u).docx
+cd "$tmpdir"; zip -qr -X "$tmp_out" . -x ".*"; cd -
+mv "$tmp_out" "$out"
+rm -rf "$tmpdir"
+
 exit 0

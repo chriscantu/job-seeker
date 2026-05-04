@@ -7,7 +7,7 @@ canonical_version: 2026-05-03
 
 ::: {custom-style="Tagline"}
 **Senior Engineering Leader | Delivery Transformation Specialist**\
-christopher.cantu@gmail.com | Austin, TX | https://www.linkedin.com/in/christophercantu
+christopher.cantu@gmail.com | https://www.linkedin.com/in/christophercantu
 :::
 
 ::: {custom-style="BodyTextSummary"}
@@ -26,7 +26,7 @@ Senior Engineering Leader specializing in delivery transformation at post-IPO an
 ## Skills
 
 ::: {custom-style="SkillsLine"}
-Delivery Transformation | Multinational Team Leadership | Engineering Strategy | Cost Optimization | Strategic Technology Planning | Stakeholder Management | OKRs | ShapeUp | Agile | Platform Engineering | Design Systems | Micro-Frontends | Monolith-to-Microservices Migration | System Architecture | CI/CD Optimization | Quality Automation | Feature Flags | Progressive Rollouts | Chaos Engineering | Observability | SRE | Performance Testing | Platform Automation | Frontend Frameworks | TypeScript | JavaScript | GraphQL | Node.js | AWS | Accessibility (WCAG) | A/B Testing | Automated Testing | GitHub | Jenkins | Docker | Kubernetes | Terraform | Datadog | Grafana
+Delivery Transformation | Multinational Team Leadership | Engineering Strategy | Platform Engineering | CI/CD Optimization | Strategic Technology Planning | System Architecture | Design Systems | Quality Automation | Observability
 :::
 
 ## Professional Experience

@@ -35,7 +35,7 @@ describe('parseCanonicalResume', () => {
   test('parses skills as array', () => {
     const ast = parseCanonicalResume(fixture);
     expect(Array.isArray(ast.skills)).toBe(true);
-    expect(ast.skills.length).toBeGreaterThan(10);
+    expect(ast.skills.length).toBe(10);
     expect(ast.skills).toContain('Delivery Transformation');
   });
 
