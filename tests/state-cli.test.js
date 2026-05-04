@@ -466,4 +466,24 @@ describe('state.js CLI', () => {
       assert.match(stderr, /only supported for applications/);
     });
   });
+
+  describe('infer-stage', () => {
+    it('returns the stage as JSON for a recognized phrase', () => {
+      const { stdout } = run(`infer-stage applications --from "phone screen tomorrow"`);
+      const result = JSON.parse(stdout);
+      assert.equal(result.stage, 'Screen');
+    });
+
+    it('returns null stage for unrecognized phrases', () => {
+      const { stdout } = run(`infer-stage applications --from "the weather is nice"`);
+      const result = JSON.parse(stdout);
+      assert.equal(result.stage, null);
+    });
+
+    it('rejects missing --from', () => {
+      const { stderr, exitCode } = run('infer-stage applications', { expectError: true });
+      assert.equal(exitCode, 1);
+      assert.match(stderr, /--from/);
+    });
+  });
 });

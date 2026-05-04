@@ -14,6 +14,7 @@
 //   bun scripts/state.js stale-applications applications [--today YYYY-MM-DD] [--warn N] [--alert N]
 //   bun scripts/state.js flag-for-review applications '{...}'
 //   bun scripts/state.js mark-status-changed applications '{...}'
+//   bun scripts/state.js infer-stage applications --from "<text>"
 //
 // Exit codes: 0 = success, 1 = error (message on stderr)
 // Output: JSON on stdout
@@ -22,6 +23,7 @@ const path = require('path');
 const seenPostings = require('./lib/seen-postings');
 const preferences = require('./lib/preferences');
 const applications = require('./lib/applications');
+const { inferStage } = require('./lib/stage-inference');
 const { resolveStateFile } = require('./lib/util');
 
 const ROOT = path.resolve(__dirname, '..');
@@ -47,6 +49,7 @@ Commands:
   stale-applications applications [--today YYYY-MM-DD] [--warn N] [--alert N]  Active entries enriched with daysSinceLastActivity
   flag-for-review applications '<json>'  Append a flagged-for-review entry
   mark-status-changed applications '<json>'  Apply a status-change classifier result
+  infer-stage applications --from "<text>"  Infer canonical stage from natural-language activity text
 
 Types: seen-postings, preferences, applications
 
@@ -154,6 +157,9 @@ function main() {
         break;
       case 'mark-status-changed':
         handleMarkStatusChanged(type, args[2]);
+        break;
+      case 'infer-stage':
+        handleInferStage(args.slice(2));
         break;
       default:
         console.error(`Unknown command: ${command}`);
@@ -350,6 +356,16 @@ function handleFlag(remainingArgs) {
     process.exit(1);
   }
   console.log(JSON.stringify(result));
+}
+
+function handleInferStage(remainingArgs) {
+  const opts = parseArgs(remainingArgs);
+  if (!opts.from) {
+    console.error('infer-stage requires --from "<text>"');
+    process.exit(1);
+  }
+  const stage = inferStage(opts.from);
+  console.log(JSON.stringify({ stage }));
 }
 
 function handleMarkStatusChanged(type, jsonStr) {
