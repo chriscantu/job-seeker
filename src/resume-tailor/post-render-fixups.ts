@@ -1,12 +1,37 @@
-import { mkdtempSync, rmSync, readFileSync, writeFileSync } from 'node:fs';
+/**
+ * Post-render fixups for the rendered docx — applied after pandoc.
+ *
+ * Pandoc's reference-doc rendering is tolerant of custom paragraph styles
+ * but inconsistently applies inherited run-level properties (color, jc)
+ * when the run has no explicit rPr. Different Word readers (Word, Pages,
+ * LibreOffice) cascade those properties differently. To get a stable
+ * cross-reader result, this module rewrites the rendered word/document.xml
+ * directly: it strips pandoc-emitted heading bookmarks, forces explicit
+ * jc/color on header paragraphs, colors KA-label bold runs, and pins a
+ * page break before the Babylon role.
+ *
+ * Each transform asserts it changed the XML so a pandoc-output-shape drift
+ * (different whitespace, attribute order, namespace prefix) surfaces as a
+ * loud `MissedTransformError` rather than a silent no-op.
+ *
+ * The orchestrator extracts the docx, rewrites document.xml, and repacks
+ * to a temp path before atomically renaming over the input — a failed
+ * `zip` cannot leave the caller with a corrupt docx.
+ */
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 const NAVY = '153D63';
 
 const TAGLINE_PSTYLE = '<w:pStyle w:val="Tagline" />';
-const CONTACT_PSTYLE = '<w:pStyle w:val="Contact" />';
-const HEADING3_PSTYLE = '<w:pStyle w:val="Heading3" />';
 const BOLD_RPR = '<w:rPr><w:b /><w:bCs /></w:rPr>';
 const COLORED_BOLD_RPR = `<w:rPr><w:b /><w:bCs /><w:color w:val="${NAVY}" /></w:rPr>`;
 const JC_CENTER = '<w:jc w:val="center" />';
@@ -23,86 +48,104 @@ const TAGLINE_RUN_PREFIX_RE = /<w:r>(<w:(?:t|br)\b)/g;
 const BOOKMARK_TAG_RE =
   /<w:bookmark(?:Start|End)\b[^/]*\/>|<w:bookmark(?:Start|End)\b[^>]*>[^<]*<\/w:bookmark(?:Start|End)>/g;
 
+export class MissedTransformError extends Error {
+  constructor(name: string) {
+    super(
+      `post-render-fixup '${name}' matched zero — pandoc output may have drifted (whitespace, attribute order, namespace)`,
+    );
+    this.name = 'MissedTransformError';
+  }
+}
+
 /**
- * Strip pandoc-generated heading bookmarks. Pandoc emits a `<w:bookmarkStart>`
- * + `<w:bookmarkEnd>` pair for every heading to support TOC/cross-ref. The
- * resume has neither, so the bookmarks are pure noise (and visible in some
- * Word readers as gray brackets).
+ * Pandoc auto-emits `<w:bookmarkStart>` + `<w:bookmarkEnd>` per heading;
+ * some Word readers render them as gray brackets. The resume has no TOC
+ * or cross-refs so the bookmarks are pure visual noise.
  */
-function stripBookmarks(xml: string): string {
+export function stripBookmarks(xml: string): string {
   return xml.replace(BOOKMARK_TAG_RE, '');
 }
 
 /**
- * Force `<w:jc w:val="center"/>` on Tagline + Contact paragraphs. Pandoc
- * emits these paragraphs with only `<w:pStyle .../>` in pPr, expecting the
- * style to provide alignment. Word's renderer doesn't apply that inherited
- * alignment reliably on paragraphs that contain `<w:br/>` line breaks
- * (specifically the merged tagline+contact). Setting jc directly works
- * around that across Word/Pages/LibreOffice.
+ * Pandoc emits the merged tagline+contact paragraph with only `<w:pStyle/>`
+ * in pPr, expecting the style to provide center alignment. Word's renderer
+ * doesn't apply that inherited alignment reliably when the paragraph
+ * contains `<w:br/>` line breaks — the result is left-justified across
+ * Pages and some Word builds. Setting jc directly works around it.
  */
-function forceCenterOnHeader(xml: string): string {
-  return xml
-    .replaceAll(`${TAGLINE_PSTYLE}</w:pPr>`, `${TAGLINE_PSTYLE}${JC_CENTER}</w:pPr>`)
-    .replaceAll(`${CONTACT_PSTYLE}</w:pPr>`, `${CONTACT_PSTYLE}${JC_CENTER}</w:pPr>`);
+export function forceTaglineCenter(xml: string): string {
+  return xml.replaceAll(`${TAGLINE_PSTYLE}</w:pPr>`, `${TAGLINE_PSTYLE}${JC_CENTER}</w:pPr>`);
 }
 
 /**
- * Color every Key Accomplishment label run navy. Pandoc emits the bold
- * `**Label**` runs with rPr `<w:b/><w:bCs/>` only — no color. The Tagline
- * paragraph style would normally cascade color, but Word doesn't reliably
- * cascade color from a paragraph style onto runs that already have their
- * own (bold-only) rPr. Adding the color directly to the rPr is the
- * cross-reader-stable fix.
+ * Word doesn't cascade paragraph-style color onto runs that already carry
+ * their own (bold-only) rPr — KA labels then ship as default-black across
+ * Word/Pages despite the Tagline parent style being navy. Adding the color
+ * directly to the run rPr gets a stable result.
  *
- * Side effect: every bold-only run in the doc gets navy color. KA labels
- * are the dominant case; other bold runs (Heading3 title) carry their
- * color via pStyle and have no run-level rPr, so they're unaffected.
+ * Side effect: every bold-only run in the doc gets navy. KA labels are
+ * the dominant case today — Heading3 (role title) is bold but inherits
+ * color via pStyle without run-level rPr, so it's unaffected. If a future
+ * bullet introduces inline `**bold phrase**` mid-sentence, that run will
+ * also turn navy; re-scope to KA-paragraph-bounded runs if that becomes
+ * a problem.
  */
-function colorBoldRuns(xml: string): string {
+export function colorBoldRuns(xml: string): string {
   return xml.replaceAll(BOLD_RPR, COLORED_BOLD_RPR);
 }
 
 /**
- * Inject `<w:rPr><w:color w:val="153D63"/></w:rPr>` into every text/break
- * run inside the Tagline paragraph (tagline + contact, joined by
- * `<w:br/>`). Pandoc emits the runs without rPr, expecting Word to inherit
- * color from the Tagline paragraph style. Word's renderer doesn't apply
- * that inherited color consistently across clients.
+ * Inject color rPr on every text/break run inside the Tagline paragraph.
+ * Same cross-reader inheritance bug as forceTaglineCenter — runs without
+ * their own rPr ship as default-black instead of inheriting Tagline navy.
  */
-function forceTaglineColor(xml: string): string {
+export function forceTaglineColor(xml: string): string {
   return xml.replaceAll(TAGLINE_PARAGRAPH_RE, (paragraph) =>
     paragraph.replaceAll(TAGLINE_RUN_PREFIX_RE, `<w:r>${COLOR_RPR_BLOCK}$1`),
   );
 }
 
 /**
- * Force `<w:pageBreakBefore/>` on the Babylon Heading3.
+ * Pin a page break before the Babylon Heading3.
  *
- * Word's keep-with-next on Heading3 + RoleMeta isn't reliably honored when
- * the available space is tight enough for the heading + meta line to
- * barely fit while the first bullet wraps. Hard-pinning the break keeps
- * the section visually intact.
- *
- * Hardcoded to the role-title text "Director of Front-End Platforms". If
- * the role is ever retitled in canonical, this no-ops silently and the
- * Babylon section may end up squeezed onto page 1 again — the failure
- * mode is visually obvious.
+ * Keep-with-next on Heading3 + RoleMeta isn't reliably honored when the
+ * available space barely fits the heading + meta but wraps the first
+ * bullet — the section reads as broken. Hardcoded to the role-title text
+ * "Director of Front-End Platforms"; renaming the role in canonical
+ * surfaces as a `MissedTransformError` rather than a silent layout
+ * regression.
  */
-function forceBabylonPageBreak(xml: string): string {
+export function forceBabylonPageBreak(xml: string): string {
   return xml.replace(
     BABYLON_HEADING3_RE,
     (_, pPrOpen, pStyle, after) => `${pPrOpen}${pStyle}<w:pageBreakBefore/>${after}`,
   );
 }
 
-const PIPELINE: Array<(xml: string) => string> = [
-  stripBookmarks,
-  forceCenterOnHeader,
-  colorBoldRuns,
-  forceTaglineColor,
-  forceBabylonPageBreak,
+type Transform = {
+  readonly name: string;
+  readonly apply: (xml: string) => string;
+};
+
+const PIPELINE: readonly Transform[] = [
+  { name: 'stripBookmarks', apply: stripBookmarks },
+  { name: 'forceTaglineCenter', apply: forceTaglineCenter },
+  { name: 'colorBoldRuns', apply: colorBoldRuns },
+  { name: 'forceTaglineColor', apply: forceTaglineColor },
+  { name: 'forceBabylonPageBreak', apply: forceBabylonPageBreak },
 ];
+
+export function runPipeline(xml: string): string {
+  let current = xml;
+  for (const step of PIPELINE) {
+    const next = step.apply(current);
+    if (next === current) {
+      throw new MissedTransformError(step.name);
+    }
+    current = next;
+  }
+  return current;
+}
 
 async function spawnOrThrow(cmd: string[], cwd?: string): Promise<void> {
   const proc = Bun.spawn(cmd, { cwd, stdout: 'pipe', stderr: 'pipe' });
@@ -115,13 +158,19 @@ async function spawnOrThrow(cmd: string[], cwd?: string): Promise<void> {
 
 export async function applyPostRenderFixups(docxPath: string): Promise<void> {
   const workdir = mkdtempSync(join(tmpdir(), 'resume-fixups-'));
+  const stagedDocx = join(workdir, 'fixed.docx');
   try {
     await spawnOrThrow(['unzip', '-q', docxPath, '-d', workdir]);
     const docPath = join(workdir, 'word', 'document.xml');
-    const original = readFileSync(docPath, 'utf8');
-    const fixed = PIPELINE.reduce((xml, step) => step(xml), original);
-    writeFileSync(docPath, fixed);
-    await spawnOrThrow(['zip', '-qr', '-X', docxPath, '.', '-x', '.*'], workdir);
+    if (!existsSync(docPath)) {
+      throw new Error(`docx missing word/document.xml: ${docxPath}`);
+    }
+    writeFileSync(docPath, runPipeline(readFileSync(docPath, 'utf8')));
+    await spawnOrThrow(
+      ['zip', '-qr', '-X', stagedDocx, 'word', 'docProps', '_rels', '[Content_Types].xml'],
+      workdir,
+    );
+    renameSync(stagedDocx, docxPath);
   } finally {
     rmSync(workdir, { recursive: true, force: true });
   }

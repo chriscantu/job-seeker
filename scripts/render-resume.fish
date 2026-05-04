@@ -4,7 +4,7 @@
 # applies post-render fixups (TS module: src/resume-tailor/post-render-fixups.ts)
 # to inject styling pandoc doesn't emit reliably (centering, color cascade,
 # Babylon page break, bookmark strip).
-# Exit codes: 0 success | 1 missing arg or input file | 2 pandoc non-zero exit | 3 pandoc produced no output | 4 pandoc not installed
+# Exit codes: 0 success | 1 missing arg or input file | 2 pandoc non-zero exit | 3 pandoc produced no output | 4 pandoc not installed | 5 post-render fixups failed
 
 if test (count $argv) -lt 3
     echo "usage: render-resume.fish <markdown-path> <template-path> <output-path>" >&2
@@ -49,5 +49,6 @@ end
 
 set fixups_module (dirname (status filename))/../src/resume-tailor/post-render-fixups.ts
 bun run "$fixups_module" "$out"
+or exit 5
 
 exit 0
