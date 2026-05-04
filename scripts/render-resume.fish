@@ -55,6 +55,7 @@ set doc "$tmpdir/word/document.xml"
 sed -i '' \
     -e 's|<w:pStyle w:val="Tagline" /></w:pPr>|<w:pStyle w:val="Tagline" /><w:jc w:val="center" /></w:pPr>|g' \
     -e 's|<w:pStyle w:val="Contact" /></w:pPr>|<w:pStyle w:val="Contact" /><w:jc w:val="center" /></w:pPr>|g' \
+    -e 's|<w:rPr><w:b /><w:bCs /></w:rPr>|<w:rPr><w:b /><w:bCs /><w:color w:val="153D63" /></w:rPr>|g' \
     "$doc"
 set tmp_out (mktemp -u).docx
 cd "$tmpdir"; zip -qr -X "$tmp_out" . -x ".*"; cd -

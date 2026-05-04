@@ -89,9 +89,7 @@ function renderHeaderBlock(ast: ResumeAST): string {
   return [
     `# ${ast.header.name}\n`,
     `::: {custom-style="Tagline"}`,
-    ast.header.tagline,
-    `:::\n`,
-    `::: {custom-style="Contact"}`,
+    `${ast.header.tagline}\\`,
     ast.header.contact,
     `:::\n`,
   ].join('\n');

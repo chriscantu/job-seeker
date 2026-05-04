@@ -6,10 +6,7 @@ canonical_version: 2026-05-03
 # Christopher Cantu
 
 ::: {custom-style="Tagline"}
-Senior Engineering Leader | Delivery Transformation Specialist
-:::
-
-::: {custom-style="Contact"}
+Senior Engineering Leader | Delivery Transformation Specialist\
 christopher.cantu@gmail.com | https://www.linkedin.com/in/christophercantu
 :::
 
