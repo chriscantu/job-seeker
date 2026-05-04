@@ -1,12 +1,12 @@
-const fs = require('fs');
-const path = require('path');
-const { resolveStateFile, atomicWriteFileSync, ensureDir, getTodayUtc } = require('./util');
-const { validateApplicationEntry, VALID_STAGES } = require('./validators');
-const { parseFrontmatter, serializeFrontmatter } = require('./frontmatter');
+import * as fs from 'fs';
+import * as path from 'path';
+import { resolveStateFile, atomicWriteFileSync, ensureDir, getTodayUtc } from './util';
+import { validateApplicationEntry, VALID_STAGES } from './validators';
+import { parseFrontmatter, serializeFrontmatter } from './frontmatter';
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
-function assertDate(label, value) {
+function assertDate(label: string, value: unknown): void {
   if (typeof value !== 'string' || !DATE_RE.test(value)) {
     throw new Error(`daysBetween: ${label} must be YYYY-MM-DD, got ${value}`);
   }
@@ -24,12 +24,8 @@ function assertDate(label, value) {
  * `toDate`, both YYYY-MM-DD strings interpreted as UTC midnights. Result
  * is positive when `toDate` is later, zero when equal, negative when
  * earlier. Throws if either input is not a YYYY-MM-DD string.
- *
- * @param {string} fromDate Reference date in YYYY-MM-DD.
- * @param {string} toDate   Comparison date in YYYY-MM-DD; result is toDate − fromDate (signed).
- * @returns {number}        Integer days; toDate − fromDate.
  */
-function daysBetween(fromDate, toDate) {
+export function daysBetween(fromDate: string, toDate: string): number {
   assertDate('fromDate', fromDate);
   assertDate('toDate', toDate);
   const MS_PER_DAY = 86_400_000;
@@ -46,10 +42,61 @@ const CLOSED_STAGE_RE = /^Closed\s*\((\w+)\)$/;
 const SECTION_RE = /^## (Active Applications|Closed Applications|Flagged for Review)$/;
 const FLAGGED_HEADING_RE = /^### (.+?) — (.+?) — (\d{4}-\d{2}-\d{2})$/;
 
-function makeEntry(overrides) {
+export interface LastActivity {
+  date: string | null;
+  detail: string | null;
+}
+
+export interface HistoryEntry {
+  date: string;
+  stage: string;
+  detail: string;
+}
+
+export interface ClosedInfo {
+  date: string | null;
+  reason: string | null;
+  summary: string | null;
+}
+
+export interface ApplicationEntry {
+  company: string;
+  title: string;
+  stage: string | null;
+  applied: string | null;
+  lastActivity: LastActivity;
+  nextAction: string | null;
+  contacts: string;
+  url: string | null;
+  notes: string;
+  history: HistoryEntry[];
+  closed: ClosedInfo | null;
+}
+
+export interface FlaggedEntry {
+  company: string;
+  title: string | null;
+  detectedAt: string | null;
+  signal: string | null;
+  status: string | null;
+  sender: string | null;
+  matchMethod: string | null;
+  msgId: string | null;
+  action: string | null;
+}
+
+export interface ApplicationsData {
+  active: ApplicationEntry[];
+  closed: ApplicationEntry[];
+  flagged: FlaggedEntry[];
+}
+
+type Section = 'active' | 'closed' | 'flagged';
+
+export function makeEntry(overrides: Partial<ApplicationEntry> = {}): ApplicationEntry {
   return {
-    company: null,
-    title: null,
+    company: null as unknown as string,
+    title: null as unknown as string,
     stage: null,
     applied: null,
     lastActivity: { date: null, detail: null },
@@ -63,9 +110,9 @@ function makeEntry(overrides) {
   };
 }
 
-function makeFlaggedEntry(overrides) {
+function makeFlaggedEntry(overrides: Partial<FlaggedEntry> = {}): FlaggedEntry {
   return {
-    company: null,
+    company: null as unknown as string,
     title: null,
     detectedAt: null,
     signal: null,
@@ -78,36 +125,38 @@ function makeFlaggedEntry(overrides) {
   };
 }
 
-function parseApplicationsContent(content) {
+export function parseApplicationsContent(content: string): ApplicationsData {
   if (!content || !content.trim()) return { active: [], closed: [], flagged: [] };
 
   const { body } = parseFrontmatter(content);
   const lines = body.split('\n');
-  const result = { active: [], closed: [], flagged: [] };
+  const result: ApplicationsData = { active: [], closed: [], flagged: [] };
 
-  let currentSection = null; // 'active' | 'closed' | 'flagged'
-  let currentEntry = null;
+  let currentSection: Section | null = null;
+  let currentEntry: ApplicationEntry | FlaggedEntry | null = null;
   let inHistory = false;
-  let closedDate = null;
-  let closedSummary = null;
+  let closedDate: string | null = null;
+  let closedSummary: string | null = null;
 
-  function finalizeEntry() {
+  function finalizeEntry(): void {
     if (!currentEntry) return;
 
-    // Attach closed object if applicable
-    if (currentSection === 'closed' && currentEntry.stage) {
-      const m = currentEntry.stage.match(CLOSED_STAGE_RE);
-      currentEntry.closed = {
-        date: closedDate,
-        reason: m ? m[1] : null,
-        summary: closedSummary,
-      };
+    if (currentSection === 'closed') {
+      const appEntry = currentEntry as ApplicationEntry;
+      if (appEntry.stage) {
+        const m = appEntry.stage.match(CLOSED_STAGE_RE);
+        appEntry.closed = {
+          date: closedDate,
+          reason: m ? m[1] : null,
+          summary: closedSummary,
+        };
+      }
     }
 
     if (currentSection === 'flagged') {
-      result.flagged.push(currentEntry);
-    } else {
-      result[currentSection].push(currentEntry);
+      result.flagged.push(currentEntry as FlaggedEntry);
+    } else if (currentSection === 'active' || currentSection === 'closed') {
+      result[currentSection].push(currentEntry as ApplicationEntry);
     }
     currentEntry = null;
     inHistory = false;
@@ -118,7 +167,6 @@ function parseApplicationsContent(content) {
   for (const line of lines) {
     const trimmed = line.trim();
 
-    // Section header
     const sectionMatch = trimmed.match(SECTION_RE);
     if (sectionMatch) {
       finalizeEntry();
@@ -133,7 +181,6 @@ function parseApplicationsContent(content) {
 
     if (!currentSection) continue;
 
-    // Flagged section: parse flagged entries separately
     if (currentSection === 'flagged') {
       const fh = trimmed.match(FLAGGED_HEADING_RE);
       if (fh) {
@@ -151,39 +198,38 @@ function parseApplicationsContent(content) {
 
       const kv = trimmed.match(KEY_VALUE_RE);
       if (kv) {
+        const flagged = currentEntry as FlaggedEntry;
         const key = kv[1].trim().toLowerCase().replace(/\s+/g, '');
         const value = kv[2].trim();
         switch (key) {
           case 'detectedsignal': {
             const sigMatch = value.match(/^"(.+)"\s*→\s*(.+)$/);
             if (sigMatch) {
-              currentEntry.signal = sigMatch[1];
-              currentEntry.status = sigMatch[2].trim();
+              flagged.signal = sigMatch[1];
+              flagged.status = sigMatch[2].trim();
             } else {
-              currentEntry.signal = value;
+              flagged.signal = value;
             }
             break;
           }
           case 'sender':
-            currentEntry.sender = value || null;
+            flagged.sender = value || null;
             break;
           case 'matchmethod':
-            // value may include parenthetical detail; keep the first token
-            currentEntry.matchMethod = (value.split(/\s+/)[0] || value).toLowerCase() || null;
+            flagged.matchMethod = (value.split(/\s+/)[0] || value).toLowerCase() || null;
             break;
           case 'message-id':
           case 'messageid':
-            currentEntry.msgId = value || null;
+            flagged.msgId = value || null;
             break;
           case 'action':
-            currentEntry.action = value || null;
+            flagged.action = value || null;
             break;
         }
       }
       continue;
     }
 
-    // Entry heading: ### Company — Title
     const headingMatch = trimmed.match(HEADING_RE);
     if (headingMatch) {
       finalizeEntry();
@@ -197,19 +243,19 @@ function parseApplicationsContent(content) {
 
     if (!currentEntry) continue;
 
-    // Separator
     if (trimmed === '---') continue;
 
-    // History subsection heading
     if (trimmed === '#### History') {
       inHistory = true;
       continue;
     }
 
+    const appEntry = currentEntry as ApplicationEntry;
+
     if (inHistory) {
       const histMatch = trimmed.match(HISTORY_RE);
       if (histMatch) {
-        currentEntry.history.push({
+        appEntry.history.push({
           date: histMatch[1],
           stage: histMatch[2].trim(),
           detail: histMatch[3].trim(),
@@ -218,7 +264,6 @@ function parseApplicationsContent(content) {
       continue;
     }
 
-    // Key-value fields
     const kvMatch = trimmed.match(KEY_VALUE_RE);
     if (kvMatch) {
       const key = kvMatch[1].trim().toLowerCase().replace(/\s+/g, '');
@@ -226,31 +271,31 @@ function parseApplicationsContent(content) {
 
       switch (key) {
         case 'stage':
-          currentEntry.stage = value || null;
+          appEntry.stage = value || null;
           break;
         case 'applied':
-          currentEntry.applied = value || null;
+          appEntry.applied = value || null;
           break;
         case 'lastactivity': {
           const laMatch = value.match(LAST_ACTIVITY_RE);
           if (laMatch) {
-            currentEntry.lastActivity = { date: laMatch[1], detail: laMatch[2].trim() };
+            appEntry.lastActivity = { date: laMatch[1], detail: laMatch[2].trim() };
           } else {
-            currentEntry.lastActivity = { date: null, detail: value || null };
+            appEntry.lastActivity = { date: null, detail: value || null };
           }
           break;
         }
         case 'nextaction':
-          currentEntry.nextAction = value || null;
+          appEntry.nextAction = value || null;
           break;
         case 'contacts':
-          currentEntry.contacts = value; // keep as empty string if blank
+          appEntry.contacts = value;
           break;
         case 'url':
-          currentEntry.url = value || null;
+          appEntry.url = value || null;
           break;
         case 'notes':
-          currentEntry.notes = value; // keep as empty string if blank
+          appEntry.notes = value;
           break;
         case 'closed':
           closedDate = value || null;
@@ -262,18 +307,17 @@ function parseApplicationsContent(content) {
     }
   }
 
-  // Finalize the last entry
   finalizeEntry();
 
   return result;
 }
 
-function parseApplicationsFile(filePath) {
+export function parseApplicationsFile(filePath: string): ApplicationsData {
   const content = fs.readFileSync(filePath, 'utf8');
   return parseApplicationsContent(content);
 }
 
-function parseApplications(dir) {
+export function parseApplications(dir: string): ApplicationsData {
   if (!fs.existsSync(dir)) return { active: [], closed: [], flagged: [] };
 
   const filePath = resolveStateFile(dir, 'applications');
@@ -282,8 +326,8 @@ function parseApplications(dir) {
   return parseApplicationsFile(filePath);
 }
 
-function formatApplication(entry) {
-  const lines = [];
+export function formatApplication(entry: ApplicationEntry): string {
+  const lines: string[] = [];
   lines.push(`### ${entry.company} — ${entry.title}`);
   lines.push('');
   lines.push(`- **Stage**: ${entry.stage || ''}`);
@@ -301,8 +345,8 @@ function formatApplication(entry) {
     lines.push(`- **URL**: ${entry.url || ''}`);
     lines.push(`- **Notes**: ${entry.notes != null ? entry.notes : ''}`);
   } else {
-    lines.push(`- **Closed**: ${entry.closed.date || ''}`);
-    lines.push(`- **Summary**: ${entry.closed.summary || ''}`);
+    lines.push(`- **Closed**: ${entry.closed!.date || ''}`);
+    lines.push(`- **Summary**: ${entry.closed!.summary || ''}`);
   }
 
   lines.push('');
@@ -315,8 +359,8 @@ function formatApplication(entry) {
   return lines.join('\n');
 }
 
-function formatFlagged(entry) {
-  const lines = [];
+export function formatFlagged(entry: FlaggedEntry): string {
+  const lines: string[] = [];
   lines.push(`### ${entry.company} — ${entry.title || 'Unknown role'} — ${entry.detectedAt}`);
   lines.push('');
   const sigText = entry.signal && entry.status
@@ -330,10 +374,10 @@ function formatFlagged(entry) {
   return lines.join('\n');
 }
 
-function formatApplicationsFile({ active, closed, flagged }) {
+export function formatApplicationsFile({ active, closed, flagged }: { active: ApplicationEntry[]; closed: ApplicationEntry[]; flagged?: FlaggedEntry[] }): string {
   const today = getTodayUtc();
   const flaggedList = flagged || [];
-  const parts = [];
+  const parts: string[] = [];
 
   parts.push(`# Application Pipeline\n\nLast updated: ${today}\n`);
 
@@ -366,8 +410,19 @@ function formatApplicationsFile({ active, closed, flagged }) {
   return serializeFrontmatter(meta, body);
 }
 
-function createApplication(dir, entry) {
-  const validation = validateApplicationEntry(entry);
+export interface CreateApplicationInput {
+  company: string;
+  title: string;
+  stage: string;
+  applied?: string | null;
+  url?: string | null;
+  notes?: string;
+  contacts?: string;
+  nextAction?: string | null;
+}
+
+export function createApplication(dir: string, entry: CreateApplicationInput): void {
+  const validation = validateApplicationEntry(entry as unknown as Record<string, unknown>);
   if (!validation.valid) {
     throw new Error(`Invalid application entry: ${validation.errors.join(', ')}`);
   }
@@ -377,7 +432,7 @@ function createApplication(dir, entry) {
   const today = getTodayUtc();
   const applied = entry.applied || today;
 
-  const newEntry = {
+  const newEntry: ApplicationEntry = {
     ...makeEntry(),
     company: entry.company,
     title: entry.title,
@@ -406,12 +461,12 @@ function createApplication(dir, entry) {
     atomicWriteFileSync(existing, formatApplicationsFile(data));
   } else {
     const fileName = `${today}-applications.md`;
-    const data = { active: [newEntry], closed: [] };
+    const data: ApplicationsData = { active: [newEntry], closed: [], flagged: [] };
     atomicWriteFileSync(path.join(dir, fileName), formatApplicationsFile(data));
   }
 }
 
-function findApplication(data, companyQuery) {
+export function findApplication(data: ApplicationsData, companyQuery: string): ApplicationEntry {
   const query = companyQuery.toLowerCase();
   const all = [...data.active, ...data.closed];
   const matches = all.filter(e => e.company.toLowerCase().includes(query));
@@ -426,7 +481,7 @@ function findApplication(data, companyQuery) {
   return matches[0];
 }
 
-function findInSection(data, companyQuery, section) {
+function findInSection(data: ApplicationsData, companyQuery: string, section: 'active' | 'closed'): ApplicationEntry {
   const query = companyQuery.toLowerCase();
   const primary = data[section];
   const other = section === 'active' ? 'closed' : 'active';
@@ -449,11 +504,17 @@ function findInSection(data, companyQuery, section) {
   return matches[0];
 }
 
-function updateApplication(dir, { company, stage, detail }) {
+export interface UpdateApplicationInput {
+  company: string;
+  stage: string;
+  detail?: string;
+}
+
+export function updateApplication(dir: string, { company, stage, detail }: UpdateApplicationInput): void {
   if (stage === 'Closed') {
     throw new Error('Cannot update stage to Closed directly — use the "close" command instead');
   }
-  if (!VALID_STAGES.includes(stage)) {
+  if (!(VALID_STAGES as readonly string[]).includes(stage)) {
     throw new Error(`stage must be one of: ${VALID_STAGES.join(', ')}`);
   }
 
@@ -472,7 +533,13 @@ function updateApplication(dir, { company, stage, detail }) {
   atomicWriteFileSync(filePath, formatApplicationsFile(data));
 }
 
-function closeApplication(dir, { company, reason, summary }) {
+export interface CloseApplicationInput {
+  company: string;
+  reason: string;
+  summary?: string;
+}
+
+export function closeApplication(dir: string, { company, reason, summary }: CloseApplicationInput): void {
   if (!reason || typeof reason !== 'string' || !reason.trim()) {
     throw new Error('reason is required');
   }
@@ -486,26 +553,29 @@ function closeApplication(dir, { company, reason, summary }) {
   const closedStage = `Closed (${reason.trim()})`;
   const detailText = summary || reason;
 
-  // Remove from active
   data.active = data.active.filter(e => e !== entry);
 
-  // Update entry for closed section
   entry.stage = closedStage;
   entry.closed = { date: today, reason: reason.trim(), summary: summary || null };
   entry.lastActivity = { date: today, detail: detailText };
   entry.history.push({ date: today, stage: closedStage, detail: detailText });
 
-  // Add to closed
   data.closed.push(entry);
 
   atomicWriteFileSync(filePath, formatApplicationsFile(data));
 }
 
-function reopenApplication(dir, { company, stage, detail }) {
+export interface ReopenApplicationInput {
+  company: string;
+  stage: string;
+  detail?: string;
+}
+
+export function reopenApplication(dir: string, { company, stage, detail }: ReopenApplicationInput): void {
   if (stage === 'Closed') {
     throw new Error('Cannot reopen to Closed — use the "close" command instead');
   }
-  if (!VALID_STAGES.includes(stage)) {
+  if (!(VALID_STAGES as readonly string[]).includes(stage)) {
     throw new Error(`stage must be one of: ${VALID_STAGES.join(', ')}`);
   }
 
@@ -518,16 +588,13 @@ function reopenApplication(dir, { company, stage, detail }) {
   const today = getTodayUtc();
   const detailText = detail || `Reopened at ${stage}`;
 
-  // Remove from closed
   data.closed = data.closed.filter(e => e !== entry);
 
-  // Update entry for active section
   entry.stage = stage;
   entry.closed = null;
   entry.lastActivity = { date: today, detail: detailText };
   entry.history.push({ date: today, stage, detail: detailText });
 
-  // Add to active
   data.active.push(entry);
 
   atomicWriteFileSync(filePath, formatApplicationsFile(data));
@@ -539,7 +606,7 @@ function reopenApplication(dir, { company, stage, detail }) {
 // other from re-processing it. The history token includes the closing
 // parenthesis from the canonical detail format "(msg-id: <id>)" so a
 // shorter msg-id can't prefix-match a longer one.
-function hasMsgId(data, msgId) {
+function hasMsgId(data: ApplicationsData, msgId: string | null | undefined): boolean {
   if (!msgId) return false;
   const token = `(msg-id: ${msgId})`;
   for (const entry of [...(data.active || []), ...(data.closed || [])]) {
@@ -553,24 +620,16 @@ function hasMsgId(data, msgId) {
   return false;
 }
 
-// Stages that already outrank Interview. A stray "interview scheduled" email
-// arriving after the user advanced the entry manually must not walk the
-// stage backwards.
 const STAGES_OUTRANKING_INTERVIEW = new Set(['Interview (2+)', 'Final Round', 'Offer', 'Decision']);
 
-// Maps a classifier status ('Applied' | 'Interview' | 'Offer') to the
-// closest valid VALID_STAGES value, taking the entry's current stage into
-// account so repeated interview signals advance the stage rather than
-// collapsing to (1). Rejected is handled separately by markStatusChanged
-// and never routes through this function.
-function classifierStatusToStage(classifierStatus, currentStage) {
+function classifierStatusToStage(classifierStatus: string, currentStage: string | null): string | null {
   switch (classifierStatus) {
     case 'Applied':
       return 'Applied';
     case 'Offer':
       return 'Offer';
     case 'Interview':
-      if (STAGES_OUTRANKING_INTERVIEW.has(currentStage)) return currentStage;
+      if (currentStage && STAGES_OUTRANKING_INTERVIEW.has(currentStage)) return currentStage;
       if (currentStage === 'Interview (1)') return 'Interview (2+)';
       return 'Interview (1)';
     default:
@@ -578,7 +637,24 @@ function classifierStatusToStage(classifierStatus, currentStage) {
   }
 }
 
-function flagForReview(dir, opts) {
+export interface FlagForReviewInput {
+  company?: string;
+  title?: string | null;
+  detectedAt?: string;
+  signal?: string | null;
+  status?: string | null;
+  sender?: string | null;
+  matchMethod?: string | null;
+  msgId?: string | null;
+  action?: string | null;
+}
+
+export interface OperationResult {
+  skipped: boolean;
+  reason?: string;
+}
+
+export function flagForReview(dir: string, opts: FlagForReviewInput): OperationResult {
   if (!opts || (!opts.company && !opts.msgId)) {
     throw new Error('flagForReview: at least one of company or msgId is required to identify the entry');
   }
@@ -607,11 +683,21 @@ function flagForReview(dir, opts) {
   return { skipped: false };
 }
 
+export interface MarkStatusChangedInput {
+  matchedEntry: { company: string; title?: string | null; section: string };
+  status: string;
+  msgId: string;
+  atsSender: string;
+  signal?: string | null;
+  sender?: string | null;
+  detectedAt?: string;
+}
+
 // Takes the classifier result's matchedEntry (required — {company, title, url,
 // stage, section}) plus the classifier-emitted status/signal/atsSender/msgId.
 // Single spelling; no backwards-compat shim. The caller (scan-email skill's
 // Phase 6 template) must pass the classifier's matchedEntry through verbatim.
-function markStatusChanged(dir, opts) {
+export function markStatusChanged(dir: string, opts: MarkStatusChangedInput): OperationResult {
   const filePath = resolveStateFile(dir, 'applications');
   if (!filePath) throw new Error('No applications file found');
 
@@ -632,9 +718,6 @@ function markStatusChanged(dir, opts) {
 
   if (hasMsgId(data, opts.msgId)) return { skipped: true, reason: 'msg-id already processed' };
 
-  // Matches against Closed or Flagged entries mean the user already handled
-  // this application (closed it manually, or we flagged it earlier). A
-  // courtesy follow-up email must not reopen anything. Silent skip.
   if (section !== 'active') {
     return { skipped: true, reason: `matched ${section} entry` };
   }
@@ -646,9 +729,6 @@ function markStatusChanged(dir, opts) {
   if (status === 'Rejected') {
     const idx = data.active.findIndex(e => e.company.toLowerCase() === query);
     if (idx === -1) {
-      // Active entry disappeared between classify and write (race with a
-      // manual close, or batch reordering). Don't lose the signal — flag
-      // for review instead of throwing (which would crash the scan batch).
       return flagForReview(dir, {
         company,
         title: matchedEntry.title || null,
@@ -701,7 +781,12 @@ function markStatusChanged(dir, opts) {
   return { skipped: false };
 }
 
-function addNote(dir, { company, note }) {
+export interface AddNoteInput {
+  company: string;
+  note: string;
+}
+
+export function addNote(dir: string, { company, note }: AddNoteInput): void {
   if (!note || typeof note !== 'string' || !note.trim()) {
     throw new Error('note is required and must be a non-empty string');
   }
@@ -716,18 +801,30 @@ function addNote(dir, { company, note }) {
 
   entry.notes = entry.notes ? `${entry.notes}; ${note}` : note;
   entry.lastActivity = { date: today, detail: note };
-  entry.history.push({ date: today, stage: entry.stage, detail: note });
+  entry.history.push({ date: today, stage: entry.stage ?? '', detail: note });
 
   atomicWriteFileSync(filePath, formatApplicationsFile(data));
 }
 
-function staleApplications(dir, opts = {}) {
+export interface StaleApplicationsOptions {
+  warn?: number;
+  alert?: number;
+  today?: string;
+}
+
+export interface StaleApplicationResult extends ApplicationEntry {
+  daysSinceLastActivity: number | null;
+  stalenessLevel?: 'ok' | 'warn' | 'alert';
+  error?: string;
+}
+
+export function staleApplications(dir: string, opts: StaleApplicationsOptions = {}): StaleApplicationResult[] {
   const hasWarn = typeof opts.warn === 'number';
   const hasAlert = typeof opts.alert === 'number';
   if (hasWarn !== hasAlert) {
     throw new Error('staleApplications: both warn and alert must be provided together (or neither)');
   }
-  if (hasWarn && hasAlert && opts.warn >= opts.alert) {
+  if (hasWarn && hasAlert && opts.warn! >= opts.alert!) {
     throw new Error(`staleApplications: warn (${opts.warn}) must be less than alert (${opts.alert})`);
   }
 
@@ -738,40 +835,21 @@ function staleApplications(dir, opts = {}) {
   }
 
   const data = parseApplicationsFile(filePath);
-  return (data.active || []).map(entry => {
+  return (data.active || []).map((entry): StaleApplicationResult => {
     const referenceDate = entry.lastActivity?.date || entry.applied || today;
-    let days;
+    let days: number;
     try {
       days = daysBetween(referenceDate, today);
     } catch (err) {
       // One malformed date should not lose the whole batch — surface this
       // entry with daysSinceLastActivity:null + error message so callers
       // (follow-up nags, dashboards) can still render the rest.
-      return { ...entry, daysSinceLastActivity: null, error: err.message };
+      return { ...entry, daysSinceLastActivity: null, error: (err as Error).message };
     }
-    const enriched = { ...entry, daysSinceLastActivity: days };
+    const enriched: StaleApplicationResult = { ...entry, daysSinceLastActivity: days };
     if (hasWarn && hasAlert) {
-      enriched.stalenessLevel = days >= opts.alert ? 'alert' : days >= opts.warn ? 'warn' : 'ok';
+      enriched.stalenessLevel = days >= opts.alert! ? 'alert' : days >= opts.warn! ? 'warn' : 'ok';
     }
     return enriched;
   });
 }
-
-module.exports = {
-  parseApplicationsContent,
-  parseApplicationsFile,
-  parseApplications,
-  makeEntry,
-  formatApplication,
-  formatApplicationsFile,
-  createApplication,
-  findApplication,
-  updateApplication,
-  closeApplication,
-  reopenApplication,
-  addNote,
-  flagForReview,
-  markStatusChanged,
-  daysBetween,
-  staleApplications,
-};

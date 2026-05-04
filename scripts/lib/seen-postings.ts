@@ -1,7 +1,8 @@
-const fs = require('fs');
-const path = require('path');
-const { resolveStateFile, atomicWriteFileSync, ensureDir, getTodayUtc } = require('./util');
-const { parseFrontmatter, serializeFrontmatter } = require('./frontmatter');
+import * as fs from 'fs';
+import * as path from 'path';
+import { resolveStateFile, atomicWriteFileSync, ensureDir, getTodayUtc } from './util';
+import { parseFrontmatter, serializeFrontmatter } from './frontmatter';
+import { validateSeenPostingsEntry } from './validators';
 
 const URL_RE = /https?:\/\/[^\s|[\]]+/;
 const DATE_RE = /\d{4}-\d{2}-\d{2}/;
@@ -16,7 +17,23 @@ const KNOWN_FLAGS = [
   'RESEARCHED', 'RESUME TAILORED', 'COVER LETTER', 'CLOSED',
 ];
 
-function makeEntry(overrides) {
+export interface SeenPostingEntry {
+  company: string | null;
+  title: string | null;
+  url: string | null;
+  date: string | null;
+  posted: string | null;
+  discovered: string | null;
+  flags: string[];
+  stars: number;
+  source: string | null;
+  status: string | null;
+  statusDetail: string | null;
+  sectionLabel: string | null;
+  raw: string | null;
+}
+
+export function makeEntry(overrides: Partial<SeenPostingEntry> = {}): SeenPostingEntry {
   return {
     company: null,
     title: null,
@@ -35,33 +52,33 @@ function makeEntry(overrides) {
   };
 }
 
-function extractUrl(text) {
+function extractUrl(text: string): string | null {
   const m = text.match(URL_RE);
   return m ? m[0].replace(/[,);]+$/, '') : null;
 }
 
-function extractStars(text) {
+function extractStars(text: string): number {
   const matches = text.match(STAR_RE);
   return matches ? matches.length : 0;
 }
 
-function extractPosted(text) {
+function extractPosted(text: string): string | null {
   const m = text.match(POSTED_RE);
   return m ? m[1] : null;
 }
 
-function extractDiscovered(text) {
+function extractDiscovered(text: string): string | null {
   const m = text.match(DISCOVERED_RE);
   return m ? m[1] : null;
 }
 
-function extractSource(text) {
+function extractSource(text: string): string | null {
   const m = text.match(SOURCE_RE);
   return m ? m[1] : null;
 }
 
-function extractStatusFromText(text) {
-  const patterns = [
+function extractStatusFromText(text: string): { status: string | null; detail: string | null } {
+  const patterns: Array<{ re: RegExp; status: string }> = [
     { re: /\bExcluded\s*\(([^)]+)\)/i, status: 'Excluded' },
     { re: /\bExcluded\b/i, status: 'Excluded' },
     { re: /\bPASSED\s*\(([^)]+)\)/i, status: 'PASSED' },
@@ -82,21 +99,18 @@ function extractStatusFromText(text) {
   return { status: null, detail: null };
 }
 
-function extractFlags(text) {
-  const flags = [];
+function extractFlags(text: string): string[] {
+  const flags: string[] = [];
 
-  // Extract square-bracket flags: [CLOSED], [ONSITE SF - SKIP], etc.
   const bracketMatches = [...text.matchAll(BRACKET_FLAG_RE)];
   for (const m of bracketMatches) {
     flags.push(m[1]);
   }
 
-  // Extract pipe-delimited flags: | RESEARCHED | RESUME TAILORED | CLOSED | APPLIED 2026-04-04
   const segments = text.split('|').map(s => s.trim());
   for (const seg of segments) {
     if (!seg) continue;
 
-    // Known flags
     for (const flag of KNOWN_FLAGS) {
       if (seg === flag || seg.startsWith(flag + ' ')) {
         if (flag === 'CLOSED' && seg !== 'CLOSED') continue;
@@ -104,16 +118,16 @@ function extractFlags(text) {
       }
     }
 
-    // APPLIED with date
     if (/^APPLIED\s+\d{4}-\d{2}-\d{2}/.test(seg)) {
-      flags.push(seg.match(/^APPLIED\s+\d{4}-\d{2}-\d{2}/)[0]);
+      const m = seg.match(/^APPLIED\s+\d{4}-\d{2}-\d{2}/);
+      if (m) flags.push(m[0]);
     }
   }
 
   return [...new Set(flags)];
 }
 
-function parseTableRow(line, currentDate, sectionLabel) {
+function parseTableRow(line: string, currentDate: string | null, sectionLabel: string | null): SeenPostingEntry | null {
   const cells = line.split('|').map(c => c.trim()).filter(c => c);
   if (cells.length < 4) return null;
 
@@ -127,7 +141,7 @@ function parseTableRow(line, currentDate, sectionLabel) {
     company,
     title,
     url: extractUrl(url) || extractUrl(line),
-    date: dateSeen.match(DATE_RE) ? dateSeen.match(DATE_RE)[0] : currentDate,
+    date: dateSeen.match(DATE_RE) ? dateSeen.match(DATE_RE)![0] : currentDate,
     status,
     statusDetail: detail,
     sectionLabel,
@@ -135,7 +149,7 @@ function parseTableRow(line, currentDate, sectionLabel) {
   });
 }
 
-function parseBulletLine(line, currentDate, sectionLabel) {
+function parseBulletLine(line: string, currentDate: string | null, sectionLabel: string | null): SeenPostingEntry {
   const content = line.replace(/^-\s+/, '');
 
   const posted = extractPosted(content);
@@ -147,7 +161,7 @@ function parseBulletLine(line, currentDate, sectionLabel) {
 
   const segments = content.split('|').map(s => s.trim());
   const company = segments[0] || null;
-  let title = segments.length > 1 ? segments[1] : null;
+  let title: string | null = segments.length > 1 ? segments[1] : null;
 
   if (title) {
     if (URL_RE.test(title) || DATE_RE.test(title) || /^(Remote|Hybrid|On-site)/i.test(title)) {
@@ -155,7 +169,6 @@ function parseBulletLine(line, currentDate, sectionLabel) {
     }
   }
 
-  // Extract URL and strip bracket artifacts from Gen 1 format
   const rawUrl = extractUrl(content);
   const url = rawUrl ? rawUrl.replace(/\[.*$/, '').trim() : null;
 
@@ -176,12 +189,12 @@ function parseBulletLine(line, currentDate, sectionLabel) {
   });
 }
 
-function parseSeenPostingsContent(content) {
+export function parseSeenPostingsContent(content: string): SeenPostingEntry[] {
   const { body } = parseFrontmatter(content);
   const lines = body.split('\n');
-  const entries = [];
-  let currentDate = null;
-  let sectionLabel = null;
+  const entries: SeenPostingEntry[] = [];
+  let currentDate: string | null = null;
+  let sectionLabel: string | null = null;
   let inTable = false;
 
   for (const line of lines) {
@@ -221,12 +234,12 @@ function parseSeenPostingsContent(content) {
   return entries;
 }
 
-function parseSeenPostingsFile(filePath) {
+export function parseSeenPostingsFile(filePath: string): SeenPostingEntry[] {
   const content = fs.readFileSync(filePath, 'utf8');
   return parseSeenPostingsContent(content);
 }
 
-function parseSeenPostings(dir) {
+export function parseSeenPostings(dir: string): SeenPostingEntry[] {
   if (!fs.existsSync(dir)) return [];
 
   const pattern = /\d{4}-\d{2}-\d{2}-seen-postings\.md$/;
@@ -235,7 +248,7 @@ function parseSeenPostings(dir) {
     .sort()
     .map(f => path.join(dir, f));
 
-  const allEntries = [];
+  const allEntries: SeenPostingEntry[] = [];
   for (const file of files) {
     const entries = parseSeenPostingsFile(file);
     allEntries.push(...entries);
@@ -250,14 +263,13 @@ function parseSeenPostings(dir) {
   return allEntries;
 }
 
-function formatEntry(entry) {
-  const { validateSeenPostingsEntry } = require('./validators');
-  const result = validateSeenPostingsEntry(entry);
+export function formatEntry(entry: SeenPostingEntry): string {
+  const result = validateSeenPostingsEntry(entry as unknown as Record<string, unknown>);
   if (!result.valid) {
     throw new Error(`Invalid entry: ${result.errors.join(', ')}`);
   }
 
-  const parts = [`- ${entry.company} | ${entry.title}`];
+  const parts: string[] = [`- ${entry.company} | ${entry.title}`];
 
   if (entry.url) {
     parts.push(entry.url);
@@ -282,7 +294,7 @@ function formatEntry(entry) {
   return parts.join(' | ');
 }
 
-function appendSeenPosting(dir, entry) {
+export function appendSeenPosting(dir: string, entry: SeenPostingEntry): void {
   ensureDir(dir);
 
   const today = getTodayUtc();
@@ -322,7 +334,13 @@ function appendSeenPosting(dir, entry) {
   }
 }
 
-function flagSeenPosting(dir, url, flag) {
+export interface FlagSeenPostingResult {
+  success: boolean;
+  alreadyFlagged?: boolean;
+  error?: string;
+}
+
+export function flagSeenPosting(dir: string, url: string, flag: string): FlagSeenPostingResult {
   if (!fs.existsSync(dir)) {
     return { success: false, error: `Directory not found: ${dir}` };
   }
@@ -368,7 +386,7 @@ function flagSeenPosting(dir, url, flag) {
   return { success: false, error: `No entry found for URL: ${url}` };
 }
 
-function normalizeUrl(url) {
+export function normalizeUrl(url: string | null | undefined): string {
   if (!url) return '';
   try {
     const u = new URL(url);
@@ -380,7 +398,13 @@ function normalizeUrl(url) {
   }
 }
 
-function querySeenPostings(dir, filters) {
+export interface SeenPostingsFilters {
+  company?: string;
+  flagged?: string;
+  notFlagged?: string;
+}
+
+export function querySeenPostings(dir: string, filters: SeenPostingsFilters): SeenPostingEntry[] {
   const entries = parseSeenPostings(dir);
 
   return entries.filter(entry => {
@@ -391,13 +415,13 @@ function querySeenPostings(dir, filters) {
     }
 
     if (filters.flagged) {
-      if (!entry.flags.some(f => f.startsWith(filters.flagged))) {
+      if (!entry.flags.some(f => f.startsWith(filters.flagged!))) {
         return false;
       }
     }
 
     if (filters.notFlagged) {
-      if (entry.flags.some(f => f.startsWith(filters.notFlagged))) {
+      if (entry.flags.some(f => f.startsWith(filters.notFlagged!))) {
         return false;
       }
     }
@@ -406,7 +430,19 @@ function querySeenPostings(dir, filters) {
   });
 }
 
-function dedupCheck(dir, { url, company, title } = {}) {
+export interface DedupCheckInput {
+  url?: string;
+  company?: string;
+  title?: string;
+}
+
+export interface DedupCheckResult {
+  duplicate: boolean;
+  match?: 'exact-url' | 'company-title';
+  existing?: SeenPostingEntry;
+}
+
+export function dedupCheck(dir: string, { url, company, title }: DedupCheckInput = {}): DedupCheckResult {
   const entries = parseSeenPostings(dir);
 
   if (url) {
@@ -432,16 +468,3 @@ function dedupCheck(dir, { url, company, title } = {}) {
 
   return { duplicate: false };
 }
-
-module.exports = {
-  parseSeenPostings,
-  parseSeenPostingsFile,
-  parseSeenPostingsContent,
-  makeEntry,
-  formatEntry,
-  appendSeenPosting,
-  flagSeenPosting,
-  normalizeUrl,
-  querySeenPostings,
-  dedupCheck,
-};
