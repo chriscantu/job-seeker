@@ -1,9 +1,9 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
  * Generate a formatted .docx cover letter from a markdown source.
  *
  * Usage:
- *   bun scripts/generate_coverletter_docx.js <input.md> <output.docx>
+ *   bun scripts/generate_coverletter_docx.ts <input.md> <output.docx>
  *
  * The markdown format is simple:
  *   - First line starting with "Dear" is the salutation
@@ -11,17 +11,15 @@
  *   - Last non-empty line is the signature (candidate name)
  */
 
-"use strict";
-
-const fs = require("fs");
-const { Document, Packer, Paragraph, TextRun, AlignmentType } = require("docx");
-const { COLORS, FONT, PAGE } = require("./docx-styles");
-const { parseFrontmatter } = require("./lib/frontmatter");
+import * as fs from 'fs';
+import { Document, Packer, Paragraph, TextRun } from 'docx';
+import { COLORS, FONT, PAGE } from './docx-styles';
+import { parseFrontmatter } from './lib/frontmatter';
 
 // ── CLI ──────────────────────────────────────────────────────────────────────
 const [,, inputPath, outputPath] = process.argv;
 if (!inputPath || !outputPath) {
-  console.error("Usage: node generate_coverletter_docx.js <input.md> <output.docx>");
+  console.error("Usage: bun scripts/generate_coverletter_docx.ts <input.md> <output.docx>");
   process.exit(1);
 }
 const raw = parseFrontmatter(fs.readFileSync(inputPath, "utf8")).body;
@@ -51,7 +49,7 @@ const bodyBlocks = blocks.slice(1, blocks.length - 1);
 // ── Font helpers ─────────────────────────────────────────────────────────────
 const bodyFont = { size: 22, font: FONT, color: COLORS.black };  // 11pt
 
-function bodyParagraph(text, spacingAfter = 200) {
+function bodyParagraph(text: string, spacingAfter = 200): Paragraph {
   return new Paragraph({
     spacing: { after: spacingAfter, line: 276 },  // 1.15x line spacing
     children: [new TextRun({ text, ...bodyFont })],
@@ -59,7 +57,7 @@ function bodyParagraph(text, spacingAfter = 200) {
 }
 
 // ── Build document ───────────────────────────────────────────────────────────
-const children = [];
+const children: Paragraph[] = [];
 
 // Salutation
 children.push(new Paragraph({
@@ -78,7 +76,7 @@ for (const block of bodyBlocks) {
 children.push(new Paragraph({
   spacing: { before: 200, after: 0 },
   children: signatureLines.map((line, i) => {
-    const runs = [new TextRun({ text: line, ...bodyFont })];
+    const runs: TextRun[] = [new TextRun({ text: line, ...bodyFont })];
     if (i < signatureLines.length - 1) {
       runs.push(new TextRun({ break: 1 }));
     }
@@ -105,6 +103,7 @@ Packer.toBuffer(doc).then(buf => {
   fs.writeFileSync(outputPath, buf);
   console.log("DOCX written to:", outputPath);
 }).catch(err => {
-  console.error("Failed to generate DOCX:", err.message);
+  const msg = err instanceof Error ? err.message : String(err);
+  console.error("Failed to generate DOCX:", msg);
   process.exit(1);
 });

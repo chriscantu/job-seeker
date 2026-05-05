@@ -1,20 +1,18 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
  * Generate an ATS-friendly .docx resume from markdown source.
  * No tables, no cards, no complex layouts — single-column, clean text.
  *
  * Usage:
- *   bun scripts/generate_ats_resume_docx.js <input.md> <output.docx>
+ *   bun scripts/generate_ats_resume_docx.ts <input.md> <output.docx>
  */
 
-"use strict";
-
-const fs = require("fs");
-const {
+import * as fs from 'fs';
+import {
   Document, Packer, Paragraph, TextRun, ExternalHyperlink,
   AlignmentType, BorderStyle, LevelFormat,
-} = require("docx");
-const { parseFrontmatter } = require("./lib/frontmatter");
+} from 'docx';
+import { parseFrontmatter } from './lib/frontmatter';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 const PAGE_W   = 12240;
@@ -27,14 +25,22 @@ const BLACK     = "333333";
 const GRAY      = "555555";
 const FONT      = "Calibri";
 
+interface RunStyle {
+  size?: number;
+  font?: string;
+  color?: string;
+  bold?: boolean;
+  italics?: boolean;
+}
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 /** Convert **bold** spans into TextRun arrays. */
-function richRuns(text, base) {
-  const runs = [];
+function richRuns(text: string, base: RunStyle): TextRun[] {
+  const runs: TextRun[] = [];
   const re = /\*\*(.+?)\*\*/g;
   let last = 0;
-  let m;
+  let m: RegExpExecArray | null;
   while ((m = re.exec(text)) !== null) {
     if (m.index > last) {
       runs.push(new TextRun({ text: text.slice(last, m.index), ...base }));
@@ -48,7 +54,7 @@ function richRuns(text, base) {
   return runs.length ? runs : [new TextRun({ text, ...base })];
 }
 
-function clean(text) {
+function clean(text: string): string {
   return text
     .replace(/\*\*(.+?)\*\*/g, "$1")
     .replace(/\*(.+?)\*/g, "$1")
@@ -57,10 +63,33 @@ function clean(text) {
     .trim();
 }
 
+interface JobItem {
+  type: 'bullet' | 'sublabel' | 'para';
+  text: string;
+}
+
+interface Job {
+  title: string;
+  company: string;
+  meta: string;
+  items: JobItem[];
+}
+
+interface ParsedResume {
+  name: string;
+  tagline: string;
+  contact: string;
+  summary: string;
+  accomplishments: string[];
+  skills: string[];
+  experience: Job[];
+  education: { degree: string; school: string };
+}
+
 // ── Markdown parser ──────────────────────────────────────────────────────────
-function parseResume(md) {
+function parseResume(md: string): ParsedResume {
   const lines = md.split("\n");
-  const result = {
+  const result: ParsedResume = {
     name: "", tagline: "", contact: "",
     summary: "",
     accomplishments: [],
@@ -95,7 +124,7 @@ function parseResume(md) {
   skipWS();
 
   // Summary
-  const summaryParts = [];
+  const summaryParts: string[] = [];
   while (i < lines.length && !lines[i].startsWith("#") && lines[i].trim() !== "---") {
     if (lines[i].trim()) summaryParts.push(lines[i].trim());
     i++;
@@ -104,8 +133,8 @@ function parseResume(md) {
   skipWS();
 
   // Sections
-  let section = null;
-  let job = null;
+  let section: 'accomplishments' | 'skills' | 'experience' | 'education' | null = null;
+  let job: Job | null = null;
 
   while (i < lines.length) {
     const line = lines[i];
@@ -184,9 +213,9 @@ function parseResume(md) {
 }
 
 // ── Document builder ─────────────────────────────────────────────────────────
-function buildDoc(parsed) {
-  const children = [];
-  const bodyFont = { size: 20, font: FONT, color: BLACK };
+function buildDoc(parsed: ParsedResume): Document {
+  const children: Paragraph[] = [];
+  const bodyFont: RunStyle = { size: 20, font: FONT, color: BLACK };
 
   // ── Header ──
   children.push(new Paragraph({
@@ -206,7 +235,7 @@ function buildDoc(parsed) {
   // Contact with clickable LinkedIn
   if (parsed.contact) {
     const contactParts = parsed.contact.split(/\s*\|\s*/);
-    const contactChildren = [];
+    const contactChildren: (TextRun | ExternalHyperlink)[] = [];
     contactParts.forEach((part, idx) => {
       if (idx > 0) contactChildren.push(new TextRun({ text: " | ", size: 19, font: FONT, color: GRAY }));
       const trimmed = part.trim();
@@ -377,7 +406,7 @@ function buildDoc(parsed) {
         levels: [{
           level: 0,
           format: LevelFormat.BULLET,
-          text: "\u2022",
+          text: "•",
           alignment: AlignmentType.LEFT,
           style: { paragraph: { indent: { left: 720, hanging: 360 } } },
         }],
@@ -401,10 +430,10 @@ function buildDoc(parsed) {
 }
 
 // ── Entry point ──────────────────────────────────────────────────────────────
-async function main() {
+async function main(): Promise<void> {
   const [, , inputPath, outputPath] = process.argv;
   if (!inputPath || !outputPath) {
-    process.stderr.write("Usage: bun scripts/generate_ats_resume_docx.js <input.md> <output.docx>\n");
+    process.stderr.write("Usage: bun scripts/generate_ats_resume_docx.ts <input.md> <output.docx>\n");
     process.exit(1);
   }
   const md = parseFrontmatter(fs.readFileSync(inputPath, "utf8")).body;
@@ -415,4 +444,8 @@ async function main() {
   process.stdout.write("ATS resume written to: " + outputPath + "\n");
 }
 
-main().catch(err => { process.stderr.write(err.message + "\n"); process.exit(1); });
+main().catch((err: unknown) => {
+  const msg = err instanceof Error ? err.message : String(err);
+  process.stderr.write(msg + "\n");
+  process.exit(1);
+});

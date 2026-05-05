@@ -1,9 +1,7 @@
 /**
- * scripts/build-resume-template.js
- *
  * Generates references/resume-template.docx — empty-bodied Word template with
  * 10 named paragraph styles consumed by the resume-tailor render layer.
- * Run idempotently: `bun scripts/build-resume-template.js`.
+ * Run idempotently: `bun scripts/build-resume-template.ts`.
  *
  * Output styles (names exact, case-sensitive — must match the render contract
  * in docs/superpowers/specs/2026-05-01-ats-resume-template-design.md, "Render
@@ -18,25 +16,25 @@
  * repo (Python deps live in installed plugin packages like anthropic-skills:docx).
  */
 
-const fs = require('node:fs');
-const path = require('node:path');
-const {
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import {
   Document,
   Packer,
   AlignmentType,
   BorderStyle,
   LevelFormat,
   convertInchesToTwip,
-} = require('docx');
+} from 'docx';
 
 // ── docx unit converters ─────────────────────────────────────────────────────
 // docx OOXML uses three different unit systems for different fields:
 //   run.size              → half-points  (22pt body → 44)
 //   paragraph.spacing/ind → twips        (1pt = 20 twips)
 //   border.size           → eighth-points (0.5pt = 4)
-const halfPt = pts => pts * 2;
-const twips = pts => pts * 20;
-const eighthPt = pts => pts * 8;
+const halfPt = (pts: number): number => pts * 2;
+const twips = (pts: number): number => pts * 20;
+const eighthPt = (pts: number): number => pts * 8;
 
 // ── Palette + font (per spec's Render Pipeline style table) ──────────────────
 const NAVY = '1F3A5F';
@@ -223,6 +221,7 @@ Packer.toBuffer(doc)
     console.log(`wrote ${OUTPUT_PATH} (${buf.length} bytes)`);
   })
   .catch(err => {
-    console.error(`build-resume-template failed: ${err.message}`);
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`build-resume-template failed: ${msg}`);
     process.exit(1);
   });
