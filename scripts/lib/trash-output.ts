@@ -1,4 +1,4 @@
-// scripts/lib/trash-output.js
+// scripts/lib/trash-output.ts
 //
 // Shared classifiers for Phase 6 Step 1 auto-trash output. Both the Apple
 // Mail path (auto_trash_inbox.js → apple_mail_trash_by_sender.applescript)
@@ -15,23 +15,29 @@
 //     slots (0/2/3/4/5), slot 4 meaning "Gmail API error" instead of
 //     "osascript error".
 
-const EXIT_OK = 0;
-const EXIT_CONFIG = 2;
-const EXIT_COMMA = 3;
-const EXIT_OSASCRIPT = 4; // shared slot: Apple Mail meaning
-const EXIT_GMAIL_API = 4; // shared slot: Gmail meaning
-const EXIT_PARTIAL = 5;
+export const EXIT_OK = 0;
+export const EXIT_CONFIG = 2;
+export const EXIT_COMMA = 3;
+export const EXIT_OSASCRIPT = 4; // shared slot: Apple Mail meaning
+export const EXIT_GMAIL_API = 4; // shared slot: Gmail meaning
+export const EXIT_PARTIAL = 5;
+
+export interface PartialFailureEntry {
+  pattern: string;
+  moved: number;
+  matched: number;
+}
+
+export interface PartialFailureResult {
+  isPartial: boolean;
+  failures: PartialFailureEntry[];
+  entryCount: number;
+  isAnomaly: boolean;
+  anomalyReason: string | null;
+}
 
 // Parse "trashed: pat1=moved/matched pat2=moved/matched ..." output and
 // detect partial failures (moved < matched).
-//
-// Returns {
-//   isPartial: boolean,          // any parsed entry had moved < matched
-//   failures: Array<{pattern, moved, matched}>,
-//   entryCount: number,          // number of real pattern entries parsed
-//   isAnomaly: boolean,          // parsed body failed an integrity check
-//   anomalyReason: string|null,  // human-readable explanation when isAnomaly
-// }
 //
 // Hardening (issue #90 finding 1):
 //   - The regex anchors at whitespace/start boundaries and stops at
@@ -42,8 +48,8 @@ const EXIT_PARTIAL = 5;
 //     not match what the CLI shipped, the result is flagged as an
 //     anomaly so the caller can fail non-zero instead of silently
 //     returning success.
-function detectPartialFailure(stdout, expectedPatternCount) {
-  const empty = {
+export function detectPartialFailure(stdout: string, expectedPatternCount?: number): PartialFailureResult {
+  const empty: PartialFailureResult = {
     isPartial: false,
     failures: [],
     entryCount: 0,
@@ -67,17 +73,19 @@ function detectPartialFailure(stdout, expectedPatternCount) {
   // block.
   const suffixMatch = body.match(/(?:^|\s)\(/);
   if (suffixMatch) {
-    body = body.slice(0, suffixMatch.index).trim();
+    // Non-/g RegExp.match always sets index when matched. Future edits adding
+    // /g would change this — keep the assertion explicit to fail loudly.
+    body = body.slice(0, suffixMatch.index!).trim();
   }
 
-  const failures = [];
+  const failures: PartialFailureEntry[] = [];
   let entryCount = 0;
   // A real pattern entry is anchored at a whitespace boundary (or start
   // of body) and its key is composed of non-whitespace characters that
   // are not `=`. This prevents the regex from walking into a substring
   // that is not actually a top-level entry.
   const entryRe = /(?:^|\s)([^\s=]+)=(\d+)\/(\d+)(?=\s|$)/g;
-  let m;
+  let m: RegExpExecArray | null;
   while ((m = entryRe.exec(body)) !== null) {
     const pattern = m[1];
     const moved = parseInt(m[2], 10);
@@ -122,17 +130,24 @@ function detectPartialFailure(stdout, expectedPatternCount) {
   };
 }
 
+export interface ClassifyResultInput {
+  stdout: string;
+  stderr: string;
+  status: number;
+  expectedPatternCount?: number;
+}
+
 // Pure classifier for the result of an osascript trash call. Returns the
 // CLI exit code. Broken out from main() (issue #90 findings 1 + 3 + #5)
 // so the five branches — non-zero status, three sentinel strings,
 // `error:` prefix, stderr-with-status-0, partial failure, and the
 // detectPartialFailure anomaly path — can be unit tested directly.
-function classifyOsascriptResult({
+export function classifyOsascriptResult({
   stdout,
   stderr,
   status,
   expectedPatternCount,
-}) {
+}: ClassifyResultInput): number {
   if (status !== 0) {
     return EXIT_OSASCRIPT;
   }
@@ -170,22 +185,12 @@ function classifyOsascriptResult({
 // Mirrors classifyOsascriptResult; slot 4 means "Gmail API error" instead
 // of "osascript error". Stdout format is identical ("trashed: pat=M/N ...")
 // so detectPartialFailure is reused unchanged.
-//
-// Branches:
-//   - child exit status != 0 → EXIT_GMAIL_API
-//   - stderr non-empty with status 0 → EXIT_GMAIL_API (parallel to the
-//     issue #90 finding 3 rule for osascript)
-//   - stdout contains AUTH_REQUIRED or GMAIL_ERROR sentinel → EXIT_GMAIL_API
-//   - stdout starts with "error:" → EXIT_GMAIL_API
-//   - detectPartialFailure anomaly → EXIT_GMAIL_API
-//   - detectPartialFailure isPartial → EXIT_PARTIAL
-//   - otherwise → EXIT_OK
-function classifyGmailResult({
+export function classifyGmailResult({
   stdout,
   stderr,
   status,
   expectedPatternCount,
-}) {
+}: ClassifyResultInput): number {
   if (status !== 0) {
     return EXIT_GMAIL_API;
   }
@@ -210,15 +215,3 @@ function classifyGmailResult({
   }
   return EXIT_OK;
 }
-
-module.exports = {
-  detectPartialFailure,
-  classifyOsascriptResult,
-  classifyGmailResult,
-  EXIT_OK,
-  EXIT_CONFIG,
-  EXIT_COMMA,
-  EXIT_OSASCRIPT,
-  EXIT_GMAIL_API,
-  EXIT_PARTIAL,
-};

@@ -1,8 +1,7 @@
-const fs = require('fs');
-const path = require('path');
-const os = require('os');
+import * as fs from 'fs';
+import * as path from 'path';
 
-function resolveStateFile(dir, type) {
+export function resolveStateFile(dir: string, type: string): string | null {
   if (!fs.existsSync(dir)) return null;
   const pattern = new RegExp(`\\d{4}-\\d{2}-\\d{2}-${type}\\.md$`);
   const files = fs.readdirSync(dir)
@@ -12,14 +11,14 @@ function resolveStateFile(dir, type) {
   return files.length > 0 ? path.join(dir, files[0]) : null;
 }
 
-function atomicWriteFileSync(filePath, content) {
+export function atomicWriteFileSync(filePath: string, content: string): void {
   const dir = path.dirname(filePath);
   const tmpFile = path.join(dir, `.${path.basename(filePath)}.${process.pid}.tmp`);
   fs.writeFileSync(tmpFile, content);
   fs.renameSync(tmpFile, filePath);
 }
 
-function ensureDir(dir) {
+export function ensureDir(dir: string): void {
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
@@ -30,8 +29,6 @@ function ensureDir(dir) {
 // with all "today" defaults across the lib. Don't switch to
 // toLocaleDateString() or new Date().getDate() — local-tz output would
 // off-by-one around the local midnight boundary, hard to reproduce in tests.
-function getTodayUtc() {
+export function getTodayUtc(): string {
   return new Date().toISOString().slice(0, 10);
 }
-
-module.exports = { resolveStateFile, atomicWriteFileSync, ensureDir, getTodayUtc };

@@ -1,11 +1,16 @@
-const fs = require('fs');
-const path = require('path');
-const { google } = require('googleapis');
+import * as fs from 'fs';
+import * as path from 'path';
+import { google } from 'googleapis';
 
-const SCOPES = ['https://www.googleapis.com/auth/gmail.modify'];
+export const SCOPES = ['https://www.googleapis.com/auth/gmail.modify'];
 const REDIRECT_URI = 'http://localhost:3000/oauth2callback';
 
-function resolveCredentialPaths(projectRoot) {
+export interface CredentialPaths {
+  clientSecret: string;
+  tokens: string;
+}
+
+export function resolveCredentialPaths(projectRoot: string): CredentialPaths {
   const dir = path.join(projectRoot, 'credentials');
   return {
     clientSecret: path.join(dir, 'gmail-client-secret.json'),
@@ -13,7 +18,7 @@ function resolveCredentialPaths(projectRoot) {
   };
 }
 
-function loadTokens(tokenPath) {
+export function loadTokens(tokenPath: string): Record<string, unknown> | null {
   if (!fs.existsSync(tokenPath)) return null;
   try {
     return JSON.parse(fs.readFileSync(tokenPath, 'utf8'));
@@ -24,13 +29,13 @@ function loadTokens(tokenPath) {
   }
 }
 
-function saveTokens(tokenPath, tokens) {
+export function saveTokens(tokenPath: string, tokens: Record<string, unknown>): void {
   const dir = path.dirname(tokenPath);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(tokenPath, JSON.stringify(tokens, null, 2), { mode: 0o600 });
 }
 
-function createOAuth2Client(clientSecretPath) {
+export function createOAuth2Client(clientSecretPath: string) {
   if (!fs.existsSync(clientSecretPath)) {
     throw new Error(`Client secret file not found: ${clientSecretPath}`);
   }
@@ -46,7 +51,7 @@ function createOAuth2Client(clientSecretPath) {
   return new google.auth.OAuth2(client_id, client_secret, REDIRECT_URI);
 }
 
-function getAuthenticatedClient(projectRoot) {
+export function getAuthenticatedClient(projectRoot: string) {
   const paths = resolveCredentialPaths(projectRoot);
   const oauth2 = createOAuth2Client(paths.clientSecret);
   const tokens = loadTokens(paths.tokens);
@@ -62,34 +67,24 @@ function getAuthenticatedClient(projectRoot) {
       const merged = { ...current, ...newTokens };
       saveTokens(paths.tokens, merged);
     } catch (err) {
-      console.error(`Warning: failed to persist refreshed tokens: ${err.message}`);
+      const message = err instanceof Error ? err.message : String(err);
+      console.error(`Warning: failed to persist refreshed tokens: ${message}`);
       console.error('You may need to re-authenticate: bun scripts/gmail.js auth');
     }
   });
   return oauth2;
 }
 
-function getAuthUrl(projectRoot) {
+export function getAuthUrl(projectRoot: string): string {
   const paths = resolveCredentialPaths(projectRoot);
   const oauth2 = createOAuth2Client(paths.clientSecret);
   return oauth2.generateAuthUrl({ access_type: 'offline', scope: SCOPES, prompt: 'consent' });
 }
 
-async function exchangeCode(projectRoot, code) {
+export async function exchangeCode(projectRoot: string, code: string): Promise<Record<string, unknown>> {
   const paths = resolveCredentialPaths(projectRoot);
   const oauth2 = createOAuth2Client(paths.clientSecret);
   const { tokens } = await oauth2.getToken(code);
-  saveTokens(paths.tokens, tokens);
-  return tokens;
+  saveTokens(paths.tokens, tokens as Record<string, unknown>);
+  return tokens as Record<string, unknown>;
 }
-
-module.exports = {
-  SCOPES,
-  resolveCredentialPaths,
-  loadTokens,
-  saveTokens,
-  createOAuth2Client,
-  getAuthenticatedClient,
-  getAuthUrl,
-  exchangeCode,
-};

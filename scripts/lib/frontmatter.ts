@@ -1,11 +1,16 @@
-"use strict";
+export type FrontmatterMeta = Record<string, string>;
+
+export interface ParsedFrontmatter {
+  meta: FrontmatterMeta;
+  body: string;
+}
 
 /**
  * Parse YAML frontmatter from a markdown string.
  * Returns { meta: {}, body: "" }.
  * If no frontmatter block is present, meta is empty and body is the full input.
  */
-function parseFrontmatter(markdown) {
+export function parseFrontmatter(markdown: string): ParsedFrontmatter {
   if (!markdown.startsWith("---\n") && !markdown.startsWith("---\r\n")) {
     return { meta: {}, body: markdown };
   }
@@ -33,7 +38,7 @@ function parseFrontmatter(markdown) {
   const closingLineEnd = markdown[afterDelim] === "\r" ? 2 : markdown[afterDelim] === "\n" ? 1 : 0;
   const body = markdown.slice(endIndex + 4 + closingLineEnd);
 
-  const meta = {};
+  const meta: FrontmatterMeta = {};
   for (const line of yamlBlock.split("\n")) {
     const trimmed = line.trim();
     if (!trimmed) continue;
@@ -65,7 +70,7 @@ function parseFrontmatter(markdown) {
  * Serialize a metadata object and body string into a frontmatter markdown string.
  * Values containing colons are automatically quoted.
  */
-function serializeFrontmatter(meta, body) {
+export function serializeFrontmatter(meta: Record<string, unknown>, body: string): string {
   const lines = ["---"];
   for (const [key, value] of Object.entries(meta)) {
     if (value === null || value === undefined) continue;
@@ -86,5 +91,3 @@ function serializeFrontmatter(meta, body) {
   // Inject a "\n" separator so parse can always skip "\n---\n" to recover body.
   return lines.join("\n") + "\n" + body;
 }
-
-module.exports = { parseFrontmatter, serializeFrontmatter };

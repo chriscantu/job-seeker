@@ -1,28 +1,40 @@
-const fs = require('fs');
-const path = require('path');
-const { resolveStateFile, atomicWriteFileSync, ensureDir, getTodayUtc } = require('./util');
-const { parseFrontmatter, serializeFrontmatter } = require('./frontmatter');
+import * as fs from 'fs';
+import * as path from 'path';
+import { resolveStateFile, atomicWriteFileSync, ensureDir, getTodayUtc } from './util';
+import { parseFrontmatter, serializeFrontmatter } from './frontmatter';
+import { validatePreferencesEntry } from './validators';
 
 const DATE_HEADER_RE = /^## (\d{4}-\d{2}-\d{2})/;
 const SUBSECTION_RE = /^### (.+)/;
 const TABLE_HEADER_RE = /^\|[^|]+\|/;
 const TABLE_SEP_RE = /^\|[-|]+\|/;
 
-function parsePreferencesFile(filePath) {
+export interface PreferencesTable {
+  headers: string[];
+  rows: string[][];
+}
+
+export interface PreferencesFile {
+  last_run_date: string | null;
+  sections: Record<string, Record<string, string[]>>;
+  tables: PreferencesTable[];
+}
+
+export function parsePreferencesFile(filePath: string): PreferencesFile {
   const content = fs.readFileSync(filePath, 'utf8');
   const { body } = parseFrontmatter(content);
   const lines = body.split('\n');
 
-  const result = {
+  const result: PreferencesFile = {
     last_run_date: null,
     sections: {},
     tables: [],
   };
 
-  let currentDate = null;
-  let currentSubsection = null;
+  let currentDate: string | null = null;
+  let currentSubsection: string | null = null;
   let inTopLevelTable = false;
-  let currentTable = null;
+  let currentTable: PreferencesTable | null = null;
 
   for (const line of lines) {
     const trimmed = line.trim();
@@ -92,9 +104,13 @@ function parsePreferencesFile(filePath) {
   return result;
 }
 
-function appendPreferences(dir, entry) {
-  const { validatePreferencesEntry } = require('./validators');
-  const validation = validatePreferencesEntry(entry);
+export interface PreferencesEntry {
+  section: string;
+  entries: string[];
+}
+
+export function appendPreferences(dir: string, entry: PreferencesEntry): void {
+  const validation = validatePreferencesEntry(entry as unknown as Record<string, unknown>);
   if (!validation.valid) {
     throw new Error(`Invalid preferences entry: ${validation.errors.join(', ')}`);
   }
@@ -138,8 +154,3 @@ function appendPreferences(dir, entry) {
     atomicWriteFileSync(path.join(dir, fileName), serializeFrontmatter(meta, body));
   }
 }
-
-module.exports = {
-  parsePreferencesFile,
-  appendPreferences,
-};

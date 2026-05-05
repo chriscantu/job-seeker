@@ -1,4 +1,4 @@
-// scripts/lib/sender-classifier.js
+// scripts/lib/sender-classifier.ts
 //
 // Heuristic classifier for sender domains discovered by the audit CLI.
 // Takes a sender domain + sample data and suggests which auto-trash table
@@ -9,10 +9,25 @@
 //   2. Heuristic signals (noreply@, high count, templated subjects) → medium
 //   3. Fallback → unknown / low
 
+export type SenderCategory = 'job-alert' | 'staffing' | 'marketing' | 'unknown';
+export type Confidence = 'high' | 'medium' | 'low';
+
+export interface ClassifySenderInput {
+  domain: string;
+  fromAddresses: string[];
+  messageCount: number;
+  subjects: string[];
+}
+
+export interface ClassifySenderResult {
+  suggestedCategory: SenderCategory;
+  confidence: Confidence;
+}
+
 // Known domains grouped by category. Entries match the domain itself or
 // any subdomain (mail.glassdoor.com matches glassdoor.com). This is
 // intentionally conservative — only well-known, unambiguous domains.
-const KNOWN_DOMAINS = {
+export const KNOWN_DOMAINS: Record<Exclude<SenderCategory, 'unknown'>, string[]> = {
   'job-alert': [
     'glassdoor.com',
     'indeed.com',
@@ -48,7 +63,7 @@ const KNOWN_DOMAINS = {
 
 // Automated sender local-part prefixes — signals that the sender is a
 // system, not a person.
-const AUTOMATED_LOCAL_PARTS = [
+export const AUTOMATED_LOCAL_PARTS = [
   'noreply',
   'no-reply',
   'notifications',
@@ -65,7 +80,7 @@ const AUTOMATED_LOCAL_PARTS = [
 // Check if `domain` matches or is a subdomain of any entry in `domainList`.
 // "mail.glassdoor.com" matches "glassdoor.com".
 // "notglassdoor.com" does NOT match "glassdoor.com".
-function matchesDomainList(domain, domainList) {
+export function matchesDomainList(domain: string, domainList: string[]): boolean {
   const lower = domain.toLowerCase();
   for (const known of domainList) {
     if (lower === known || lower.endsWith('.' + known)) {
@@ -77,7 +92,7 @@ function matchesDomainList(domain, domainList) {
 
 // Check if any fromAddress has an automated local-part (exact match or
 // delimited by `-` or `+`, e.g. `noreply`, `noreply-bounces`).
-function hasAutomatedLocalPart(fromAddresses) {
+export function hasAutomatedLocalPart(fromAddresses: string[]): boolean {
   for (const addr of fromAddresses) {
     const local = addr.split('@')[0].toLowerCase();
     for (const prefix of AUTOMATED_LOCAL_PARTS) {
@@ -90,11 +105,11 @@ function hasAutomatedLocalPart(fromAddresses) {
 }
 
 // Check if subjects are templated (many similar subjects).
-function hasTemplatedSubjects(subjects) {
+export function hasTemplatedSubjects(subjects: string[]): boolean {
   if (subjects.length < 3) return false;
   // If 50%+ of subjects share the same first 10 characters, likely templated.
   const prefixes = subjects.map((s) => s.slice(0, 10).toLowerCase());
-  const counts = {};
+  const counts: Record<string, number> = {};
   for (const p of prefixes) {
     counts[p] = (counts[p] || 0) + 1;
   }
@@ -102,11 +117,11 @@ function hasTemplatedSubjects(subjects) {
   return maxCount / subjects.length >= 0.5;
 }
 
-function classifySender({ domain, fromAddresses, messageCount, subjects }) {
+export function classifySender({ domain, fromAddresses, messageCount, subjects }: ClassifySenderInput): ClassifySenderResult {
   // 1. Known domain lists — high confidence
   for (const [category, domainList] of Object.entries(KNOWN_DOMAINS)) {
     if (matchesDomainList(domain, domainList)) {
-      return { suggestedCategory: category, confidence: 'high' };
+      return { suggestedCategory: category as SenderCategory, confidence: 'high' };
     }
   }
 
@@ -134,12 +149,3 @@ function classifySender({ domain, fromAddresses, messageCount, subjects }) {
   // 3. Fallback — unknown / low
   return { suggestedCategory: 'unknown', confidence: 'low' };
 }
-
-module.exports = {
-  classifySender,
-  matchesDomainList,
-  hasAutomatedLocalPart,
-  hasTemplatedSubjects,
-  KNOWN_DOMAINS,
-  AUTOMATED_LOCAL_PARTS,
-};

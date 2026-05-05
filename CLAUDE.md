@@ -14,6 +14,15 @@ Before creating files or running any skill, read `PRINCIPLES.md`.
 It defines the quality standards, personalization rules, and privacy
 constraints that govern all work in this plugin.
 
+## Runtime — Bun only
+
+Scripts are TypeScript and run under [Bun](https://bun.sh). `bun test` is the
+test runner; `bun run scripts/<file>.ts` invokes a CLI. Plain `node
+scripts/<file>.js` is **not supported** — `scripts/lib/*` is `.ts`, and
+the few `.js` wrappers that remain in `scripts/` use `require('./lib/X')`
+which Bun resolves to the corresponding `.ts` file but Node does not.
+Type-check with `bunx tsc --noEmit` (config in root `tsconfig.json`).
+
 ---
 
 ## Candidate Profile
