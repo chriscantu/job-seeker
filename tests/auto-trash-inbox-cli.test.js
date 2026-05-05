@@ -1,6 +1,6 @@
 "use strict";
 
-// CLI tests for scripts/auto_trash_inbox.js — the deterministic replacement
+// CLI tests for scripts/auto_trash_inbox.ts — the deterministic replacement
 // for the LLM-driven Phase 6 Step 1 of scan-email.
 //
 // Tests exercise the full pipeline up to (but not including) the osascript
@@ -19,7 +19,7 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 
-const CLI = path.join(__dirname, "..", "scripts", "auto_trash_inbox.js");
+const CLI = path.join(__dirname, "..", "scripts", "auto_trash_inbox.ts");
 const EXAMPLE_SEARCH_MD = path.resolve(
   __dirname,
   "..",

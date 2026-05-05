@@ -1,10 +1,9 @@
 #!/usr/bin/env bun
-// scripts/auto_trash_gmail.js
 //
 // Deterministic Phase 6 Step 1G of scan-email — Gmail-side equivalent of
-// auto_trash_inbox.js. Reads the three auto-trash tables from
+// auto_trash_inbox.ts. Reads the three auto-trash tables from
 // config/search.md, validates the no-comma invariant, and shells out to
-// `gmail.js trash-by-sender` with one `--sender` flag per substring.
+// `gmail.ts trash-by-sender` with one `--sender` flag per substring.
 // Prints the child's stdout verbatim so the caller (and the user) can see
 // per-pattern moved/matched counts, including 0/0 rows that surface typos
 // in config/search.md.
@@ -23,8 +22,8 @@
 //   this script landed.
 //
 // Usage:
-//   bun scripts/auto_trash_gmail.js              # Live run — trashes matching messages
-//   bun scripts/auto_trash_gmail.js --dry-run    # Print what would be trashed, skip Gmail API
+//   bun scripts/auto_trash_gmail.ts              # Live run — trashes matching messages
+//   bun scripts/auto_trash_gmail.ts --dry-run    # Print what would be trashed, skip Gmail API
 //
 // Exit codes:
 //   0  success (or dry-run completed)
@@ -38,54 +37,55 @@
 //
 // Env overrides (intended for tests):
 //   JOB_SEEKER_SEARCH_MD           override path to search.md
-//   JOB_SEEKER_GMAIL_BIN           override path to gmail.js (for test stubs)
+//   JOB_SEEKER_GMAIL_BIN           override path to gmail.ts (for test stubs)
 //   JOB_SEEKER_GMAIL_CREDS         override path to credentials/ dir
 //   JOB_SEEKER_SKIP_CRED_CHECK     set to skip credential existence check
 //                                  (tests only — decoupled from GMAIL_BIN so
 //                                  that a legitimate user binary override
 //                                  still validates credentials)
 //   JOB_SEEKER_GMAIL_NEWER_THAN    Gmail search window forwarded to
-//                                  `gmail.js trash-by-sender --newer-than`
+//                                  `gmail.ts trash-by-sender --newer-than`
 //                                  (default: 30d). Use `7d` for weekly
 //                                  scans, `90d` after a long break.
 //   JOB_SEEKER_GMAIL_TRASH_MAX     max matches per pattern forwarded via
 //                                  child env (default: 500). Raise if a
 //                                  legitimately noisy sender exceeds the cap.
 
-const fs = require('fs');
-const path = require('path');
-const { spawnSync } = require('child_process');
+import * as fs from 'fs';
+import * as path from 'path';
+import { spawnSync } from 'child_process';
 
-const {
+import {
   extractAllTrashSubstrings,
   findSubstringWithComma,
-} = require('./lib/trash-tables');
-const {
+} from './lib/trash-tables';
+import {
   classifyGmailResult,
   EXIT_OK,
   EXIT_CONFIG,
   EXIT_COMMA,
   EXIT_GMAIL_API,
   EXIT_PARTIAL,
-} = require('./lib/trash-output');
+} from './lib/trash-output';
 
 const REPO_ROOT = path.resolve(__dirname, '..');
 const DEFAULT_SEARCH_MD = path.join(REPO_ROOT, 'config', 'search.md');
-const DEFAULT_GMAIL_BIN = path.join(REPO_ROOT, 'scripts', 'gmail.js');
+const DEFAULT_GMAIL_BIN = path.join(REPO_ROOT, 'scripts', 'gmail.ts');
 const DEFAULT_CREDS_DIR = path.join(REPO_ROOT, 'credentials');
 
 class ConfigError extends Error {
-  constructor(msg) {
+  constructor(msg: string) {
     super(msg);
     this.name = 'ConfigError';
   }
 }
 
 class CommaError extends Error {
-  constructor(substring) {
+  substring: string;
+  constructor(substring: string) {
     super(
       `Trash substring "${substring}" contains a comma. ` +
-        `auto_trash_gmail ships substrings through gmail.js trash-by-sender ` +
+        `auto_trash_gmail ships substrings through gmail.ts trash-by-sender ` +
         `as repeated --sender flags, but a literal comma likely indicates a ` +
         `typo in config/search.md — the Apple Mail path splits on commas and ` +
         `would mis-parse this. Remove the comma to keep both paths consistent.`
@@ -95,8 +95,14 @@ class CommaError extends Error {
   }
 }
 
-function parseArgs(argv) {
-  const args = { dryRun: false, newerThan: null };
+interface ParsedArgs {
+  dryRun: boolean;
+  newerThan: string | null;
+  help?: boolean;
+}
+
+function parseArgs(argv: string[]): ParsedArgs {
+  const args: ParsedArgs = { dryRun: false, newerThan: null };
   const rest = argv.slice(2);
 
   for (let i = 0; i < rest.length; i++) {
@@ -131,11 +137,11 @@ function parseArgs(argv) {
   return args;
 }
 
-function printHelp() {
+function printHelp(): void {
   process.stdout.write(
-    'Usage: bun scripts/auto_trash_gmail.js [--dry-run] [--newer-than WINDOW]\n' +
+    'Usage: bun scripts/auto_trash_gmail.ts [--dry-run] [--newer-than WINDOW]\n' +
       '\n' +
-      'Reads config/search.md, then invokes gmail.js trash-by-sender with\n' +
+      'Reads config/search.md, then invokes gmail.ts trash-by-sender with\n' +
       'one --sender flag per substring to move matching INBOX messages to\n' +
       'Gmail Trash.\n' +
       '\n' +
@@ -146,7 +152,7 @@ function printHelp() {
   );
 }
 
-function readSearchMd(searchPath) {
+function readSearchMd(searchPath: string): string {
   if (!fs.existsSync(searchPath)) {
     throw new ConfigError(
       `search.md not found at ${searchPath}. ` +
@@ -156,19 +162,27 @@ function readSearchMd(searchPath) {
   return fs.readFileSync(searchPath, 'utf8');
 }
 
-function checkCredentials(credsDir) {
+function checkCredentials(credsDir: string): void {
   const clientSecret = path.join(credsDir, 'gmail-client-secret.json');
   const tokens = path.join(credsDir, 'gmail-tokens.json');
   if (!fs.existsSync(clientSecret) || !fs.existsSync(tokens)) {
     throw new ConfigError(
       `Gmail credentials missing in ${credsDir}. ` +
         `Expected gmail-client-secret.json and gmail-tokens.json. ` +
-        `Run: bun scripts/gmail.js auth`
+        `Run: bun scripts/gmail.ts auth`
     );
   }
 }
 
-function buildPlan(env, cliArgs) {
+interface GmailTrashPlan {
+  substrings: string[];
+  gmailBin: string;
+  credsDir: string;
+  skipCredCheck: boolean;
+  newerThan: string | null;
+}
+
+function buildPlan(env: NodeJS.ProcessEnv, cliArgs: ParsedArgs): GmailTrashPlan {
   const searchPath = env.JOB_SEEKER_SEARCH_MD || DEFAULT_SEARCH_MD;
   const credsDir = env.JOB_SEEKER_GMAIL_CREDS || DEFAULT_CREDS_DIR;
   const gmailBin = env.JOB_SEEKER_GMAIL_BIN || DEFAULT_GMAIL_BIN;
@@ -181,7 +195,7 @@ function buildPlan(env, cliArgs) {
 
   // --newer-than precedence: CLI flag > env var > default (via child).
   // Leaving newerThan null lets the child apply its own default
-  // (currently 30d in gmail.js), which is the single source of truth.
+  // (currently 30d in gmail.ts), which is the single source of truth.
   const newerThan =
     (cliArgs && cliArgs.newerThan) || env.JOB_SEEKER_GMAIL_NEWER_THAN || null;
 
@@ -194,7 +208,13 @@ function buildPlan(env, cliArgs) {
   return { substrings, gmailBin, credsDir, skipCredCheck, newerThan };
 }
 
-function runTrashBySender(plan, dryRun) {
+interface GmailRunResult {
+  stdout: string;
+  stderr: string;
+  status: number | null;
+}
+
+function runTrashBySender(plan: GmailTrashPlan, dryRun: boolean): GmailRunResult {
   const args = [plan.gmailBin, 'trash-by-sender'];
   for (const s of plan.substrings) {
     args.push('--sender', s);
@@ -204,7 +224,7 @@ function runTrashBySender(plan, dryRun) {
   }
   if (dryRun) args.push('--dry-run');
   // Child inherits process.env, so JOB_SEEKER_GMAIL_TRASH_MAX flows
-  // through to gmail.js without explicit forwarding.
+  // through to gmail.ts without explicit forwarding.
   const result = spawnSync('bun', args, { encoding: 'utf8' });
   if (result.error) {
     throw new Error(`bun invocation failed: ${result.error.message}`);
@@ -214,12 +234,13 @@ function runTrashBySender(plan, dryRun) {
   return { stdout, stderr, status: result.status };
 }
 
-function main() {
-  let args;
+function main(): number {
+  let args: ParsedArgs;
   try {
     args = parseArgs(process.argv);
   } catch (err) {
-    process.stderr.write(`error: ${err.message}\n`);
+    const msg = err instanceof Error ? err.message : String(err);
+    process.stderr.write(`error: ${msg}\n`);
     printHelp();
     return EXIT_CONFIG;
   }
@@ -228,22 +249,23 @@ function main() {
     return EXIT_OK;
   }
 
-  let plan;
+  let plan: GmailTrashPlan;
   try {
     plan = buildPlan(process.env, args);
   } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
     if (err instanceof ConfigError) {
-      process.stderr.write(`error: ${err.message}\n`);
+      process.stderr.write(`error: ${msg}\n`);
       return EXIT_CONFIG;
     }
     if (err instanceof CommaError) {
-      process.stderr.write(`error: ${err.message}\n`);
+      process.stderr.write(`error: ${msg}\n`);
       return EXIT_COMMA;
     }
     // Missing-heading / empty-table errors come from extractAllTrashSubstrings
     // as plain Error instances — surface their message to stderr and
     // classify as config errors (issue #90 finding 2 convention).
-    process.stderr.write(`error: ${err.message}\n`);
+    process.stderr.write(`error: ${msg}\n`);
     return EXIT_CONFIG;
   }
 
@@ -254,7 +276,7 @@ function main() {
     process.stdout.write(
       `dry-run: Phase 6 Step 1G would trash Gmail INBOX messages by sender\n` +
         `  pattern count: ${plan.substrings.length}\n` +
-        `  newer-than: ${plan.newerThan || '30d (gmail.js default)'}\n` +
+        `  newer-than: ${plan.newerThan || '30d (gmail.ts default)'}\n` +
         `  patterns: ${plan.substrings.join(',')}\n`
     );
     return EXIT_OK;
@@ -266,16 +288,18 @@ function main() {
     try {
       checkCredentials(plan.credsDir);
     } catch (err) {
-      process.stderr.write(`error: ${err.message}\n`);
+      const msg = err instanceof Error ? err.message : String(err);
+      process.stderr.write(`error: ${msg}\n`);
       return EXIT_CONFIG;
     }
   }
 
-  let result;
+  let result: GmailRunResult;
   try {
     result = runTrashBySender(plan, args.dryRun);
   } catch (err) {
-    process.stderr.write(`error: ${err.message}\n`);
+    const msg = err instanceof Error ? err.message : String(err);
+    process.stderr.write(`error: ${msg}\n`);
     return EXIT_GMAIL_API;
   }
 
@@ -291,12 +315,12 @@ function main() {
   return classifyGmailResult({
     stdout: result.stdout,
     stderr: result.stderr,
-    status: result.status,
+    status: result.status ?? -1,
     expectedPatternCount: plan.substrings.length,
   });
 }
 
-module.exports = {
+export {
   EXIT_OK,
   EXIT_CONFIG,
   EXIT_COMMA,
@@ -304,6 +328,6 @@ module.exports = {
   EXIT_PARTIAL,
 };
 
-if (require.main === module) {
+if (import.meta.main) {
   process.exit(main());
 }

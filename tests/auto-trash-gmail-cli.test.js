@@ -1,14 +1,14 @@
 "use strict";
 
-// Integration tests for scripts/auto_trash_gmail.js — the deterministic
-// Phase 6 Step 1G Gmail-side sweep that mirrors auto_trash_inbox.js.
+// Integration tests for scripts/auto_trash_gmail.ts — the deterministic
+// Phase 6 Step 1G Gmail-side sweep that mirrors auto_trash_inbox.ts.
 //
 // Tests exercise the full orchestrator pipeline: config reading, table
 // extraction, no-comma validation, argv construction, subprocess
 // shell-out, and exit code classification. Tests MUST NOT invoke the
 // real Gmail API — CI has no credentials.
 //
-// The stub at tests/fixtures/gmail-stub.js stands in for scripts/gmail.js
+// The stub at tests/fixtures/gmail-stub.js stands in for scripts/gmail.ts
 // via the JOB_SEEKER_GMAIL_BIN env override. It reads GMAIL_STUB_STDOUT /
 // GMAIL_STUB_STDERR / GMAIL_STUB_EXIT and echoes them — enough to
 // exercise every branch of classifyGmailResult.
@@ -20,7 +20,7 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 
-const CLI = path.join(__dirname, "..", "scripts", "auto_trash_gmail.js");
+const CLI = path.join(__dirname, "..", "scripts", "auto_trash_gmail.ts");
 const GMAIL_STUB = path.join(__dirname, "fixtures", "gmail-stub.js");
 const EXAMPLE_SEARCH_MD = path.resolve(
   __dirname,
@@ -335,7 +335,7 @@ describe("auto_trash_gmail.js CLI", () => {
       });
       assert.equal(exitCode, 2);
       assert.match(stderr, /credentials missing/i);
-      assert.match(stderr, /gmail\.js auth/);
+      assert.match(stderr, /gmail\.ts auth/);
     } finally {
       fs.rmSync(emptyCredsDir, { recursive: true, force: true });
     }

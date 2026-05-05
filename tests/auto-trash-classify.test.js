@@ -1,7 +1,7 @@
 "use strict";
 
 // Unit tests for detectPartialFailure + classifyOsascriptResult,
-// extracted pure functions from scripts/auto_trash_inbox.js.
+// extracted pure functions from scripts/auto_trash_inbox.ts.
 //
 // Issue #90 findings 1 and 3: before these fixes, partial-failure detection
 // and osascript result classification were buried inside main() and
@@ -22,7 +22,7 @@ const {
   EXIT_OK,
   EXIT_OSASCRIPT,
   EXIT_PARTIAL,
-} = require("../scripts/auto_trash_inbox.js");
+} = require("../scripts/auto_trash_inbox.ts");
 
 describe("detectPartialFailure", () => {
   it("returns not-partial for a clean full-match line", () => {

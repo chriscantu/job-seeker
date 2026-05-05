@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-// scripts/auto_trash_inbox.js
 //
 // Deterministic Phase 6 Step 1 of scan-email. Reads the three auto-trash
 // tables from config/search.md, validates the no-comma invariant, and
@@ -19,8 +18,8 @@
 //   atomic command: read, validate, call, return.
 //
 // Usage:
-//   bun scripts/auto_trash_inbox.js              # Live run — trashes matching messages
-//   bun scripts/auto_trash_inbox.js --dry-run    # Print what would be trashed, skip osascript
+//   bun scripts/auto_trash_inbox.ts              # Live run — trashes matching messages
+//   bun scripts/auto_trash_inbox.ts --dry-run    # Print what would be trashed, skip osascript
 //
 // Exit codes:
 //   0  success (or dry-run completed)
@@ -33,15 +32,15 @@
 //   JOB_SEEKER_SEARCH_MD     override path to search.md
 //   JOB_SEEKER_MAIL_CONFIG   override path to integrations/config/mail-config.md
 
-const fs = require('fs');
-const path = require('path');
-const { spawnSync } = require('child_process');
+import * as fs from 'fs';
+import * as path from 'path';
+import { spawnSync } from 'child_process';
 
-const {
+import {
   extractAllTrashSubstrings,
   findSubstringWithComma,
-} = require('./lib/trash-tables');
-const {
+} from './lib/trash-tables';
+import {
   detectPartialFailure,
   classifyOsascriptResult,
   EXIT_OK,
@@ -49,7 +48,7 @@ const {
   EXIT_COMMA,
   EXIT_OSASCRIPT,
   EXIT_PARTIAL,
-} = require('./lib/trash-output');
+} from './lib/trash-output';
 
 const REPO_ROOT = path.resolve(__dirname, '..');
 const DEFAULT_SEARCH_MD = path.join(REPO_ROOT, 'config', 'search.md');
@@ -65,8 +64,13 @@ const TRASH_SCRIPT = path.join(
   'apple_mail_trash_by_sender.applescript'
 );
 
-function parseArgs(argv) {
-  const args = { dryRun: false };
+interface ParsedArgs {
+  dryRun: boolean;
+  help?: boolean;
+}
+
+function parseArgs(argv: string[]): ParsedArgs {
+  const args: ParsedArgs = { dryRun: false };
   for (const a of argv.slice(2)) {
     if (a === '--dry-run') {
       args.dryRun = true;
@@ -79,9 +83,9 @@ function parseArgs(argv) {
   return args;
 }
 
-function printHelp() {
+function printHelp(): void {
   process.stdout.write(
-    'Usage: bun scripts/auto_trash_inbox.js [--dry-run]\n' +
+    'Usage: bun scripts/auto_trash_inbox.ts [--dry-run]\n' +
       '\n' +
       'Reads config/search.md and integrations/config/mail-config.md,\n' +
       'then invokes apple_mail_trash_by_sender.applescript to trash\n' +
@@ -89,7 +93,33 @@ function printHelp() {
   );
 }
 
-function readMailConfig(configPath) {
+class ConfigError extends Error {
+  constructor(msg: string) {
+    super(msg);
+    this.name = 'ConfigError';
+  }
+}
+
+class CommaError extends Error {
+  substring: string;
+  constructor(substring: string) {
+    super(
+      `Trash substring "${substring}" contains a comma. ` +
+        `apple_mail_trash_by_sender.applescript splits its input on commas, ` +
+        `so a literal comma would turn this into two bogus patterns. ` +
+        `Remove the comma in config/search.md.`
+    );
+    this.name = 'CommaError';
+    this.substring = substring;
+  }
+}
+
+interface MailConfig {
+  accountName: string;
+  inboxName: string;
+}
+
+function readMailConfig(configPath: string): MailConfig {
   if (!fs.existsSync(configPath)) {
     throw new ConfigError(
       `mail-config.md not found at ${configPath}. ` +
@@ -111,7 +141,7 @@ function readMailConfig(configPath) {
   };
 }
 
-function readSearchMd(searchPath) {
+function readSearchMd(searchPath: string): string {
   if (!fs.existsSync(searchPath)) {
     throw new ConfigError(
       `search.md not found at ${searchPath}. ` +
@@ -121,27 +151,14 @@ function readSearchMd(searchPath) {
   return fs.readFileSync(searchPath, 'utf8');
 }
 
-class ConfigError extends Error {
-  constructor(msg) {
-    super(msg);
-    this.name = 'ConfigError';
-  }
+interface TrashPlan {
+  accountName: string;
+  inboxName: string;
+  substrings: string[];
+  patterns: string;
 }
 
-class CommaError extends Error {
-  constructor(substring) {
-    super(
-      `Trash substring "${substring}" contains a comma. ` +
-        `apple_mail_trash_by_sender.applescript splits its input on commas, ` +
-        `so a literal comma would turn this into two bogus patterns. ` +
-        `Remove the comma in config/search.md.`
-    );
-    this.name = 'CommaError';
-    this.substring = substring;
-  }
-}
-
-function buildPlan(env) {
+function buildPlan(env: NodeJS.ProcessEnv): TrashPlan {
   const searchPath = env.JOB_SEEKER_SEARCH_MD || DEFAULT_SEARCH_MD;
   const mailConfigPath = env.JOB_SEEKER_MAIL_CONFIG || DEFAULT_MAIL_CONFIG;
 
@@ -156,7 +173,13 @@ function buildPlan(env) {
   return { accountName, inboxName, substrings, patterns };
 }
 
-function runTrashScript(plan) {
+interface OsascriptResult {
+  stdout: string;
+  stderr: string;
+  status: number | null;
+}
+
+function runTrashScript(plan: TrashPlan): OsascriptResult {
   const result = spawnSync(
     'osascript',
     [TRASH_SCRIPT, plan.accountName, plan.inboxName, plan.patterns],
@@ -171,15 +194,16 @@ function runTrashScript(plan) {
 }
 
 // Classifier helpers (detectPartialFailure, classifyOsascriptResult) live
-// in scripts/lib/trash-output.js and are re-exported below for the existing
+// in scripts/lib/trash-output.ts and are re-exported below for the existing
 // unit tests in tests/auto-trash-classify.test.js.
 
-function main() {
-  let args;
+function main(): number {
+  let args: ParsedArgs;
   try {
     args = parseArgs(process.argv);
   } catch (err) {
-    process.stderr.write(`error: ${err.message}\n`);
+    const msg = err instanceof Error ? err.message : String(err);
+    process.stderr.write(`error: ${msg}\n`);
     printHelp();
     return EXIT_CONFIG;
   }
@@ -188,22 +212,23 @@ function main() {
     return EXIT_OK;
   }
 
-  let plan;
+  let plan: TrashPlan;
   try {
     plan = buildPlan(process.env);
   } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
     if (err instanceof ConfigError) {
-      process.stderr.write(`error: ${err.message}\n`);
+      process.stderr.write(`error: ${msg}\n`);
       return EXIT_CONFIG;
     }
     if (err instanceof CommaError) {
-      process.stderr.write(`error: ${err.message}\n`);
+      process.stderr.write(`error: ${msg}\n`);
       return EXIT_COMMA;
     }
     // Missing-heading errors come from extractAllTrashSubstrings as plain
     // Error instances — surface their message to stderr and classify as
     // config errors.
-    process.stderr.write(`error: ${err.message}\n`);
+    process.stderr.write(`error: ${msg}\n`);
     return EXIT_CONFIG;
   }
 
@@ -218,11 +243,12 @@ function main() {
     return EXIT_OK;
   }
 
-  let result;
+  let result: OsascriptResult;
   try {
     result = runTrashScript(plan);
   } catch (err) {
-    process.stderr.write(`error: ${err.message}\n`);
+    const msg = err instanceof Error ? err.message : String(err);
+    process.stderr.write(`error: ${msg}\n`);
     return EXIT_OSASCRIPT;
   }
 
@@ -238,12 +264,12 @@ function main() {
   return classifyOsascriptResult({
     stdout: result.stdout,
     stderr: result.stderr,
-    status: result.status,
+    status: result.status ?? -1,
     expectedPatternCount: plan.substrings.length,
   });
 }
 
-module.exports = {
+export {
   detectPartialFailure,
   classifyOsascriptResult,
   EXIT_OK,
@@ -253,6 +279,6 @@ module.exports = {
   EXIT_PARTIAL,
 };
 
-if (require.main === module) {
+if (import.meta.main) {
   process.exit(main());
 }

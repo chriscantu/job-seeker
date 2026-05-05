@@ -7,7 +7,7 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 
-const CLI = path.join(__dirname, "..", "scripts", "audit_trash_patterns.js");
+const CLI = path.join(__dirname, "..", "scripts", "audit_trash_patterns.ts");
 const GMAIL_SEARCH_STUB = path.join(
   __dirname,
   "fixtures",

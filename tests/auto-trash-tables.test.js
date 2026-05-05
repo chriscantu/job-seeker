@@ -8,8 +8,8 @@
 // if the schema drifts, listed senders silently start accumulating in the
 // inbox.
 //
-// Parser lives in scripts/lib/trash-tables.js and is shared with
-// scripts/auto_trash_inbox.js so a schema regression blows up in tests
+// Parser lives in scripts/lib/trash-tables.ts and is shared with
+// scripts/auto_trash_inbox.ts so a schema regression blows up in tests
 // before it can silently drop senders at runtime.
 //
 // Issue history:
@@ -17,7 +17,7 @@
 //               to Auto-Trash After Scan" table didn't exist yet.
 //   #88       — Ladders + Lensa + LinkedIn connection invites accumulated
 //               because Phase 6 Step 1 was LLM-driven and could be skipped.
-//               Fix: the parser + auto_trash_inbox.js CLI replaced the
+//               Fix: the parser + auto_trash_inbox.ts CLI replaced the
 //               LLM text-processing step with a deterministic pipeline.
 
 const { test } = require("node:test");

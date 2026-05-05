@@ -1,6 +1,6 @@
 "use strict";
 
-// Unit tests for the pure helpers exported from scripts/gmail.js's
+// Unit tests for the pure helpers exported from scripts/gmail.ts's
 // trash-by-sender subcommand. CLI-level tests (tests/gmail-cli.test.js)
 // cover arg-validation error paths; integration tests
 // (tests/auto-trash-gmail-cli.test.js) exercise the full orchestrator
@@ -27,7 +27,7 @@ const {
   processSender,
   resolveMaxMatches,
   DEFAULT_MAX_MATCHES_PER_PATTERN,
-} = require("../scripts/gmail.js");
+} = require("../scripts/gmail.ts");
 
 describe("encodeRfc822", () => {
   it("includes To header when recipient is provided", () => {

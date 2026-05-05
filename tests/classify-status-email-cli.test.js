@@ -5,7 +5,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const CLI = path.join(__dirname, '..', 'scripts', 'classify-status-email.js');
+const CLI = path.join(__dirname, '..', 'scripts', 'classify-status-email.ts');
 const FIXTURES = path.join(__dirname, 'fixtures', 'status-emails');
 
 let tmpDir;

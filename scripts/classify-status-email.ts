@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
-const fs = require('fs');
-const { classifyStatusEmail } = require('./lib/status-classifier');
-const { parseApplicationsFile } = require('./lib/applications');
-const { resolveStateFile } = require('./lib/util');
+import * as fs from 'fs';
+import { classifyStatusEmail, ClassifyStatusEmailInput } from './lib/status-classifier';
+import { parseApplicationsFile, ApplicationsData } from './lib/applications';
+import { resolveStateFile } from './lib/util';
 
 // Exit codes:
 //   0  success (classification JSON or `null` on stdout)
@@ -15,8 +15,14 @@ const EXIT_INPUT = 3;
 const EXIT_STATE = 4;
 const EXIT_CLASSIFIER = 5;
 
-function parseArgs(argv) {
-  const args = {};
+interface ParsedArgs {
+  email?: string;
+  applicationsDir?: string;
+  error?: string;
+}
+
+function parseArgs(argv: string[]): ParsedArgs {
+  const args: ParsedArgs = {};
   for (let i = 2; i < argv.length; i++) {
     const key = argv[i];
     const next = argv[i + 1];
@@ -35,35 +41,36 @@ function parseArgs(argv) {
   return args;
 }
 
-function usageError(detail) {
+function usageError(detail?: string): never {
   console.error(JSON.stringify({
     error: 'usage_error',
-    usage: 'classify-status-email.js --email <file.json> --applications-dir <dir>',
+    usage: 'classify-status-email.ts --email <file.json> --applications-dir <dir>',
     detail: detail || null,
   }));
   process.exit(EXIT_USAGE);
 }
 
-function structuredError(code, error, extra = {}) {
+function structuredError(code: number, error: string, extra: Record<string, unknown> = {}): never {
   console.error(JSON.stringify({ error, ...extra }));
   process.exit(code);
 }
 
-function main() {
+function main(): void {
   const args = parseArgs(process.argv);
   if (args.error) usageError(args.error);
   const { email, applicationsDir } = args;
   if (!email || !applicationsDir) usageError();
 
-  let emailData;
+  let emailData: Record<string, unknown>;
   try {
     const raw = fs.readFileSync(email, 'utf8');
-    emailData = JSON.parse(raw);
+    emailData = JSON.parse(raw) as Record<string, unknown>;
   } catch (err) {
-    structuredError(EXIT_INPUT, 'email_read_failed', { file: email, detail: err.message });
+    const detail = err instanceof Error ? err.message : String(err);
+    structuredError(EXIT_INPUT, 'email_read_failed', { file: email, detail });
   }
 
-  let applicationsData;
+  let applicationsData: ApplicationsData;
   try {
     const applicationsFile = resolveStateFile(applicationsDir, 'applications');
     if (!applicationsFile) {
@@ -73,14 +80,16 @@ function main() {
       applicationsData = parseApplicationsFile(applicationsFile);
     }
   } catch (err) {
-    structuredError(EXIT_STATE, 'applications_read_failed', { dir: applicationsDir, detail: err.message });
+    const detail = err instanceof Error ? err.message : String(err);
+    structuredError(EXIT_STATE, 'applications_read_failed', { dir: applicationsDir, detail });
   }
 
   let result;
   try {
-    result = classifyStatusEmail({ ...emailData, applicationsData });
+    result = classifyStatusEmail({ ...emailData, applicationsData } as unknown as ClassifyStatusEmailInput);
   } catch (err) {
-    structuredError(EXIT_CLASSIFIER, 'classifier_failed', { detail: err.message });
+    const detail = err instanceof Error ? err.message : String(err);
+    structuredError(EXIT_CLASSIFIER, 'classifier_failed', { detail });
   }
 
   console.log(JSON.stringify(result));
