@@ -72,8 +72,10 @@ export function detectPartialFailure(stdout: string, expectedPatternCount?: numb
   // all space-separated — so the first `(` always begins the suffix
   // block.
   const suffixMatch = body.match(/(?:^|\s)\(/);
-  if (suffixMatch && suffixMatch.index !== undefined) {
-    body = body.slice(0, suffixMatch.index).trim();
+  if (suffixMatch) {
+    // Non-/g RegExp.match always sets index when matched. Future edits adding
+    // /g would change this — keep the assertion explicit to fail loudly.
+    body = body.slice(0, suffixMatch.index!).trim();
   }
 
   const failures: PartialFailureEntry[] = [];

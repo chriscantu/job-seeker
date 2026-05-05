@@ -2,6 +2,21 @@
 //
 // Parser for the three "auto-trash" tables in config/search.md that
 // scan-email Phase 6 Step 1 reads to build its sender-pattern list.
+//
+// Shared between scripts/auto_trash_inbox.js (the runtime CLI) and
+// tests/auto-trash-tables.test.js (the schema contract test). A single
+// parser means a schema regression blows up in tests before it can
+// silently drop senders at runtime.
+//
+// Issue context:
+//   - #86 / #87: LinkedIn job alerts were leaking because Phase 6 Step 2
+//     (body-fetch trash-by-id) only caught body-fetched candidates. Fixed
+//     by adding the "Job Alert Senders to Auto-Trash After Scan" table.
+//   - #88: Ladders + Lensa + LinkedIn connection invites were accumulating
+//     in the inbox because Phase 6 Step 1 was an LLM-driven "read these
+//     markdown tables, concatenate, shell out" sequence that could be
+//     silently skipped or mis-executed. Fixed by making this lib + the
+//     auto_trash_inbox.js CLI the single deterministic path.
 
 import * as fs from 'fs';
 
@@ -69,7 +84,11 @@ export function deriveRelayVariants(substrings: string[]): string[] {
 }
 
 // Extract all substrings from all three auto-trash tables, in table order.
-// Throws if any heading is missing OR if any named table has zero data rows.
+// Throws if any heading is missing OR if any named table has zero data rows
+// — both are hard contracts, not warnings, because Phase 6 Step 1 silently
+// dropping a whole table is exactly the failure mode issue #88 was about,
+// and an emptied data section is issue #88 at the config layer (see #90
+// finding 2).
 export function extractAllTrashSubstrings(markdown: string): string[] {
   const result: string[] = [];
   for (const heading of TABLE_HEADINGS) {
