@@ -63,7 +63,7 @@ Report which sources are active:
 Before starting email scan, check for cached results from a prior interrupted run.
 See `skills/_shared/phase-cache.md` for the full caching convention.
 
-1. Run `bun scripts/cache.js read scan-email body-fetch`
+1. Run `bun scripts/cache.ts read scan-email body-fetch`
    - If exit 0: Body fetch results are cached. Display: "Body fetch cached at {cached_at} — {N} roles extracted. Resume from dedup/verification?" If user confirms, skip to Phase 4 using the cached data. If user says "fresh", proceed normally.
 
 2. If not cached, proceed with Phase 1 normally.
@@ -142,7 +142,7 @@ Read `skills/scan-email/body-extraction.md` and execute for Gmail candidates.
 #### Cache Body Fetch Results
 
 After body fetch completes, cache extracted roles for resumption:
-`bun scripts/cache.js write scan-email body-fetch '<json>'`
+`bun scripts/cache.ts write scan-email body-fetch '<json>'`
 — include all extracted roles with URLs, company names, and source labels.
 
 The cached payload must include a `type` field per entry (`"job-alert"` or `"status-change"`) so resumption after interruption does not need to re-classify.
@@ -154,7 +154,7 @@ Skip if no `status-change-candidate` tagged messages from Phase 2/2G.
 For each `status-change-candidate` message (body now available), run:
 
 ```bash
-bun scripts/classify-status-email.js \
+bun scripts/classify-status-email.ts \
   --email /tmp/scan-email-msg-{msgId-slug}.json \
   --applications-dir {plugin_root}/output
 ```
@@ -285,7 +285,7 @@ process.stdout.write(JSON.stringify({
   detectedAt: '{today}',
 }));
 ")
-bun scripts/state.js mark-status-changed applications "$CLASSIFIER_JSON"
+bun scripts/state.ts mark-status-changed applications "$CLASSIFIER_JSON"
 ```
 
 **REQUIRED caller contract:** after every invocation, parse the stdout JSON and handle the result:
@@ -301,7 +301,7 @@ bun scripts/state.js mark-status-changed applications "$CLASSIFIER_JSON"
 For each LOW tier status-change classification (from Phase 5 partitioning), call:
 
 ```bash
-bun scripts/state.js flag-for-review applications '{
+bun scripts/state.ts flag-for-review applications '{
   "company": "<classifier.matchedEntry?.company || extract-from-sender>",
   "title": "<classifier.matchedEntry?.title || Unknown role>",
   "signal": "<classifier.signal>",
@@ -353,7 +353,7 @@ exists specifically because an LLM-driven read-three-tables-then-shell-out
 sequence was unreliable (see issue #88).
 
 ```bash
-bun {plugin_root}/scripts/auto_trash_inbox.js
+bun {plugin_root}/scripts/auto_trash_inbox.ts
 ```
 
 The script reads `config/search.md` and `integrations/config/mail-config.md`,
@@ -433,12 +433,12 @@ deterministically inside the CLI below.
 
 > **First-time setup:** if this is the user's first scan and
 > `credentials/gmail-tokens.json` does not yet exist, Step 1G will exit
-> `2` with a re-auth hint. The user must run `bun scripts/gmail.js auth`
+> `2` with a re-auth hint. The user must run `bun scripts/gmail.ts auth`
 > once before scan-email can sweep Gmail. Surface the exit-2 message
 > verbatim — it contains the one command they need.
 
 ```bash
-bun {plugin_root}/scripts/auto_trash_gmail.js
+bun {plugin_root}/scripts/auto_trash_gmail.ts
 ```
 
 The script reads `config/search.md`, extracts every "Trash Sender Substring"
@@ -462,7 +462,7 @@ diagnostic breadcrumbs.
 | Code | Meaning | Action |
 |------|---------|--------|
 | `0`  | Success — all matched Gmail messages trashed (including clean `cap-hit` runs) | Continue to Step 2 |
-| `2`  | Config missing (`search.md`, required table heading, or Gmail credentials) | Report to user, stop Phase 6. If credentials missing, tell the user to run `bun scripts/gmail.js auth`. |
+| `2`  | Config missing (`search.md`, required table heading, or Gmail credentials) | Report to user, stop Phase 6. If credentials missing, tell the user to run `bun scripts/gmail.ts auth`. |
 | `3`  | A substring in `config/search.md` contains a literal comma | Report to user, stop Phase 6 |
 | `4`  | Gmail API error (auth expired mid-run, list call failed, network, or `gmail.js` child exited non-zero) | Report to user, stop Phase 6 |
 | `5`  | Partial failure — one or more patterns had `moved < matched` | Report to user, stop Phase 6 |
@@ -477,7 +477,7 @@ diagnostic breadcrumbs.
 Both can also be set per-invocation:
 
 ```bash
-bun {plugin_root}/scripts/auto_trash_gmail.js --newer-than 7d
+bun {plugin_root}/scripts/auto_trash_gmail.ts --newer-than 7d
 ```
 
 A diagnostic `--dry-run` flag prints the resolved pattern count, the
@@ -497,7 +497,7 @@ Collect all `messageId`s from Gmail candidates that were body-fetched AND
 presented in the Phase 5 confirmation table. Then:
 
 ```bash
-bun {plugin_root}/scripts/gmail.js trash {id1} {id2} ...
+bun {plugin_root}/scripts/gmail.ts trash {id1} {id2} ...
 ```
 
 Parse output: count `trashed:` lines for success, surface any `error:` lines.
@@ -523,7 +523,7 @@ Report: "Trashed {N} Gmail messages." or "Trashed {N}/{total} Gmail messages
 ## Key Constraints
 
 - At least one source required
-- Apple Mail: read + trash; Gmail: read + trash (via scripts/gmail.js)
+- Apple Mail: read + trash; Gmail: read + trash (via scripts/gmail.ts)
 - Cross-source dedup — same role counted once
 - 10-message batches (Apple Mail osascript limit)
 - 50-message cap per source

@@ -22,7 +22,7 @@ Check each step off as you go. Note any failures with the exact error.
 - [ ] **1. Validate-config passes with full setup**
 
   ```
-  bun scripts/validate-config.js
+  bun scripts/validate-config.ts
   ```
   Expected: `✓ Config valid`
 
@@ -30,7 +30,7 @@ Check each step off as you go. Note any failures with the exact error.
 
   Rename `config/candidate.md` to `config/candidate.md.bak`, then run:
   ```
-  bun scripts/validate-config.js
+  bun scripts/validate-config.ts
   ```
   Expected: exit 1, message points to `config/candidate.md.example`
 
@@ -40,7 +40,7 @@ Check each step off as you go. Note any failures with the exact error.
 
   Temporarily rename the `Email` row in `config/candidate.md` to `EmailX`, run:
   ```
-  bun scripts/validate-config.js
+  bun scripts/validate-config.ts
   ```
   Expected: exit 1, message names the missing field `"Email"`
 
@@ -84,11 +84,11 @@ Check each step off as you go. Note any failures with the exact error.
 
 - [ ] **9. validate-config catches bad state file naming**
 
-  Depends on `checkStateFiles()` in `scripts/validate-config.js` (implemented in Chunk 1, Task 4).
+  Depends on `checkStateFiles()` in `scripts/validate-config.ts` (implemented in Chunk 1, Task 4).
   Create a misnamed state file:
   ```
   touch output/seen-postings.md
-  bun scripts/validate-config.js
+  bun scripts/validate-config.ts
   ```
   Expected: exit 1, message flags `output/seen-postings.md` naming violation.
   Cleanup: `rm output/seen-postings.md`

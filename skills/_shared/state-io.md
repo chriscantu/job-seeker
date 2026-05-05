@@ -84,17 +84,17 @@ types. See `skills/application-tracker/pipeline-schema.md` for the full schema.
 
 ```bash
 # Read all entries (or filter by stage)
-bun scripts/state.js read applications
-bun scripts/state.js read applications --stage Applied
+bun scripts/state.ts read applications
+bun scripts/state.ts read applications --stage Applied
 
 # Create a new pipeline entry
-bun scripts/state.js create applications '{"company":"...","title":"...","stage":"Applied","url":"..."}'
+bun scripts/state.ts create applications '{"company":"...","title":"...","stage":"Applied","url":"..."}'
 
 # Transition to a new stage
-bun scripts/state.js update applications --company "Company Name" --stage Screen --detail "Phone screen with recruiter"
+bun scripts/state.ts update applications --company "Company Name" --stage Screen --detail "Phone screen with recruiter"
 
 # Append a note (e.g., after generating a cover letter or tailoring a resume)
-bun scripts/state.js add-note applications --company "Company Name" --note "Cover letter generated 2026-04-09"
+bun scripts/state.ts add-note applications --company "Company Name" --note "Cover letter generated 2026-04-09"
 ```
 
 The `update` and `add-note` commands find entries by case-insensitive substring
@@ -107,7 +107,7 @@ should treat a non-zero exit as non-fatal — log a note and continue.
 ## Frontmatter
 
 All state files include a YAML frontmatter block before the markdown body.
-The `scripts/lib/frontmatter.js` module handles parsing and serialization.
+The `scripts/lib/frontmatter.ts` module handles parsing and serialization.
 
 ### Shared Fields (all state file types)
 

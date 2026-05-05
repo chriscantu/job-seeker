@@ -29,7 +29,7 @@ doing anything else so the user sees the full picture.
 ### Required checks
 
 1. **config/candidate.md** — does it exist? If yes, run
-   `bun scripts/validate-config.js` and check for field-level issues.
+   `bun scripts/validate-config.ts` and check for field-level issues.
 2. **config/search.md** — same as above (validate-config.js covers both).
 3. **references/resume.md** — primary canonical resume. Does it exist?
    - If `references/resume.md` is missing AND `references/resume.pdf` exists,
@@ -206,7 +206,7 @@ If yes:
    - Create OAuth 2.0 credentials (Desktop application type)
    - Download the JSON file
 2. Ask the user to save it as `credentials/gmail-client-secret.json`
-3. Run `bun scripts/gmail.js auth` to complete the OAuth flow
+3. Run `bun scripts/gmail.ts auth` to complete the OAuth flow
 4. Verify: check that `credentials/gmail-tokens.json` was created
 
 If no, move on. This is optional — scan-email falls back to manual
@@ -218,7 +218,7 @@ cleanup reports without it.
 
 After all guided fixes are complete:
 
-1. Run `bun scripts/validate-config.js` — show the output
+1. Run `bun scripts/validate-config.ts` — show the output
 2. Re-run the Phase 1 status dashboard to confirm everything is green
 3. If all required items pass, tell the user:
    > "Setup complete. You can run `/daily-digest` to start finding roles,

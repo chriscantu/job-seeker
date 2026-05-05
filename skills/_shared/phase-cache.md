@@ -1,7 +1,7 @@
 # Phase Cache — Resumable Skill Execution
 
 Multi-phase skills can cache intermediate results so that a failure mid-run
-does not require restarting from scratch. The `scripts/cache.js` CLI handles
+does not require restarting from scratch. The `scripts/cache.ts` CLI handles
 read/write/expiry/cleanup.
 
 ## When to Use
@@ -16,7 +16,7 @@ Use phase caching when a phase:
 ### After a phase completes successfully
 
 ```bash
-bun scripts/cache.js write <skill-name> <phase-name> '<json-result>'
+bun scripts/cache.ts write <skill-name> <phase-name> '<json-result>'
 ```
 
 The JSON should contain the phase's output — whatever the next phase needs
@@ -25,7 +25,7 @@ as input. Cache files expire after 2 hours.
 ### At skill start — check for cached phases
 
 ```bash
-bun scripts/cache.js read <skill-name> <phase-name>
+bun scripts/cache.ts read <skill-name> <phase-name>
 ```
 
 - **Exit 0 + JSON output**: Cache hit. Present to user:
@@ -45,7 +45,7 @@ If only Phase 1 is cached, skip Phase 1 and run Phase 2.
 Optionally clean up caches for the skill:
 
 ```bash
-bun scripts/cache.js clean <skill-name>
+bun scripts/cache.ts clean <skill-name>
 ```
 
 This is not required — caches expire automatically after 2 hours.
@@ -54,21 +54,21 @@ This is not required — caches expire automatically after 2 hours.
 
 ```
 # At skill start:
-result2=$(bun scripts/cache.js read daily-digest phase2 2>/dev/null)
+result2=$(bun scripts/cache.ts read daily-digest phase2 2>/dev/null)
 if [ $? -eq 0 ]; then
   # Phase 2 cached — resume from Phase 3 (compose)
 fi
 
-result1=$(bun scripts/cache.js read daily-digest phase1 2>/dev/null)
+result1=$(bun scripts/cache.ts read daily-digest phase1 2>/dev/null)
 if [ $? -eq 0 ]; then
   # Phase 1 cached — resume from Phase 2 (verification)
 fi
 
 # After Phase 1:
-bun scripts/cache.js write daily-digest phase1 '<discovery-results>'
+bun scripts/cache.ts write daily-digest phase1 '<discovery-results>'
 
 # After Phase 2:
-bun scripts/cache.js write daily-digest phase2 '<verification-results>'
+bun scripts/cache.ts write daily-digest phase2 '<verification-results>'
 ```
 
 ## Cache File Location

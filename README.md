@@ -18,7 +18,7 @@ Twelve skills that cover the full arc of a senior engineering leadership job sea
 | `cover-letter` | Active | Produces a tailored cover letter that maps accomplishments to role requirements |
 | `why-this-company` | Active | Generates a "Why did you apply?" response for a specific company, grounded in real career history |
 | `interview-prep` | Active | Behavioral and technical interview prep with STAR story mapping, backed by Apple Calendar interview lookup |
-| `follow-up` | Active | Drafts follow-up emails for stale applications and creates Gmail drafts via `scripts/gmail.js` |
+| `follow-up` | Active | Drafts follow-up emails for stale applications and creates Gmail drafts via `scripts/gmail.ts` |
 | `application-tracker` | Active | Pipeline management across all opportunities — add, update, and view stages with staleness alerts |
 | `linkedin-article` | Active | Drafts LinkedIn posts and articles in the candidate's voice, backed by data and voice-rule audits |
 | `networking-outreach` | Planned | Outreach messages for target companies and contacts |
@@ -79,13 +79,13 @@ the plugin to function.
 
 ### Gmail Integration
 
-The `follow-up` skill creates Gmail drafts via `scripts/gmail.js`, a thin
+The `follow-up` skill creates Gmail drafts via `scripts/gmail.ts`, a thin
 CLI built on the `googleapis` package. It uses a single OAuth2 flow that
 lives in `credentials/` (gitignored):
 
 ```shell
 # One-time setup — opens a browser window for Google consent
-bun scripts/gmail.js auth
+bun scripts/gmail.ts auth
 ```
 
 Prerequisites:
@@ -98,7 +98,7 @@ Prerequisites:
   are not suitable for Production verification for a personal tool)
 
 Commands: `auth`, `profile`, `search`, `create-draft`, `trash`. Run
-`bun scripts/gmail.js` with no arguments for full usage. Testing-mode OAuth
+`bun scripts/gmail.ts` with no arguments for full usage. Testing-mode OAuth
 tokens expire after 7 days — re-run `auth` weekly.
 
 ## Project Structure

@@ -31,7 +31,7 @@ Read `skills/_shared/preflight.md` and execute. Additionally:
 Before starting analysis, check for cached results from a prior interrupted run.
 See `skills/_shared/phase-cache.md` for the full caching convention.
 
-1. `bun scripts/cache.js read resume-tailor analysis`
+1. `bun scripts/cache.ts read resume-tailor analysis`
    - If exit 0: cached. Display: "Posting analysis cached at {cached_at} for {company}.
      Resume from compose? (yes / fresh)"
 2. If not cached, proceed with Phase 1 normally.
@@ -60,7 +60,7 @@ Read `skills/resume-tailor/tailoring-rules.md` and execute. The pipeline:
 Cache analysis results before composing:
 
 ```fish
-bun scripts/cache.js write resume-tailor analysis '<json>'
+bun scripts/cache.ts write resume-tailor analysis '<json>'
 ```
 
 ## Phase 3 — Render & Enforce
@@ -85,7 +85,7 @@ Read `skills/_shared/state-io.md`. Append `RESUME TAILORED` flag to the seen-pos
 If the company has an applications-pipeline entry:
 
 ```fish
-bun scripts/state.js add-note applications --company "{company}" --note "Resume tailored {YYYY-MM-DD}"
+bun scripts/state.ts add-note applications --company "{company}" --note "Resume tailored {YYYY-MM-DD}"
 ```
 
 If exit non-zero, log a note: "No application entry — run /application-tracker to add it."

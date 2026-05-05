@@ -256,7 +256,7 @@ Register the role in the application pipeline. Use single-quoted JSON to avoid
 shell interpolation issues with special characters in company names and URLs:
 
 ```bash
-bun scripts/state.js create applications \
+bun scripts/state.ts create applications \
   '{"company":"{Company}","title":"{Role}","stage":"Discovery","url":"{URL}"}'
 ```
 
@@ -266,7 +266,7 @@ inspecting the stderr output for the text "already exists". If it contains
 contains any other message, log it to the user:
 
 > "Pipeline registration failed for {Company}: {stderr message}. To register
-> manually, run: `bun scripts/state.js create applications
+> manually, run: `bun scripts/state.ts create applications
 > '{\"company\":\"{Company}\",\"title\":\"{Role}\",\"stage\":\"Discovery\",\"url\":\"{URL}\"}'`"
 
 Then continue — do not block the skill.
@@ -274,7 +274,7 @@ Then continue — do not block the skill.
 Then record the evaluation result:
 
 ```bash
-bun scripts/state.js add-note applications \
+bun scripts/state.ts add-note applications \
   --company "{Company}" \
   --note "Evaluation complete — score: {X.X}/5, archetype: {archetype}, recommendation: {apply|borderline|pass}"
 ```
@@ -282,7 +282,7 @@ bun scripts/state.js add-note applications \
 If `add-note` exits non-zero, log the full error to the user:
 
 > "Could not record evaluation note for {Company}: {stderr message}. To add it
-> manually, run: `bun scripts/state.js add-note applications --company
+> manually, run: `bun scripts/state.ts add-note applications --company
 > \"{Company}\" --note \"Evaluation complete — score: {X.X}/5, archetype:
 > {archetype}, recommendation: {recommendation}\"`"
 
