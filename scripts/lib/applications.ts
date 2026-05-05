@@ -6,8 +6,8 @@ import { parseFrontmatter, serializeFrontmatter } from './frontmatter';
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
-function assertDate(label: string, value: unknown): void {
-  if (typeof value !== 'string' || !DATE_RE.test(value)) {
+function assertDate(label: string, value: string): void {
+  if (!DATE_RE.test(value)) {
     throw new Error(`daysBetween: ${label} must be YYYY-MM-DD, got ${value}`);
   }
   const y = +value.slice(0, 4);
@@ -91,7 +91,14 @@ export interface ApplicationsData {
   flagged: FlaggedEntry[];
 }
 
-type Section = 'active' | 'closed' | 'flagged';
+// Named constants for the three pipeline sections. The values match the
+// keys on ApplicationsData (active/closed/flagged) so currentSection can
+// index into the result. Use these constants — not raw string literals —
+// in all comparisons and assignments so a typo fails to compile.
+const SECTION_ACTIVE = 'active';
+const SECTION_CLOSED = 'closed';
+const SECTION_FLAGGED = 'flagged';
+type Section = typeof SECTION_ACTIVE | typeof SECTION_CLOSED | typeof SECTION_FLAGGED;
 
 export function makeEntry(overrides: Partial<ApplicationEntry> = {}): ApplicationEntry {
   return {
@@ -141,7 +148,7 @@ export function parseApplicationsContent(content: string): ApplicationsData {
   function finalizeEntry(): void {
     if (!currentEntry) return;
 
-    if (currentSection === 'closed') {
+    if (currentSection === SECTION_CLOSED) {
       const appEntry = currentEntry as ApplicationEntry;
       if (appEntry.stage) {
         const m = appEntry.stage.match(CLOSED_STAGE_RE);
@@ -153,9 +160,9 @@ export function parseApplicationsContent(content: string): ApplicationsData {
       }
     }
 
-    if (currentSection === 'flagged') {
+    if (currentSection === SECTION_FLAGGED) {
       result.flagged.push(currentEntry as FlaggedEntry);
-    } else if (currentSection === 'active' || currentSection === 'closed') {
+    } else if (currentSection === SECTION_ACTIVE || currentSection === SECTION_CLOSED) {
       result[currentSection].push(currentEntry as ApplicationEntry);
     }
     currentEntry = null;
@@ -172,16 +179,16 @@ export function parseApplicationsContent(content: string): ApplicationsData {
       finalizeEntry();
       const name = sectionMatch[1];
       currentSection = name === 'Active Applications'
-        ? 'active'
+        ? SECTION_ACTIVE
         : name === 'Closed Applications'
-        ? 'closed'
-        : 'flagged';
+        ? SECTION_CLOSED
+        : SECTION_FLAGGED;
       continue;
     }
 
     if (!currentSection) continue;
 
-    if (currentSection === 'flagged') {
+    if (currentSection === SECTION_FLAGGED) {
       const fh = trimmed.match(FLAGGED_HEADING_RE);
       if (fh) {
         finalizeEntry();
@@ -481,16 +488,18 @@ export function findApplication(data: ApplicationsData, companyQuery: string): A
   return matches[0];
 }
 
-function findInSection(data: ApplicationsData, companyQuery: string, section: 'active' | 'closed'): ApplicationEntry {
+type ApplicationSection = typeof SECTION_ACTIVE | typeof SECTION_CLOSED;
+
+function findInSection(data: ApplicationsData, companyQuery: string, section: ApplicationSection): ApplicationEntry {
   const query = companyQuery.toLowerCase();
   const primary = data[section];
-  const other = section === 'active' ? 'closed' : 'active';
+  const other: ApplicationSection = section === SECTION_ACTIVE ? SECTION_CLOSED : SECTION_ACTIVE;
   const matches = primary.filter(e => e.company?.toLowerCase().includes(query) ?? false);
 
   if (matches.length === 0) {
     const otherMatches = data[other].filter(e => e.company?.toLowerCase().includes(query) ?? false);
     if (otherMatches.length > 0) {
-      const hint = section === 'active'
+      const hint = section === SECTION_ACTIVE
         ? 'it is closed — use the "reopen" command first'
         : 'it is active';
       throw new Error(`"${companyQuery}" not found in ${section} applications (${hint})`);
@@ -522,7 +531,7 @@ export function updateApplication(dir: string, { company, stage, detail }: Updat
   if (!filePath) throw new Error('No applications file found');
 
   const data = parseApplicationsFile(filePath);
-  const entry = findInSection(data, company, 'active');
+  const entry = findInSection(data, company, SECTION_ACTIVE);
   const today = getTodayUtc();
   const detailText = detail || stage;
 
@@ -548,7 +557,7 @@ export function closeApplication(dir: string, { company, reason, summary }: Clos
   if (!filePath) throw new Error('No applications file found');
 
   const data = parseApplicationsFile(filePath);
-  const entry = findInSection(data, company, 'active');
+  const entry = findInSection(data, company, SECTION_ACTIVE);
   const today = getTodayUtc();
   const closedStage = `Closed (${reason.trim()})`;
   const detailText = summary || reason;
@@ -583,7 +592,7 @@ export function reopenApplication(dir: string, { company, stage, detail }: Reope
   if (!filePath) throw new Error('No applications file found');
 
   const data = parseApplicationsFile(filePath);
-  const entry = findInSection(data, company, 'closed');
+  const entry = findInSection(data, company, SECTION_CLOSED);
 
   const today = getTodayUtc();
   const detailText = detail || `Reopened at ${stage}`;
@@ -718,7 +727,7 @@ export function markStatusChanged(dir: string, opts: MarkStatusChangedInput): Op
 
   if (hasMsgId(data, opts.msgId)) return { skipped: true, reason: 'msg-id already processed' };
 
-  if (section !== 'active') {
+  if (section !== SECTION_ACTIVE) {
     return { skipped: true, reason: `matched ${section} entry` };
   }
 
