@@ -24,6 +24,18 @@ type ParseResult =
   | { ok: true; args: ParsedFlags }
   | { ok: false; error: string };
 
+// Shape of the email-fetch JSON that the upstream phase-2 fetch step writes.
+// `sender` is required (classifier throws without it); the others are
+// optional / nullable per the classifier's input contract. msgId is
+// `undefined` (not null) to match `ClassifyStatusEmailInput.msgId?: string`.
+interface EmailData {
+  sender: string;
+  senderName: string | null;
+  subject: string | null;
+  body: string | null;
+  msgId: string | undefined;
+}
+
 function parseArgs(argv: string[]): ParseResult {
   let email: string | undefined;
   let applicationsDir: string | undefined;
@@ -66,22 +78,63 @@ function structuredError(code: number, error: string, extra: Record<string, unkn
   process.exit(code);
 }
 
-// Narrows JSON-parsed unknown to a record + checks the one field
-// classifyStatusEmail will reject on (sender). Catches truncated/corrupt
-// email-fetch JSON before the classifier throws an opaque TypeError.
-function narrowEmailData(parsed: unknown): Record<string, unknown> {
+// Reads and parses the email-fetch JSON file at `path` into a fully-typed
+// `EmailData`. All shape validation lives here so callers consume a known
+// type. Throws via `structuredError` on read / parse / shape failure.
+function parseEmailFile(filePath: string): EmailData {
+  let raw: string;
+  try {
+    raw = fs.readFileSync(filePath, 'utf8');
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
+    structuredError(EXIT_INPUT, 'email_read_failed', { file: filePath, detail });
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
+    structuredError(EXIT_INPUT, 'email_read_failed', { file: filePath, detail });
+  }
+
   if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
     structuredError(EXIT_INPUT, 'email_invalid_shape', {
       detail: `expected object, got ${Array.isArray(parsed) ? 'array' : typeof parsed}`,
     });
   }
   const obj = parsed as Record<string, unknown>;
+
   if (typeof obj.sender !== 'string' || !obj.sender) {
     structuredError(EXIT_INPUT, 'email_missing_sender', {
       detail: 'email JSON must contain a non-empty "sender" string',
     });
   }
-  return obj;
+
+  // String-or-null narrowing in one place; downstream consumes EmailData
+  // without further runtime checks.
+  const stringOrNull = (v: unknown): string | null => typeof v === 'string' ? v : null;
+  return {
+    sender: obj.sender,
+    senderName: stringOrNull(obj.senderName),
+    subject: stringOrNull(obj.subject),
+    body: stringOrNull(obj.body),
+    msgId: typeof obj.msgId === 'string' ? obj.msgId : undefined,
+  };
+}
+
+function loadApplicationsData(applicationsDir: string): ApplicationsData {
+  try {
+    const applicationsFile = resolveStateFile(applicationsDir, 'applications');
+    if (!applicationsFile) {
+      console.error(`warning: no applications file found in ${applicationsDir}; classifying against empty pipeline`);
+      return { active: [], closed: [], flagged: [] };
+    }
+    return parseApplicationsFile(applicationsFile);
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
+    structuredError(EXIT_STATE, 'applications_read_failed', { dir: applicationsDir, detail });
+  }
 }
 
 function main(): void {
@@ -89,37 +142,11 @@ function main(): void {
   if (!parseResult.ok) usageError(parseResult.error || undefined);
   const { email, applicationsDir } = parseResult.args;
 
-  let emailData: Record<string, unknown>;
-  try {
-    const raw = fs.readFileSync(email, 'utf8');
-    emailData = narrowEmailData(JSON.parse(raw));
-  } catch (err) {
-    const detail = err instanceof Error ? err.message : String(err);
-    structuredError(EXIT_INPUT, 'email_read_failed', { file: email, detail });
-  }
+  const emailData = parseEmailFile(email);
+  const applicationsData = loadApplicationsData(applicationsDir);
 
-  let applicationsData: ApplicationsData;
-  try {
-    const applicationsFile = resolveStateFile(applicationsDir, 'applications');
-    if (!applicationsFile) {
-      console.error(`warning: no applications file found in ${applicationsDir}; classifying against empty pipeline`);
-      applicationsData = { active: [], closed: [], flagged: [] };
-    } else {
-      applicationsData = parseApplicationsFile(applicationsFile);
-    }
-  } catch (err) {
-    const detail = err instanceof Error ? err.message : String(err);
-    structuredError(EXIT_STATE, 'applications_read_failed', { dir: applicationsDir, detail });
-  }
-
-  // emailData.sender is now string-checked; the rest of ClassifyStatusEmailInput
-  // is optional. classifyStatusEmail still validates field types internally.
   const input: ClassifyStatusEmailInput = {
-    sender: emailData.sender as string,
-    senderName: typeof emailData.senderName === 'string' ? emailData.senderName : null,
-    subject: typeof emailData.subject === 'string' ? emailData.subject : null,
-    body: typeof emailData.body === 'string' ? emailData.body : null,
-    msgId: typeof emailData.msgId === 'string' ? emailData.msgId : undefined,
+    ...emailData,
     // lib/applications.ApplicationEntry.company is string|null; classifier's
     // MatchableEntry.company is required string. Real entries always have
     // company (dedup key). Cross-type cast — runtime data overlaps.

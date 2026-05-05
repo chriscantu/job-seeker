@@ -39,33 +39,43 @@ interface ParsedFlags {
   positional: string[];
 }
 
-// HTTP-status extraction over googleapis errors. Real production errors are
-// `GaxiosError` (extends Error) with `response?.status` (HTTP) and
-// `code?: string | number` (errno OR API-level numeric code per AIP-193).
-// Test fixtures and some non-gaxios errors throw plain objects with the
-// same `code`/`status` shape — fall back to structural duck-typing so
-// the classifier sees `401` and `503` from both surfaces. String `code`
-// (errno like 'ENOTFOUND') is intentionally ignored — only numeric
-// values are HTTP statuses.
-function httpStatus(err: unknown): number | undefined {
-  if (err instanceof GaxiosError) {
-    if (typeof err.response?.status === 'number') return err.response.status;
-    if (typeof err.status === 'number') return err.status;
-    if (typeof err.code === 'number') return err.code;
-    return undefined;
-  }
-  if (typeof err === 'object' && err !== null) {
-    const e = err as { code?: unknown; status?: unknown; response?: { status?: unknown } };
-    if (typeof e.response?.status === 'number') return e.response.status;
-    if (typeof e.status === 'number') return e.status;
-    if (typeof e.code === 'number') return e.code;
-  }
-  return undefined;
+// Returns a string flag value, or undefined when absent / present-as-boolean.
+// Single boundary for the `string | true | undefined` flag shape so call sites
+// can read flag values as `string | undefined` without inline typeof checks.
+function flagString(flags: Flags, key: string): string | undefined {
+  const v = flags[key];
+  return typeof v === 'string' ? v : undefined;
 }
 
-function errorReason(err: unknown): string {
-  if (err instanceof Error && err.message) return err.message;
-  return String(err);
+interface ApiError {
+  status?: number;
+  message: string;
+}
+
+// Normalizes any thrown value (catch blocks are typed `unknown` in TS) into a
+// known shape: HTTP status (numeric, when extractable) and a message string.
+// All `typeof` / `instanceof` narrowing is concentrated in this one function;
+// call sites destructure `{ status, message }` and proceed without further
+// runtime checks.
+//
+// Status precedence: `response.status` → `status` → numeric `code`. String
+// `code` (errno like 'ENOTFOUND') is ignored on purpose — only numeric values
+// represent HTTP statuses (per gaxios AIP-193). The duck-typed fallback
+// covers test fakes and non-gaxios HTTP errors that throw plain objects with
+// the same shape.
+function normalizeError(err: unknown): ApiError {
+  const message = err instanceof Error && err.message ? err.message : String(err);
+  if (err instanceof GaxiosError) {
+    return { status: err.response?.status ?? err.status ?? (typeof err.code === 'number' ? err.code : undefined), message };
+  }
+  if (err && typeof err === 'object') {
+    const e = err as { code?: unknown; status?: unknown; response?: { status?: unknown } };
+    const responseStatus = typeof e.response?.status === 'number' ? e.response.status : undefined;
+    const status        = typeof e.status === 'number' ? e.status : undefined;
+    const codeAsStatus  = typeof e.code === 'number' ? e.code : undefined;
+    return { status: responseStatus ?? status ?? codeAsStatus, message };
+  }
+  return { message };
 }
 
 function usage(): never {
@@ -116,14 +126,13 @@ function parseFlags(args: string[]): ParsedFlags {
 }
 
 function handleApiError(err: unknown, context: string): never {
-  const status = httpStatus(err);
-  const reason = errorReason(err);
+  const { status, message } = normalizeError(err);
   if (status === 401 || status === 403) {
-    console.error(`Auth error (${status}): ${reason}`);
+    console.error(`Auth error (${status}): ${message}`);
     console.error('Re-authenticate with: bun scripts/gmail.ts auth');
     process.exit(1);
   }
-  console.error(`Error: ${context} [${status ?? 'unknown'}] ${reason}`);
+  console.error(`Error: ${context} [${status ?? 'unknown'}] ${message}`);
   process.exit(1);
 }
 
@@ -204,8 +213,7 @@ async function searchCommand(args: string[]): Promise<void> {
     console.error('Error: search query is required.');
     process.exit(1);
   }
-  const maxFlag = flags.max;
-  const maxResults = parseInt(typeof maxFlag === 'string' ? maxFlag : '10', 10);
+  const maxResults = parseInt(flagString(flags, 'max') ?? '10', 10);
 
   const auth = getAuthenticatedClient(ROOT);
   const gmail = google.gmail({ version: 'v1', auth });
@@ -258,22 +266,22 @@ export function encodeRfc822(to: string | undefined, subject: string, body: stri
 
 async function createDraftCommand(args: string[]): Promise<void> {
   const { flags } = parseFlags(args);
-  if (!flags.subject || flags.subject === true) {
+  const subject = flagString(flags, 'subject');
+  const bodyFile = flagString(flags, 'body-file');
+  const to = flagString(flags, 'to');
+  if (!subject) {
     console.error('Error: --subject is required.');
     process.exit(1);
   }
-  if (!flags['body-file'] || flags['body-file'] === true) {
+  if (!bodyFile) {
     console.error('Error: --body-file is required.');
     process.exit(1);
   }
-  const bodyFile = flags['body-file'] as string;
   if (!fs.existsSync(bodyFile)) {
     console.error(`Error: body file not found: ${bodyFile}`);
     process.exit(1);
   }
   const body = fs.readFileSync(bodyFile, 'utf8');
-  const to = typeof flags.to === 'string' ? flags.to : undefined;
-  const subject = flags.subject as string;
 
   const auth = getAuthenticatedClient(ROOT);
   const gmail = google.gmail({ version: 'v1', auth });
@@ -515,7 +523,7 @@ export async function processSender(
       await gmail.users.messages.trash({ userId: 'me', id });
       moved++;
     } catch (err) {
-      const status = httpStatus(err);
+      const { status } = normalizeError(err);
       // Auth errors mid-loop are unrecoverable — propagate so the
       // caller can flush the summary and exit 1. Non-auth errors
       // (per-message 404, 500, etc.) go into the errors array and
@@ -586,18 +594,17 @@ async function trashBySenderCommand(args: string[], envOverride?: NodeJS.Process
       });
       results.push(r);
     } catch (err) {
-      const status = httpStatus(err);
-      const reason = errorReason(err);
+      const { status, message } = normalizeError(err);
       if (status === 401 || status === 403) {
         fatalError = {
           kind: 'AUTH_REQUIRED',
-          message: reason,
+          message,
           sender,
         };
       } else {
         fatalError = {
           kind: 'GMAIL_ERROR',
-          message: `list failed for "${sender}" [${status ?? 'unknown'}] ${reason}`,
+          message: `list failed for "${sender}" [${status ?? 'unknown'}] ${message}`,
           sender,
         };
       }
@@ -650,16 +657,15 @@ async function trashCommand(messageIds: string[]): Promise<void> {
       await gmail.users.messages.trash({ userId: 'me', id });
       console.log(`trashed: ${id}`);
     } catch (err) {
-      const status = httpStatus(err);
-      const reason = errorReason(err);
+      const { status, message } = normalizeError(err);
 
       if (status === 401 || status === 403) {
-        console.error(`Auth error (${status}): ${reason}`);
+        console.error(`Auth error (${status}): ${message}`);
         console.error('Re-authenticate with: bun scripts/gmail.ts auth');
         process.exit(1);
       }
 
-      console.error(`error: ${id} [${status ?? 'unknown'}] ${reason}`);
+      console.error(`error: ${id} [${status ?? 'unknown'}] ${message}`);
       failed++;
     }
   }
