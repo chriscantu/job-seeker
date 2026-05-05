@@ -1,26 +1,26 @@
-#!/usr/bin/env node
-// scripts/test-pii-guard.js
+#!/usr/bin/env bun
 // Automated tests for hooks/scripts/pii-guard.js
-// Run: bun scripts/test-pii-guard.js
+// Run: bun scripts/test-pii-guard.ts
 // Exit 0 = all pass. Exit 1 = failures found.
 
-const { execFileSync } = require('child_process');
-const path = require('path');
+import { execFileSync } from 'child_process';
+import * as path from 'path';
 
 const GUARD = path.join(__dirname, '..', 'hooks', 'scripts', 'pii-guard.js');
 
 let passed = 0;
 let failed = 0;
 
-function run(label, input, expectedExit) {
-  // If input is a string, send raw (for malformed JSON tests). Otherwise stringify.
+type ToolInput = { tool_input: Record<string, unknown> };
+
+function run(label: string, input: ToolInput | string, expectedExit: number): void {
   const stdin = typeof input === 'string' ? input : JSON.stringify(input);
-  let actualExit;
+  let actualExit: number;
   try {
     execFileSync(process.execPath, [GUARD], { input: stdin, stdio: ['pipe', 'pipe', 'pipe'] });
     actualExit = 0;
   } catch (err) {
-    actualExit = err.status;
+    actualExit = (err as NodeJS.ErrnoException & { status?: number }).status ?? 1;
   }
 
   if (actualExit === expectedExit) {
@@ -32,13 +32,11 @@ function run(label, input, expectedExit) {
   }
 }
 
-// Helper to build tool_input for Write calls
-function writeCall(filePath, content) {
+function writeCall(filePath: string, content: string): ToolInput {
   return { tool_input: { file_path: filePath, content } };
 }
 
-// Helper to build tool_input for Edit calls
-function editCall(filePath, newString) {
+function editCall(filePath: string, newString: string): ToolInput {
   return { tool_input: { file_path: filePath, new_string: newString } };
 }
 
@@ -195,7 +193,7 @@ run('Edit tool with PII in new_string is blocked',
 console.log('\nFail-closed behavior:');
 
 run('malformed JSON blocks write',
-  'not valid json',  // raw string, not an object — will fail JSON.parse
+  'not valid json',
   2);
 
 run('empty tool_input allows write (no file path)',

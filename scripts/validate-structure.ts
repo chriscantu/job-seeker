@@ -1,14 +1,21 @@
-#!/usr/bin/env node
-// scripts/validate-structure.js
+#!/usr/bin/env bun
 // Validates that STRUCTURE.md's directory map matches the actual repo and plugin.json.
-// Run: bun scripts/validate-structure.js
+// Run: bun scripts/validate-structure.ts
 // Exit 0 = valid. Exit 1 = issues found.
 
-const fs = require('fs');
-const path = require('path');
+import * as fs from 'fs';
+import * as path from 'path';
+
+interface SkillEntry {
+  file?: string;
+}
+
+interface PluginManifest {
+  skills?: SkillEntry[];
+}
 
 const root = path.resolve(__dirname, '..');
-const issues = [];
+const issues: string[] = [];
 
 // --- Parse STRUCTURE.md directory map ---
 
@@ -20,7 +27,6 @@ if (!fs.existsSync(structurePath)) {
 
 const structureContent = fs.readFileSync(structurePath, 'utf8');
 
-// Extract the fenced code block under "## Directory Map"
 const mapMatch = structureContent.match(/## Directory Map\s+```[\s\S]*?^([\s\S]*?)```/m);
 if (!mapMatch) {
   console.log('✗ Could not find Directory Map code block in STRUCTURE.md');
@@ -29,17 +35,13 @@ if (!mapMatch) {
 
 const mapBlock = mapMatch[1];
 
-// Extract top-level directories from the map.
-// Top-level entries start with ├── or └── (no │ prefix).
-// Nested entries have │ before the tree character.
-const documentedDirs = new Set();
-const documentedSkills = new Set();
+const documentedDirs = new Set<string>();
+const documentedSkills = new Set<string>();
 
 const lines = mapBlock.split('\n');
 let inSkillsBlock = false;
 
 for (const line of lines) {
-  // Top-level: line starts with ├── or └── (after optional whitespace)
   const topMatch = line.match(/^[├└]── \.?([\w-]+)\//);
   if (topMatch) {
     documentedDirs.add(topMatch[1]);
@@ -47,13 +49,11 @@ for (const line of lines) {
     continue;
   }
 
-  // Skill subdirectory: inside skills block, one level of │ nesting
   if (inSkillsBlock) {
     const skillMatch = line.match(/^│\s+[├└]── ([\w-]+)\//);
     if (skillMatch && skillMatch[1] !== '_shared') {
       documentedSkills.add(skillMatch[1]);
     }
-    // Exit skills block when we hit a line without │ prefix (next top-level dir)
     if (!line.startsWith('│') && line.trim() !== '') {
       inSkillsBlock = false;
     }
@@ -62,13 +62,11 @@ for (const line of lines) {
 
 // --- Check 1: Documented top-level directories exist ---
 
-// Directories that may not exist in CI (gitignored or empty)
 const optionalDirs = new Set(['output', 'config', 'references', 'tests', 'credentials']);
 
 for (const dir of documentedDirs) {
   if (optionalDirs.has(dir)) continue;
   const dirPath = path.join(root, dir);
-  // Handle dotted dirs like .claude-plugin
   const altPath = path.join(root, '.' + dir);
   if (!fs.existsSync(dirPath) && !fs.existsSync(altPath)) {
     issues.push(`STRUCTURE.md lists directory "${dir}/" but it does not exist`);
@@ -88,7 +86,6 @@ const actualDirs = fs.readdirSync(root, { withFileTypes: true })
   .map(d => d.name);
 
 for (const dir of actualDirs) {
-  // Normalize: .claude-plugin -> claude-plugin for matching
   const normalized = dir.replace(/^\./, '');
   if (!documentedDirs.has(dir) && !documentedDirs.has(normalized)) {
     issues.push(`Directory "${dir}/" exists but is not in STRUCTURE.md directory map`);
@@ -98,8 +95,7 @@ for (const dir of actualDirs) {
 // --- Check 3: Skill directories — STRUCTURE.md vs filesystem ---
 
 const skillsDir = path.join(root, 'skills');
-const actualSkills = new Set();
-// Directories under skills/ that are not skills (no SKILL.md, not in plugin.json)
+const actualSkills = new Set<string>();
 const nonSkillDirs = new Set(['_shared']);
 if (fs.existsSync(skillsDir)) {
   for (const entry of fs.readdirSync(skillsDir, { withFileTypes: true })) {
@@ -125,15 +121,16 @@ for (const skill of actualSkills) {
 
 const pluginPath = path.join(root, '.claude-plugin', 'plugin.json');
 if (fs.existsSync(pluginPath)) {
-  let plugin;
+  let plugin: PluginManifest | undefined;
   try {
-    plugin = JSON.parse(fs.readFileSync(pluginPath, 'utf8'));
+    plugin = JSON.parse(fs.readFileSync(pluginPath, 'utf8')) as PluginManifest;
   } catch (err) {
-    issues.push(`Could not parse plugin.json: ${err.message}`);
+    const msg = err instanceof Error ? err.message : String(err);
+    issues.push(`Could not parse plugin.json: ${msg}`);
   }
 
   if (plugin && Array.isArray(plugin.skills)) {
-    const pluginSkillNames = new Set();
+    const pluginSkillNames = new Set<string>();
     for (const skill of plugin.skills) {
       const match = skill.file && skill.file.match(/^skills\/([\w-]+)\//);
       if (match) {

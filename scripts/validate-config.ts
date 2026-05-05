@@ -1,18 +1,17 @@
-#!/usr/bin/env node
-// scripts/validate-config.js
+#!/usr/bin/env bun
 // Validates config files exist and contain required fields.
-// Run: bun scripts/validate-config.js
-// Run: bun scripts/validate-config.js --ci  (skip personal config checks for CI)
+// Run: bun scripts/validate-config.ts
+// Run: bun scripts/validate-config.ts --ci  (skip personal config checks for CI)
 // Exit 0 = valid. Exit 1 = issues found (messages printed to stdout).
 
-const fs = require('fs');
-const path = require('path');
+import * as fs from 'fs';
+import * as path from 'path';
 
 const root = path.resolve(__dirname, '..');
 const ciMode = process.argv.includes('--ci');
-const issues = [];
+const issues: string[] = [];
 
-function checkFile(filePath, requiredFields, examplePath) {
+function checkFile(filePath: string, requiredFields: string[], examplePath: string): void {
   const fullPath = path.join(root, filePath);
   if (!fs.existsSync(fullPath)) {
     issues.push(`✗ ${filePath} not found.\n  Copy ${examplePath} to ${filePath} and fill in your details.`);
@@ -28,7 +27,7 @@ function checkFile(filePath, requiredFields, examplePath) {
   }
 }
 
-function checkGitignore() {
+function checkGitignore(): void {
   const gitignorePath = path.join(root, '.gitignore');
   if (!fs.existsSync(gitignorePath)) return;
   const content = fs.readFileSync(gitignorePath, 'utf8');
@@ -44,7 +43,7 @@ function checkGitignore() {
   }
 }
 
-function checkStateFiles() {
+function checkStateFiles(): void {
   // Validates naming for all three state file types: seen-postings, applications, preferences.
   // State files live in output/ after migration (not memory/job-search/ — that is the old Apple Notes mirror).
   const outputDir = path.join(root, 'output');
