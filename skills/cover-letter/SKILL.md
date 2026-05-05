@@ -112,7 +112,7 @@ All files go in `output/{company-slug}/` (e.g., `output/natera/`).
 2. Generate the .docx:
    ```fish
    set NODE_PATH /opt/homebrew/lib/node_modules
-   bun scripts/generate_coverletter_docx.js \
+   bun scripts/generate_coverletter_docx.ts \
      output/{company-slug}/{Name}_CoverLetter_{Company}.md \
      output/{company-slug}/{Name}_CoverLetter_{Company}.docx
    ```
@@ -146,7 +146,7 @@ or the other so all roles can be aged:
 If the company has an entry in the applications pipeline, record the cover letter:
 
 ```fish
-bun scripts/state.js add-note applications --company "{company}" --note "Cover letter generated {YYYY-MM-DD}"
+bun scripts/state.ts add-note applications --company "{company}" --note "Cover letter generated {YYYY-MM-DD}"
 ```
 
 If the command exits non-zero (no matching application entry), this is expected

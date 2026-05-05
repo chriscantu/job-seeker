@@ -2,7 +2,7 @@
  * Shared DOCX styling constants and helper factories for resume and cover letter generation.
  *
  * Usage:
- *   const styles = require('./docx-styles');
+ *   import * as styles from './docx-styles';
  *
  * All dimension values are in DXA (1440 DXA = 1 inch).
  *
@@ -14,13 +14,13 @@
  *   wrapped text to visually misalign with the line above.
  */
 
-const {
+import {
   Paragraph, TextRun, Table, TableRow, TableCell,
   AlignmentType, BorderStyle, WidthType, ShadingType, LevelFormat,
-} = require('docx');
+} from 'docx';
 
 // ── Palette (matched to canonical resume.pdf) ───────────────────────────────
-const COLORS = {
+export const COLORS = {
   darkBlue:  "1F4E79",   // name, section headings, card accent borders
   midBlue:   "2E75B6",   // job titles, Core Expertise label, tagline
   lightBg:   "D6E4F0",   // accomplishment card background
@@ -36,10 +36,10 @@ const COLORS = {
 };
 
 // Font — Calibri matches the canonical resume.pdf
-const FONT = "Calibri";
+export const FONT = "Calibri";
 
 // ── Page geometry ─────────────────────────────────────────────────────────────
-const PAGE = {
+export const PAGE = {
   width:  12240, // US Letter width in DXA
   height: 15840, // US Letter height in DXA
   margin: {
@@ -49,26 +49,26 @@ const PAGE = {
 };
 
 // Content widths (page width minus both margins)
-const CONTENT_WIDTH = {
+export const CONTENT_WIDTH = {
   resume:      PAGE.width - PAGE.margin.resume * 2,      // 10080
   coverLetter: PAGE.width - PAGE.margin.coverLetter * 2, // 9360
 };
 
 // ── Numbering config ──────────────────────────────────────────────────────────
 /**
- * Returns a numbering config array for use in new Document({ numbering: { config } }).
+ * Numbering config array for use in new Document({ numbering: { config } }).
  * Includes two levels:
  *   level 0 — standard bullet   (•)  left: 720, hanging: 360
  *   level 1 — sub-bullet        (◦)  left: 1080, hanging: 360
  */
-const NUMBERING_CONFIG = [
+export const NUMBERING_CONFIG = [
   {
     reference: "bullets",
     levels: [
       {
         level: 0,
         format: LevelFormat.BULLET,
-        text: "\u2022",
+        text: "•",
         alignment: AlignmentType.LEFT,
         style: {
           paragraph: {
@@ -81,7 +81,7 @@ const NUMBERING_CONFIG = [
       {
         level: 1,
         format: LevelFormat.BULLET,
-        text: "\u25E6",
+        text: "◦",
         alignment: AlignmentType.LEFT,
         style: {
           paragraph: {
@@ -95,7 +95,7 @@ const NUMBERING_CONFIG = [
 
 // ── Paragraph helpers ─────────────────────────────────────────────────────────
 
-function rule(color = COLORS.blue) {
+export function rule(color: string = COLORS.blue): Paragraph {
   return new Paragraph({
     border: { bottom: { style: BorderStyle.SINGLE, size: 8, color, space: 1 } },
     spacing: { before: 60, after: 60 },
@@ -103,7 +103,7 @@ function rule(color = COLORS.blue) {
   });
 }
 
-function sectionHeading(text) {
+export function sectionHeading(text: string): Paragraph {
   return new Paragraph({
     spacing: { before: 180, after: 60 },
     children: [new TextRun({
@@ -117,7 +117,7 @@ function sectionHeading(text) {
   });
 }
 
-function jobTitle(title, company) {
+export function jobTitle(title: string, company: string): Paragraph {
   return new Paragraph({
     spacing: { before: 160, after: 0 },
     children: [
@@ -127,14 +127,14 @@ function jobTitle(title, company) {
   });
 }
 
-function jobMeta(text) {
+export function jobMeta(text: string): Paragraph {
   return new Paragraph({
     spacing: { before: 0, after: 60 },
     children: [new TextRun({ text, italics: true, size: 19, color: COLORS.midGray, font: FONT })],
   });
 }
 
-function labelParagraph(label, body) {
+export function labelParagraph(label: string, body: string): Paragraph {
   return new Paragraph({
     spacing: { before: 60, after: 30 },
     children: [
@@ -144,12 +144,17 @@ function labelParagraph(label, body) {
   });
 }
 
+export interface BulletPart {
+  text: string;
+  bold?: boolean;
+}
+
 /**
  * Creates a bulleted paragraph.
- * @param {Array<{text: string, bold?: boolean}>} parts
- * @param {number} level - 0 for top-level, 1 for sub-bullet
+ * @param parts text runs to include
+ * @param level 0 for top-level, 1 for sub-bullet
  */
-function bullet(parts, level = 0) {
+export function bullet(parts: BulletPart[], level: number = 0): Paragraph {
   return new Paragraph({
     numbering: { reference: "bullets", level },
     spacing: { before: 30, after: 30 },
@@ -163,7 +168,7 @@ function bullet(parts, level = 0) {
   });
 }
 
-function subLabel(text) {
+export function subLabel(text: string): Paragraph {
   return new Paragraph({
     spacing: { before: 80, after: 30 },
     children: [new TextRun({
@@ -172,7 +177,7 @@ function subLabel(text) {
   });
 }
 
-function resultsLabel() {
+export function resultsLabel(): Paragraph {
   return new Paragraph({
     spacing: { before: 60, after: 20 },
     children: [new TextRun({ text: "Results:", bold: true, size: 20, font: FONT, color: COLORS.darkGray })],
@@ -181,7 +186,7 @@ function resultsLabel() {
 
 // ── Accomplishments table helpers ─────────────────────────────────────────────
 
-function accomplishmentCell(label, body, cellWidth) {
+function accomplishmentCell(label: string, body: string, cellWidth: number): TableCell {
   const border = { style: BorderStyle.SINGLE, size: 1, color: COLORS.cellBorder };
   const borders = { top: border, bottom: border, left: border, right: border };
   return new TableCell({
@@ -201,12 +206,14 @@ function accomplishmentCell(label, body, cellWidth) {
   });
 }
 
+export type AccomplishmentRow = [string, string, string, string];
+
 /**
  * Builds the 2-column accomplishments table.
- * @param {Array<[string, string, string, string]>} rows — each entry: [leftLabel, leftBody, rightLabel, rightBody]
- * @param {number} contentWidth — total content width in DXA
+ * @param rows each entry: [leftLabel, leftBody, rightLabel, rightBody]
+ * @param contentWidth total content width in DXA
  */
-function accomplishmentsTable(rows, contentWidth) {
+export function accomplishmentsTable(rows: AccomplishmentRow[], contentWidth: number): Table {
   const half = Math.floor(contentWidth / 2);
   return new Table({
     width: { size: contentWidth, type: WidthType.DXA },
@@ -221,20 +228,3 @@ function accomplishmentsTable(rows, contentWidth) {
     ),
   });
 }
-
-module.exports = {
-  COLORS,
-  FONT,
-  PAGE,
-  CONTENT_WIDTH,
-  NUMBERING_CONFIG,
-  rule,
-  sectionHeading,
-  jobTitle,
-  jobMeta,
-  labelParagraph,
-  bullet,
-  subLabel,
-  resultsLabel,
-  accomplishmentsTable,
-};

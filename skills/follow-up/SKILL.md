@@ -3,7 +3,7 @@ name: follow-up
 description: >
   Identify stale applications and draft personalized follow-up emails.
   Reads application state, filters by staleness thresholds, generates
-  emails per voice-guide, creates Gmail drafts via scripts/gmail.js, and
+  emails per voice-guide, creates Gmail drafts via scripts/gmail.ts, and
   updates application state. Never sends automatically — always drafts
   for review.
   Triggers: "draft follow-ups", "follow up on applications", "any stale apps",
@@ -23,7 +23,7 @@ Read `skills/_shared/preflight.md` and execute.
 Verify Gmail API credentials are configured and authenticated:
 
 ```bash
-bun scripts/gmail.js profile
+bun scripts/gmail.ts profile
 ```
 
 If the command fails with "Not authenticated" or "Client secret file not
@@ -31,7 +31,7 @@ found", stop with guidance:
 > "Gmail API credentials are required for follow-up drafts. Set them up:
 > 1. Create OAuth2 credentials in Google Cloud Console (Desktop app)
 > 2. Save as `credentials/gmail-client-secret.json`
-> 3. Run `bun scripts/gmail.js auth`"
+> 3. Run `bun scripts/gmail.ts auth`"
 
 On success, the command prints the authenticated email address.
 
@@ -42,7 +42,7 @@ Read enriched application state via the CLI (each entry includes
 fallback chain for the reference date is `lastActivity.date → applied → today`):
 
 ```bash
-bun scripts/state.js stale-applications applications
+bun scripts/state.ts stale-applications applications
 ```
 
 If the command exits non-zero with `No applications file found`, this is
@@ -109,7 +109,7 @@ If the application entry has a contact name, ask the user:
 **Step 3b: Search Gmail for prior correspondence**
 If no contact or user says "search":
 ```bash
-bun scripts/gmail.js search "from:@{company-domain} OR to:@{company-domain}" --max 5
+bun scripts/gmail.ts search "from:@{company-domain} OR to:@{company-domain}" --max 5
 ```
 
 The command prints a JSON array of messages with `from`, `to`, `subject`,
@@ -198,7 +198,7 @@ Write the body to a temp file, then call the CLI:
 ```bash
 # Write body to temp file (use the Write tool)
 # Then:
-bun scripts/gmail.js create-draft --to "{email}" --subject "{subject}" --body-file /tmp/followup-{company-slug}.txt
+bun scripts/gmail.ts create-draft --to "{email}" --subject "{subject}" --body-file /tmp/followup-{company-slug}.txt
 ```
 
 The command prints a JSON object with `draftId` and `messageId` on success.
@@ -211,10 +211,10 @@ by reading the applications state file, finding the entry, editing the
 `Next action` line, and writing it back.
 
 Then append a note via CLI (this updates `lastActivity` and `history`
-automatically — see the `addNote()` function in `scripts/lib/applications.js`):
+automatically — see the `addNote()` function in `scripts/lib/applications.ts`):
 
 ```bash
-bun scripts/state.js add-note applications --company "{company}" --note "Follow-up drafted {today} via /follow-up"
+bun scripts/state.ts add-note applications --company "{company}" --note "Follow-up drafted {today} via /follow-up"
 ```
 
 ## Phase 5 — Summary

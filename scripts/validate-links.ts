@@ -1,14 +1,13 @@
-#!/usr/bin/env node
-// scripts/validate-links.js
+#!/usr/bin/env bun
 // Validates that backtick-quoted file paths in markdown files resolve to real files.
-// Run: bun scripts/validate-links.js
+// Run: bun scripts/validate-links.ts
 // Exit 0 = valid. Exit 1 = broken links found.
 
-const fs = require('fs');
-const path = require('path');
+import * as fs from 'fs';
+import * as path from 'path';
 
 const root = path.resolve(__dirname, '..');
-const issues = [];
+const issues: string[] = [];
 
 // Directories/paths that are gitignored — references to these are expected to
 // not exist in CI or fresh clones.
@@ -33,12 +32,12 @@ const skipSourcePrefixes = [
   'docs/superpowers/specs/',
 ];
 
-function isIgnoredPath(filePath) {
+function isIgnoredPath(filePath: string): boolean {
   return ignoredPrefixes.some(prefix => filePath.startsWith(prefix));
 }
 
-function collectMarkdownFiles(dir) {
-  const results = [];
+function collectMarkdownFiles(dir: string): string[] {
+  const results: string[] = [];
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     if (skipDirs.has(entry.name)) continue;
     const full = path.join(dir, entry.name);
@@ -57,10 +56,10 @@ function collectMarkdownFiles(dir) {
 const pathPattern = /`([^`\n]+?\.\w{1,5})`/g;
 const extensions = new Set(['md', 'js', 'json', 'yml', 'yaml', 'ts', 'pdf', 'txt']);
 
-function looksLikeFilePath(ref) {
+function looksLikeFilePath(ref: string): boolean {
   // Must have a directory separator or be a root-level file with known extension
   const ext = ref.split('.').pop();
-  if (!extensions.has(ext)) return false;
+  if (!ext || !extensions.has(ext)) return false;
   // Filter out things that aren't paths
   if (ref.includes('://')) return false;   // URLs
   if (ref.includes(' ')) return false;      // prose or commands
@@ -76,9 +75,6 @@ function looksLikeFilePath(ref) {
 
 const allMdFiles = collectMarkdownFiles(root);
 const mdFiles = allMdFiles.filter(file => {
-  // path.relative always returns a string per Node API contract;
-  // collectMarkdownFiles only emits string paths from fs.readdirSync.
-  // No null guard needed.
   const rel = path.relative(root, file);
   return !skipSourcePrefixes.some(prefix => rel.startsWith(prefix));
 });
@@ -86,14 +82,15 @@ const skippedCount = allMdFiles.length - mdFiles.length;
 
 for (const mdFile of mdFiles) {
   const relSource = path.relative(root, mdFile);
-  let content;
+  let content: string;
   try {
     content = fs.readFileSync(mdFile, 'utf8');
   } catch (err) {
-    issues.push(`${relSource}: could not read file (${err.code})`);
+    const code = (err as NodeJS.ErrnoException).code ?? 'UNKNOWN';
+    issues.push(`${relSource}: could not read file (${code})`);
     continue;
   }
-  let match;
+  let match: RegExpExecArray | null;
 
   pathPattern.lastIndex = 0;
   while ((match = pathPattern.exec(content)) !== null) {

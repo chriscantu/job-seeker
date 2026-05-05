@@ -128,7 +128,7 @@ Higher priority signals win when multiple match. Signal extraction is case-insen
 | 4 | "unfortunately", "we've decided", "not moving forward", "will not be moving forward", "other candidates" | Rejected |
 | 5 | "application received", "thank you for applying", "received your application" | Applied |
 
-These patterns drive the Status Change Path in `skills/scan-email/classification-rules.md`. The deterministic classifier lives at `scripts/lib/status-classifier.js`; any edits to the patterns above should be mirrored in `SIGNAL_RULES` in that file, and both changes should be covered by a fixture in `tests/fixtures/status-emails/`.
+These patterns drive the Status Change Path in `skills/scan-email/classification-rules.md`. The deterministic classifier lives at `scripts/lib/status-classifier.ts`; any edits to the patterns above should be mirrored in `SIGNAL_RULES` in that file, and both changes should be covered by a fixture in `tests/fixtures/status-emails/`.
 
 ---
 

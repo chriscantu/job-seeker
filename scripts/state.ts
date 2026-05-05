@@ -1,20 +1,19 @@
-#!/usr/bin/env node
-// scripts/state.js
+#!/usr/bin/env bun
 // Shared state I/O utility for job-seeker skills.
 // Centralizes glob → sort → read → parse → append for state files.
 //
 // Usage:
-//   bun scripts/state.js read seen-postings
-//   bun scripts/state.js read preferences
-//   bun scripts/state.js append seen-postings '{"company":"...","title":"...","url":"...","posted":"..."}'
-//   bun scripts/state.js append preferences '{"section":"...","entries":[...]}'
-//   bun scripts/state.js query seen-postings --company natera --not-flagged RESEARCHED
-//   bun scripts/state.js dedup-check seen-postings --url "..." --company "..." --title "..."
-//   bun scripts/state.js flag seen-postings --url "..." --add RESEARCHED
-//   bun scripts/state.js stale-applications applications [--today YYYY-MM-DD] [--warn N] [--alert N]
-//   bun scripts/state.js flag-for-review applications '{...}'
-//   bun scripts/state.js mark-status-changed applications '{...}'
-//   bun scripts/state.js infer-stage applications --from "<text>"
+//   bun scripts/state.ts read seen-postings
+//   bun scripts/state.ts read preferences
+//   bun scripts/state.ts append seen-postings '{"company":"...","title":"...","url":"...","posted":"..."}'
+//   bun scripts/state.ts append preferences '{"section":"...","entries":[...]}'
+//   bun scripts/state.ts query seen-postings --company natera --not-flagged RESEARCHED
+//   bun scripts/state.ts dedup-check seen-postings --url "..." --company "..." --title "..."
+//   bun scripts/state.ts flag seen-postings --url "..." --add RESEARCHED
+//   bun scripts/state.ts stale-applications applications [--today YYYY-MM-DD] [--warn N] [--alert N]
+//   bun scripts/state.ts flag-for-review applications '{...}'
+//   bun scripts/state.ts mark-status-changed applications '{...}'
+//   bun scripts/state.ts infer-stage applications --from "<text>"
 //
 // Exit codes: 0 = success, 1 = error (message on stderr)
 // Output: JSON on stdout
@@ -32,45 +31,58 @@
 //   Both forms parse identically with JSON.parse — the rule is for human UX
 //   at the CLI, not machine consumers. New handlers should follow this rule.
 
-const path = require('path');
-const seenPostings = require('./lib/seen-postings');
-const preferences = require('./lib/preferences');
-const applications = require('./lib/applications');
-const { inferStage } = require('./lib/stage-inference');
-const { resolveStateFile } = require('./lib/util');
+import * as path from 'path';
+import * as seenPostings from './lib/seen-postings';
+import * as preferences from './lib/preferences';
+import * as applications from './lib/applications';
+import { inferStage } from './lib/stage-inference';
+import { resolveStateFile, errorMessage, errorStackOrMessage } from './lib/util';
 
 const ROOT = path.resolve(__dirname, '..');
 const OUTPUT_DIR = process.env.OUTPUT_DIR || path.join(ROOT, 'output');
 
-// Command dispatch table. Each entry describes how main() routes the command:
-//   handler:     the function to invoke
-//   argShape:    'type' | 'type+json' | 'remaining'
-//                'type'       → handler(type)
-//                'type+json'  → handler(type, args[2])
-//                'remaining'  → handler(args.slice(2))
-//   allowedTypes (optional): if set, type must be in this list — otherwise
-//                we exit with "<command> is only supported for <allowedTypes[0]>"
+const STATE_TYPES = ['seen-postings', 'preferences', 'applications'] as const;
+type StateType = typeof STATE_TYPES[number];
+
+// Command dispatch table — discriminated union by argShape so the type checker
+// can verify each handler matches the args main() forwards. Adding a new
+// subcommand = one entry here; the union forces handler signature alignment.
 //
-// Adding a new subcommand = one entry here. No parallel membership arrays.
-const COMMANDS = {
-  'read':                { handler: handleRead,                argShape: 'type' },
-  'append':              { handler: handleAppend,              argShape: 'type+json' },
-  'query':               { handler: handleQuery,               argShape: 'remaining', allowedTypes: ['seen-postings'] },
-  'dedup-check':         { handler: handleDedupCheck,          argShape: 'remaining', allowedTypes: ['seen-postings'] },
-  'flag':                { handler: handleFlag,                argShape: 'remaining', allowedTypes: ['seen-postings'] },
-  'update':              { handler: handleUpdate,              argShape: 'remaining', allowedTypes: ['applications'] },
-  'add-note':            { handler: handleAddNote,             argShape: 'remaining', allowedTypes: ['applications'] },
-  'close':               { handler: handleClose,               argShape: 'remaining', allowedTypes: ['applications'] },
-  'reopen':              { handler: handleReopen,              argShape: 'remaining', allowedTypes: ['applications'] },
-  'create':              { handler: handleCreate,              argShape: 'json',      allowedTypes: ['applications'] },
-  'stale-applications':  { handler: handleStaleApplications,   argShape: 'remaining', allowedTypes: ['applications'] },
-  'flag-for-review':     { handler: handleFlagForReview,       argShape: 'json',      allowedTypes: ['applications'] },
-  'mark-status-changed': { handler: handleMarkStatusChanged,   argShape: 'json',      allowedTypes: ['applications'] },
-  'infer-stage':         { handler: handleInferStage,          argShape: 'remaining', allowedTypes: ['applications'] },
+// argShape semantics:
+//   'type'           → handler(type)
+//   'type+json'      → handler(type, args[2])
+//   'json'           → handler(args[2])
+//   'remaining'      → handler(args.slice(2))
+//   'type+remaining' → handler(type, args.slice(2))   [used by read for --stage]
+//
+// allowedTypes (optional): if set, type must be in this list — otherwise main
+// exits with "<command> is only supported for <allowedTypes[0]>".
+type CommandSpec =
+  | { argShape: 'type';           handler: (t: StateType) => void;                          allowedTypes?: readonly StateType[] }
+  | { argShape: 'type+json';      handler: (t: StateType, j: string | undefined) => void;   allowedTypes?: readonly StateType[] }
+  | { argShape: 'json';           handler: (j: string | undefined) => void;                 allowedTypes?: readonly StateType[] }
+  | { argShape: 'remaining';      handler: (r: string[]) => void;                           allowedTypes?: readonly StateType[] }
+  | { argShape: 'type+remaining'; handler: (t: StateType, r: string[]) => void;             allowedTypes?: readonly StateType[] };
+
+const COMMANDS: Record<string, CommandSpec> = {
+  'read':                { argShape: 'type+remaining', handler: handleRead },
+  'append':              { argShape: 'type+json',      handler: handleAppend },
+  'query':               { argShape: 'remaining',      handler: handleQuery,               allowedTypes: ['seen-postings'] },
+  'dedup-check':         { argShape: 'remaining',      handler: handleDedupCheck,          allowedTypes: ['seen-postings'] },
+  'flag':                { argShape: 'remaining',      handler: handleFlag,                allowedTypes: ['seen-postings'] },
+  'update':              { argShape: 'remaining',      handler: handleUpdate,              allowedTypes: ['applications'] },
+  'add-note':            { argShape: 'remaining',      handler: handleAddNote,             allowedTypes: ['applications'] },
+  'close':               { argShape: 'remaining',      handler: handleClose,               allowedTypes: ['applications'] },
+  'reopen':              { argShape: 'remaining',      handler: handleReopen,              allowedTypes: ['applications'] },
+  'create':              { argShape: 'json',           handler: handleCreate,              allowedTypes: ['applications'] },
+  'stale-applications':  { argShape: 'remaining',      handler: handleStaleApplications,   allowedTypes: ['applications'] },
+  'flag-for-review':     { argShape: 'json',           handler: handleFlagForReview,       allowedTypes: ['applications'] },
+  'mark-status-changed': { argShape: 'json',           handler: handleMarkStatusChanged,   allowedTypes: ['applications'] },
+  'infer-stage':         { argShape: 'remaining',      handler: handleInferStage,          allowedTypes: ['applications'] },
 };
 
-function usage() {
-  console.error(`Usage: bun scripts/state.js <command> <type> [args]
+function usage(): never {
+  console.error(`Usage: bun scripts/state.ts <command> <type> [args]
 
 Commands:
   read <type> [--stage <stage>]    Read all entries as JSON (--stage filter for applications)
@@ -101,18 +113,18 @@ Dedup-check options:
   --title <title>        Used with --company for fuzzy match
 
 Examples:
-  bun scripts/state.js read applications
-  bun scripts/state.js read applications --stage Applied
-  bun scripts/state.js create applications '{"company":"Acme","title":"VP Eng","stage":"Applied"}'
-  bun scripts/state.js update applications --company acme --stage Screen
-  bun scripts/state.js close applications --company acme --reason rejected --summary "No response"
-  bun scripts/state.js reopen applications --company acme --stage Screen --detail "Recruiter reached out"
-  bun scripts/state.js add-note applications --company acme --note "Great call with CTO"`);
+  bun scripts/state.ts read applications
+  bun scripts/state.ts read applications --stage Applied
+  bun scripts/state.ts create applications '{"company":"Acme","title":"VP Eng","stage":"Applied"}'
+  bun scripts/state.ts update applications --company acme --stage Screen
+  bun scripts/state.ts close applications --company acme --reason rejected --summary "No response"
+  bun scripts/state.ts reopen applications --company acme --stage Screen --detail "Recruiter reached out"
+  bun scripts/state.ts add-note applications --company acme --note "Great call with CTO"`);
   process.exit(1);
 }
 
-function parseArgs(args) {
-  const parsed = {};
+function parseArgs(args: string[]): Record<string, string> {
+  const parsed: Record<string, string> = {};
   for (let i = 0; i < args.length; i++) {
     if (args[i].startsWith('--')) {
       const key = args[i].slice(2);
@@ -129,7 +141,34 @@ function parseArgs(args) {
   return parsed;
 }
 
-function main() {
+function isStateType(t: string): t is StateType {
+  return (STATE_TYPES as readonly string[]).includes(t);
+}
+
+// Narrows JSON-parsed unknown to a string-keyed record at the CLI boundary.
+// Lib functions then runtime-validate field shapes and throw with a precise
+// error — this just stops the type checker lying about the cast site.
+function parseJsonArg(jsonStr: string | undefined, label: string): Record<string, unknown> {
+  if (!jsonStr) {
+    console.error(`${label} requires a JSON argument`);
+    process.exit(1);
+  }
+  let entry: unknown;
+  try {
+    entry = JSON.parse(jsonStr);
+  } catch (err) {
+    const msg = errorMessage(err);
+    console.error(`Invalid JSON argument: ${msg}`);
+    process.exit(1);
+  }
+  if (typeof entry !== 'object' || entry === null || Array.isArray(entry)) {
+    console.error(`${label}: JSON argument must be an object, got ${Array.isArray(entry) ? 'array' : typeof entry}`);
+    process.exit(1);
+  }
+  return entry as Record<string, unknown>;
+}
+
+function main(): void {
   const args = process.argv.slice(2);
 
   if (args.length < 2) {
@@ -139,7 +178,7 @@ function main() {
   const command = args[0];
   const type = args[1];
 
-  if (!['seen-postings', 'preferences', 'applications'].includes(type)) {
+  if (!isStateType(type)) {
     console.error(`Unknown type: ${type}. Must be "seen-postings", "preferences", or "applications".`);
     process.exit(1);
   }
@@ -148,7 +187,6 @@ function main() {
   if (!entry) {
     console.error(`Unknown command: ${command}`);
     usage();
-    return;
   }
 
   if (entry.allowedTypes && !entry.allowedTypes.includes(type)) {
@@ -170,20 +208,23 @@ function main() {
       case 'remaining':
         entry.handler(args.slice(2));
         break;
+      case 'type+remaining':
+        entry.handler(type, args.slice(2));
+        break;
     }
   } catch (err) {
     // Default: clean message only (CLI users shouldn't see internal frames).
     // Set DEBUG=1 to get the full stack for troubleshooting.
     if (process.env.DEBUG) {
-      console.error(err.stack || err.message);
+      console.error(errorStackOrMessage(err));
     } else {
-      console.error(err.message || String(err));
+      console.error(errorMessage(err));
     }
     process.exit(1);
   }
 }
 
-function handleRead(type) {
+function handleRead(type: StateType, remainingArgs: string[]): void {
   if (type === 'seen-postings') {
     const entries = seenPostings.parseSeenPostings(OUTPUT_DIR);
     console.log(JSON.stringify(entries, null, 2));
@@ -203,7 +244,7 @@ function handleRead(type) {
       return;
     }
     const data = applications.parseApplicationsFile(file);
-    const opts = parseArgs(process.argv.slice(4));
+    const opts = parseArgs(remainingArgs);
     let entries = [...data.active, ...data.closed];
     if (opts.stage) {
       entries = entries.filter(e => e.stage === opts.stage);
@@ -212,19 +253,8 @@ function handleRead(type) {
   }
 }
 
-function handleAppend(type, jsonStr) {
-  if (!jsonStr) {
-    console.error('append requires a JSON argument');
-    process.exit(1);
-  }
-
-  let entry;
-  try {
-    entry = JSON.parse(jsonStr);
-  } catch (err) {
-    console.error(`Invalid JSON argument: ${err.message}`);
-    process.exit(1);
-  }
+function handleAppend(type: StateType, jsonStr: string | undefined): void {
+  const entry = parseJsonArg(jsonStr, 'append');
 
   if (type === 'applications') {
     console.error('append is not supported for applications. Use "create" instead.');
@@ -232,17 +262,17 @@ function handleAppend(type, jsonStr) {
   }
 
   if (type === 'seen-postings') {
-    seenPostings.appendSeenPosting(OUTPUT_DIR, entry);
+    seenPostings.appendSeenPosting(OUTPUT_DIR, entry as unknown as seenPostings.SeenPostingEntry);
     console.log(JSON.stringify({ success: true }));
   } else if (type === 'preferences') {
-    preferences.appendPreferences(OUTPUT_DIR, entry);
+    preferences.appendPreferences(OUTPUT_DIR, entry as unknown as preferences.PreferencesEntry);
     console.log(JSON.stringify({ success: true }));
   }
 }
 
-function handleQuery(remainingArgs) {
+function handleQuery(remainingArgs: string[]): void {
   const opts = parseArgs(remainingArgs);
-  const filters = {};
+  const filters: seenPostings.SeenPostingsFilters = {};
 
   if (opts.company) filters.company = opts.company;
   if (opts.flagged) filters.flagged = opts.flagged;
@@ -252,18 +282,18 @@ function handleQuery(remainingArgs) {
   console.log(JSON.stringify(results, null, 2));
 }
 
-function handleDedupCheck(remainingArgs) {
+function handleDedupCheck(remainingArgs: string[]): void {
   const opts = parseArgs(remainingArgs);
 
   const result = seenPostings.dedupCheck(OUTPUT_DIR, {
-    url: opts.url || null,
-    company: opts.company || null,
-    title: opts.title || null,
+    url: opts.url || undefined,
+    company: opts.company || undefined,
+    title: opts.title || undefined,
   });
   console.log(JSON.stringify(result, null, 2));
 }
 
-function handleUpdate(remainingArgs) {
+function handleUpdate(remainingArgs: string[]): void {
   const opts = parseArgs(remainingArgs);
   if (!opts.company) {
     console.error('update requires --company');
@@ -276,12 +306,12 @@ function handleUpdate(remainingArgs) {
   applications.updateApplication(OUTPUT_DIR, {
     company: opts.company,
     stage: opts.stage,
-    detail: opts.detail || null,
+    detail: opts.detail || undefined,
   });
   console.log(JSON.stringify({ success: true }));
 }
 
-function handleAddNote(remainingArgs) {
+function handleAddNote(remainingArgs: string[]): void {
   const opts = parseArgs(remainingArgs);
   if (!opts.company) {
     console.error('add-note requires --company');
@@ -298,7 +328,7 @@ function handleAddNote(remainingArgs) {
   console.log(JSON.stringify({ success: true }));
 }
 
-function handleClose(remainingArgs) {
+function handleClose(remainingArgs: string[]): void {
   const opts = parseArgs(remainingArgs);
   if (!opts.company) {
     console.error('close requires --company');
@@ -311,12 +341,12 @@ function handleClose(remainingArgs) {
   applications.closeApplication(OUTPUT_DIR, {
     company: opts.company,
     reason: opts.reason,
-    summary: opts.summary || null,
+    summary: opts.summary || undefined,
   });
   console.log(JSON.stringify({ success: true }));
 }
 
-function handleReopen(remainingArgs) {
+function handleReopen(remainingArgs: string[]): void {
   const opts = parseArgs(remainingArgs);
   if (!opts.company) {
     console.error('reopen requires --company');
@@ -329,28 +359,18 @@ function handleReopen(remainingArgs) {
   applications.reopenApplication(OUTPUT_DIR, {
     company: opts.company,
     stage: opts.stage,
-    detail: opts.detail || null,
+    detail: opts.detail || undefined,
   });
   console.log(JSON.stringify({ success: true }));
 }
 
-function handleCreate(jsonStr) {
-  if (!jsonStr) {
-    console.error('create requires a JSON argument');
-    process.exit(1);
-  }
-  let entry;
-  try {
-    entry = JSON.parse(jsonStr);
-  } catch (err) {
-    console.error(`Invalid JSON argument: ${err.message}`);
-    process.exit(1);
-  }
-  applications.createApplication(OUTPUT_DIR, entry);
+function handleCreate(jsonStr: string | undefined): void {
+  const entry = parseJsonArg(jsonStr, 'create');
+  applications.createApplication(OUTPUT_DIR, entry as unknown as applications.CreateApplicationInput);
   console.log(JSON.stringify({ success: true }));
 }
 
-function handleFlag(remainingArgs) {
+function handleFlag(remainingArgs: string[]): void {
   const opts = parseArgs(remainingArgs);
 
   if (!opts.url) {
@@ -370,7 +390,7 @@ function handleFlag(remainingArgs) {
   console.log(JSON.stringify(result));
 }
 
-function handleInferStage(remainingArgs) {
+function handleInferStage(remainingArgs: string[]): void {
   const opts = parseArgs(remainingArgs);
   if (!opts.from) {
     console.error('infer-stage requires --from "<text>"');
@@ -380,39 +400,19 @@ function handleInferStage(remainingArgs) {
   console.log(JSON.stringify({ stage }));
 }
 
-function handleMarkStatusChanged(jsonStr) {
-  if (!jsonStr) {
-    console.error('mark-status-changed requires a JSON argument');
-    process.exit(1);
-  }
-  let entry;
-  try {
-    entry = JSON.parse(jsonStr);
-  } catch (err) {
-    console.error(`Invalid JSON argument: ${err.message}`);
-    process.exit(1);
-  }
-  const result = applications.markStatusChanged(OUTPUT_DIR, entry);
+function handleMarkStatusChanged(jsonStr: string | undefined): void {
+  const entry = parseJsonArg(jsonStr, 'mark-status-changed');
+  const result = applications.markStatusChanged(OUTPUT_DIR, entry as unknown as applications.MarkStatusChangedInput);
   console.log(JSON.stringify({ success: true, ...result }));
 }
 
-function handleFlagForReview(jsonStr) {
-  if (!jsonStr) {
-    console.error('flag-for-review requires a JSON argument');
-    process.exit(1);
-  }
-  let entry;
-  try {
-    entry = JSON.parse(jsonStr);
-  } catch (err) {
-    console.error(`Invalid JSON argument: ${err.message}`);
-    process.exit(1);
-  }
-  const result = applications.flagForReview(OUTPUT_DIR, entry);
+function handleFlagForReview(jsonStr: string | undefined): void {
+  const entry = parseJsonArg(jsonStr, 'flag-for-review');
+  const result = applications.flagForReview(OUTPUT_DIR, entry as unknown as applications.FlagForReviewInput);
   console.log(JSON.stringify({ success: true, ...result }));
 }
 
-function parseIntegerOpt(opts, name) {
+function parseIntegerOpt(opts: Record<string, string>, name: string): number | undefined {
   if (opts[name] === undefined) return undefined;
   const n = Number(opts[name]);
   if (!Number.isInteger(n)) {
@@ -422,9 +422,9 @@ function parseIntegerOpt(opts, name) {
   return n;
 }
 
-function handleStaleApplications(remainingArgs) {
+function handleStaleApplications(remainingArgs: string[]): void {
   const opts = parseArgs(remainingArgs);
-  const aggregatorOpts = {};
+  const aggregatorOpts: Parameters<typeof applications.staleApplications>[1] = {};
   if (opts.today) aggregatorOpts.today = opts.today;
   const warn = parseIntegerOpt(opts, 'warn');
   if (warn !== undefined) aggregatorOpts.warn = warn;

@@ -4,7 +4,7 @@ const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
-const CLI = path.join(__dirname, '..', 'scripts', 'gmail.js');
+const CLI = path.join(__dirname, '..', 'scripts', 'gmail.ts');
 
 // Ensure temp body file exists for create-draft tests that get past flag parsing
 before(() => {

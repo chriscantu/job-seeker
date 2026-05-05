@@ -63,7 +63,7 @@ priority order:
 | `resume-tailor` | **Shipped** | Cover letters are live; resume customization is the natural next step |
 | `scan-email` | **Shipped** | Surfaces job alerts from Apple Mail that board searches miss — adapted from eisenhower scan-email pattern |
 | `interview-prep` | **Shipped** | STAR story mapping + Apple Calendar adapter for interview lookup (PR #15/#54) |
-| `follow-up` | **Shipped** | Drafts stale-application follow-ups via `scripts/gmail.js` — Gmail CLI replaces MCP for a single OAuth2 flow (PR #55) |
+| `follow-up` | **Shipped** | Drafts stale-application follow-ups via `scripts/gmail.ts` — Gmail CLI replaces MCP for a single OAuth2 flow (PR #55) |
 | `linkedin-article` | **Shipped** | Drafts LinkedIn posts and articles in the candidate's voice with voice-rule audits |
 | `networking-outreach` | Planned | Lower priority until applications are flowing |
 
@@ -95,8 +95,8 @@ work — without touching CLAUDE.md or hardcoded profile strings.
 
 **Shipped**:
 - `config/candidate.md.example` + `config/search.md.example` — config templates
-- `scripts/validate-config.js` — validates config presence and required fields
-- `scripts/validate-structure.js` — three-way cross-reference: STRUCTURE.md ↔ filesystem ↔ plugin.json
+- `scripts/validate-config.ts` — validates config presence and required fields
+- `scripts/validate-structure.ts` — three-way cross-reference: STRUCTURE.md ↔ filesystem ↔ plugin.json
 - All 10 skills updated: config reads in "Before You Start", candidate-agnostic language
 - CLAUDE.md, PRINCIPLES.md, STRUCTURE.md — thinned to point at config files
 - State layer flipped: `output/` primary, Apple Notes optional secondary

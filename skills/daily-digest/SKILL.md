@@ -26,9 +26,9 @@ follow the batching protocol.
 ## Phase 0a — State & Optional Config
 
 Read state via the CLI (parse stdout JSON):
-- `bun scripts/state.js read seen-postings` — build dedup set of known
+- `bun scripts/state.ts read seen-postings` — build dedup set of known
   URLs from the returned entries. Do NOT resurface any role already listed.
-- `bun scripts/state.js read preferences` — extract interest signals and
+- `bun scripts/state.ts read preferences` — extract interest signals and
   `last_run_date` from the returned object.
 
 Read `skills/daily-digest/source-strategy.md` for reference — it defines
@@ -62,10 +62,10 @@ Read from `config/search.md`. Use the following fields to filter:
 Before starting discovery, check for cached results from a prior interrupted run.
 See `skills/_shared/phase-cache.md` for the full caching convention.
 
-1. Run `bun scripts/cache.js read daily-digest phase2`
+1. Run `bun scripts/cache.ts read daily-digest phase2`
    - If exit 0: Phase 2 results are cached. Display: "Verification cached at {cached_at} — {N} roles verified. Resume from compose?" If user confirms, skip to Phase 3 using the cached data. If user says "fresh", proceed normally.
 
-2. If Phase 2 was not cached, run `bun scripts/cache.js read daily-digest phase1`
+2. If Phase 2 was not cached, run `bun scripts/cache.ts read daily-digest phase1`
    - If exit 0: Phase 1 results are cached. Display: "Discovery cached at {cached_at} — {N} roles found. Resume from verification?" If user confirms, skip to Phase 2 using the cached data. If user says "fresh", proceed normally.
 
 3. If neither cached, proceed with Phase 1 normally.
@@ -82,7 +82,7 @@ Wait for all Phase 1 results before proceeding.
 #### Cache Phase 1 Results
 
 After discovery completes, cache the results for resumption:
-`bun scripts/cache.js write daily-digest phase1 '<json>'`
+`bun scripts/cache.ts write daily-digest phase1 '<json>'`
 — include the full candidate list and source metadata.
 
 ## Phase 2 — URL Verification
@@ -98,7 +98,7 @@ Wait for all verification results before composing the digest.
 #### Cache Phase 2 Results
 
 After verification completes, cache the results:
-`bun scripts/cache.js write daily-digest phase2 '<json>'`
+`bun scripts/cache.ts write daily-digest phase2 '<json>'`
 — include verified roles, closed postings, and source stats.
 
 ## Phase 3 — Compose and Write
@@ -124,9 +124,9 @@ for the digest note.
 
 Append state via the CLI (the CLI auto-creates today's file if none exists):
 - For each role from the digest (both included and excluded/closed):
-  `bun scripts/state.js append seen-postings '<json>'` with `company`,
+  `bun scripts/state.ts append seen-postings '<json>'` with `company`,
   `title`, `url`, `posted` (or `discovered`) date, and any flags.
-- `bun scripts/state.js append preferences '<json>'` for source
+- `bun scripts/state.ts append preferences '<json>'` for source
   effectiveness counts.
 
 If Apple Notes is configured, read `skills/_shared/apple-notes.md` and

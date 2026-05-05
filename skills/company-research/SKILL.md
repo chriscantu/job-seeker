@@ -116,14 +116,14 @@ skills (cover-letter, interview-prep) read it for full detail. Requirements:
 
 ## Phase 4 — State Update
 
-Read seen-postings via `bun scripts/state.js read seen-postings`. All
+Read seen-postings via `bun scripts/state.ts read seen-postings`. All
 mutations use the CLI subcommands below — never edit
 `output/*-seen-postings.md` directly.
 
 After writing the brief, annotate the company's entry in seen-postings:
 
 ```
-bun scripts/state.js flag seen-postings --url "<job-url>" --add RESEARCHED
+bun scripts/state.ts flag seen-postings --url "<job-url>" --add RESEARCHED
 ```
 
 The `flag` subcommand finds the entry by URL and appends the `RESEARCHED`
@@ -139,7 +139,7 @@ If the posted date cannot be determined, use `discovered:YYYY-MM-DD`
 be aged:
 
 ```
-bun scripts/state.js append seen-postings '{
+bun scripts/state.ts append seen-postings '{
   "company": "<Company>",
   "title": "<Title>",
   "url": "<URL>",
@@ -163,4 +163,4 @@ pipeline event.
 | Cannot determine company name | Stop: "Could not identify the company from this page. Try providing the company name directly." |
 | Research queries return thin results | Write the brief with gaps noted in "Gaps & Open Questions" — don't fail, don't retry |
 | `output/{company-slug}/` doesn't exist | Create it before writing the brief |
-| Seen-postings file doesn't exist | `bun scripts/state.js append seen-postings '<json>'` — auto-creates today's file. |
+| Seen-postings file doesn't exist | `bun scripts/state.ts append seen-postings '<json>'` — auto-creates today's file. |

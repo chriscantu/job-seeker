@@ -4,7 +4,7 @@ const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
-const CACHE_JS = path.join(__dirname, '..', 'scripts', 'cache.js');
+const CACHE_JS = path.join(__dirname, '..', 'scripts', 'cache.ts');
 const TMP_DIR = path.join(__dirname, 'tmp-cache-cli');
 const CACHE_DIR = path.join(TMP_DIR, '.cache');
 

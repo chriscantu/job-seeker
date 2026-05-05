@@ -21,14 +21,14 @@ Read `skills/_shared/preflight.md` and execute.
 Verify Gmail API credentials:
 
 ```bash
-bun scripts/gmail.js profile
+bun scripts/gmail.ts profile
 ```
 
 If unauthenticated, stop with guidance:
 > "Gmail API credentials are required. Set them up:
 > 1. Create OAuth2 credentials in Google Cloud Console (Desktop app)
 > 2. Save as `credentials/gmail-client-secret.json`
-> 3. Run `bun scripts/gmail.js auth`"
+> 3. Run `bun scripts/gmail.ts auth`"
 
 Additionally read:
 - `references/voice-guide.md` — tone calibration
@@ -149,7 +149,7 @@ Ask: "Create Gmail draft and copy LinkedIn version to clipboard? [y/N/edit]"
 1. Write full message body to `/tmp/outreach-{company-slug}.txt`
 2. Create Gmail draft:
    ```bash
-   bun scripts/gmail.js create-draft --subject "{subject}" --body-file /tmp/outreach-{company-slug}.txt
+   bun scripts/gmail.ts create-draft --subject "{subject}" --body-file /tmp/outreach-{company-slug}.txt
    ```
    Add `--to "{email}"` if recipient email is known.
 3. Copy LinkedIn version to clipboard:

@@ -24,6 +24,21 @@ export function ensureDir(dir: string): void {
   }
 }
 
+// Extracts a human-readable message from any thrown value. Catch blocks are
+// typed `unknown` under TS strict, so call sites otherwise repeat
+// `err instanceof Error ? err.message : String(err)` for every catch. Use
+// this helper instead — concentrates the narrowing in one place.
+export function errorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
+
+// Variant that prefers stack trace when available (for DEBUG-mode logging).
+// Falls back to message, then String(err).
+export function errorStackOrMessage(err: unknown): string {
+  if (err instanceof Error) return err.stack || err.message;
+  return String(err);
+}
+
 // Returns today's date as YYYY-MM-DD in UTC. Centralizes the convention so
 // daysBetween (which interprets dates as UTC midnights) composes correctly
 // with all "today" defaults across the lib. Don't switch to
