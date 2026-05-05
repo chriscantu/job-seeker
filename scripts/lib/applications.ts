@@ -49,7 +49,7 @@ export interface LastActivity {
 
 export interface HistoryEntry {
   date: string;
-  stage: string;
+  stage: string | null;
   detail: string;
 }
 
@@ -60,8 +60,8 @@ export interface ClosedInfo {
 }
 
 export interface ApplicationEntry {
-  company: string;
-  title: string;
+  company: string | null;
+  title: string | null;
   stage: string | null;
   applied: string | null;
   lastActivity: LastActivity;
@@ -74,7 +74,7 @@ export interface ApplicationEntry {
 }
 
 export interface FlaggedEntry {
-  company: string;
+  company: string | null;
   title: string | null;
   detectedAt: string | null;
   signal: string | null;
@@ -95,8 +95,8 @@ type Section = 'active' | 'closed' | 'flagged';
 
 export function makeEntry(overrides: Partial<ApplicationEntry> = {}): ApplicationEntry {
   return {
-    company: null as unknown as string,
-    title: null as unknown as string,
+    company: null,
+    title: null,
     stage: null,
     applied: null,
     lastActivity: { date: null, detail: null },
@@ -112,7 +112,7 @@ export function makeEntry(overrides: Partial<ApplicationEntry> = {}): Applicatio
 
 function makeFlaggedEntry(overrides: Partial<FlaggedEntry> = {}): FlaggedEntry {
   return {
-    company: null as unknown as string,
+    company: null,
     title: null,
     detectedAt: null,
     signal: null,
@@ -451,8 +451,8 @@ export function createApplication(dir: string, entry: CreateApplicationInput): v
   if (existing) {
     const data = parseApplicationsFile(existing);
     const dupe = [...data.active, ...data.closed].find(
-      e => e.company.toLowerCase() === entry.company.toLowerCase()
-        && e.title.toLowerCase() === entry.title.toLowerCase()
+      e => e.company?.toLowerCase() === entry.company.toLowerCase()
+        && e.title?.toLowerCase() === entry.title.toLowerCase()
     );
     if (dupe) {
       throw new Error(`Application already exists: ${dupe.company} — ${dupe.title}`);
@@ -469,7 +469,7 @@ export function createApplication(dir: string, entry: CreateApplicationInput): v
 export function findApplication(data: ApplicationsData, companyQuery: string): ApplicationEntry {
   const query = companyQuery.toLowerCase();
   const all = [...data.active, ...data.closed];
-  const matches = all.filter(e => e.company.toLowerCase().includes(query));
+  const matches = all.filter(e => e.company?.toLowerCase().includes(query) ?? false);
 
   if (matches.length === 0) {
     throw new Error(`No application found matching "${companyQuery}"`);
@@ -485,10 +485,10 @@ function findInSection(data: ApplicationsData, companyQuery: string, section: 'a
   const query = companyQuery.toLowerCase();
   const primary = data[section];
   const other = section === 'active' ? 'closed' : 'active';
-  const matches = primary.filter(e => e.company.toLowerCase().includes(query));
+  const matches = primary.filter(e => e.company?.toLowerCase().includes(query) ?? false);
 
   if (matches.length === 0) {
-    const otherMatches = data[other].filter(e => e.company.toLowerCase().includes(query));
+    const otherMatches = data[other].filter(e => e.company?.toLowerCase().includes(query) ?? false);
     if (otherMatches.length > 0) {
       const hint = section === 'active'
         ? 'it is closed — use the "reopen" command first'
@@ -727,7 +727,7 @@ export function markStatusChanged(dir: string, opts: MarkStatusChangedInput): Op
   const detail = `scan-email detected ${opts.atsSender} ${status.toLowerCase()} (msg-id: ${opts.msgId})`;
 
   if (status === 'Rejected') {
-    const idx = data.active.findIndex(e => e.company.toLowerCase() === query);
+    const idx = data.active.findIndex(e => e.company?.toLowerCase() === query);
     if (idx === -1) {
       return flagForReview(dir, {
         company,
@@ -754,7 +754,7 @@ export function markStatusChanged(dir: string, opts: MarkStatusChangedInput): Op
     entry.history.push({ date: detectedAt, stage: 'Closed (rejected)', detail });
     data.closed.push(entry);
   } else {
-    const entry = data.active.find(e => e.company.toLowerCase() === query);
+    const entry = data.active.find(e => e.company?.toLowerCase() === query);
     if (!entry) {
       return flagForReview(dir, {
         company,
@@ -801,7 +801,7 @@ export function addNote(dir: string, { company, note }: AddNoteInput): void {
 
   entry.notes = entry.notes ? `${entry.notes}; ${note}` : note;
   entry.lastActivity = { date: today, detail: note };
-  entry.history.push({ date: today, stage: entry.stage ?? '', detail: note });
+  entry.history.push({ date: today, stage: entry.stage, detail: note });
 
   atomicWriteFileSync(filePath, formatApplicationsFile(data));
 }
