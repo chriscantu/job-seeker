@@ -1,5 +1,3 @@
-"use strict";
-
 // Unit tests for the pure helpers exported from scripts/gmail.ts's
 // trash-by-sender subcommand. CLI-level tests (tests/gmail-cli.test.js)
 // cover arg-validation error paths; integration tests
@@ -16,10 +14,10 @@
 // so tests pass a tiny fake that produces canned responses without a
 // real API call.
 
-const { describe, it } = require("node:test");
-const assert = require("node:assert/strict");
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
 
-const {
+import {
   encodeRfc822,
   parseTrashBySenderArgs,
   formatTrashBySenderOutput,
@@ -27,7 +25,8 @@ const {
   processSender,
   resolveMaxMatches,
   DEFAULT_MAX_MATCHES_PER_PATTERN,
-} = require("../scripts/gmail.ts");
+} from "../scripts/gmail";
+import type { GmailClient } from "../scripts/gmail";
 
 describe("encodeRfc822", () => {
   it("includes To header when recipient is provided", () => {
@@ -254,12 +253,34 @@ describe("resolveMaxMatches", () => {
 
 // ---- fake gmail client for listMatchingIds / processSender ----
 
-function makeFakeGmail({ pages = [], trashBehavior = {} } = {}) {
+type FakeError = Error & { code?: number };
+
+interface FakePage {
+  messages: Array<{ id: string }>;
+  nextPageToken?: string;
+}
+
+type TrashBehavior = Record<string, "ok" | { throw?: { code?: number }; message?: string }>;
+
+interface FakeGmail {
+  users: {
+    messages: {
+      list: (...args: unknown[]) => Promise<{ data: FakePage }>;
+      trash: (args: { id: string }) => Promise<unknown>;
+    };
+  };
+  _trashedIds: () => string[];
+}
+
+function makeFakeGmail({ pages = [], trashBehavior = {} }: {
+  pages?: FakePage[];
+  trashBehavior?: TrashBehavior;
+} = {}): FakeGmail {
   // pages: array of page responses the fake returns in order, each
   // shaped like `{messages: [{id}], nextPageToken?}`.
   // trashBehavior: {[id]: 'ok' | {throw: {code}}}
   let pageIdx = 0;
-  const trashedIds = [];
+  const trashedIds: string[] = [];
   return {
     users: {
       messages: {
@@ -274,7 +295,7 @@ function makeFakeGmail({ pages = [], trashBehavior = {} } = {}) {
             trashedIds.push(id);
             return {};
           }
-          const err = new Error(b.message || "fake error");
+          const err = new Error(b.message || "fake error") as FakeError;
           err.code = b.throw?.code;
           throw err;
         },
@@ -290,7 +311,7 @@ describe("listMatchingIds", () => {
       const gmail = makeFakeGmail({
         pages: [{ messages: [{ id: "a" }, { id: "b" }] }],
       });
-      const r = await listMatchingIds(gmail, "lensa.com", "30d", 500);
+      const r = await listMatchingIds(gmail as unknown as GmailClient, "lensa.com", "30d", 500);
       assert.deepEqual(r.ids, ["a", "b"]);
       assert.equal(r.capHit, false);
     })();
@@ -304,7 +325,7 @@ describe("listMatchingIds", () => {
           { messages: [{ id: "c" }] },
         ],
       });
-      const r = await listMatchingIds(gmail, "lensa.com", "30d", 500);
+      const r = await listMatchingIds(gmail as unknown as GmailClient, "lensa.com", "30d", 500);
       assert.deepEqual(r.ids, ["a", "b", "c"]);
       assert.equal(r.capHit, false);
     })();
@@ -313,9 +334,9 @@ describe("listMatchingIds", () => {
   it("truncates at maxMatches and returns capHit=true", () => {
     return (async () => {
       // Simulate a huge result: 3 pages of 100 ids each, cap at 150.
-      const pages = [];
+      const pages: FakePage[] = [];
       for (let p = 0; p < 3; p++) {
-        const msgs = [];
+        const msgs: Array<{ id: string }> = [];
         for (let i = 0; i < 100; i++) msgs.push({ id: `p${p}_i${i}` });
         pages.push({
           messages: msgs,
@@ -323,7 +344,7 @@ describe("listMatchingIds", () => {
         });
       }
       const gmail = makeFakeGmail({ pages });
-      const r = await listMatchingIds(gmail, "lensa.com", "30d", 150);
+      const r = await listMatchingIds(gmail as unknown as GmailClient, "lensa.com", "30d", 150);
       assert.equal(r.ids.length, 150);
       assert.equal(r.capHit, true);
     })();
@@ -332,7 +353,7 @@ describe("listMatchingIds", () => {
   it("handles an empty result set cleanly", () => {
     return (async () => {
       const gmail = makeFakeGmail({ pages: [{ messages: [] }] });
-      const r = await listMatchingIds(gmail, "never-matches.com", "30d", 500);
+      const r = await listMatchingIds(gmail as unknown as GmailClient, "never-matches.com", "30d", 500);
       assert.deepEqual(r.ids, []);
       assert.equal(r.capHit, false);
     })();
@@ -345,7 +366,7 @@ describe("processSender", () => {
       const gmail = makeFakeGmail({
         pages: [{ messages: [{ id: "a" }, { id: "b" }, { id: "c" }] }],
       });
-      const r = await processSender(gmail, "lensa.com", {
+      const r = await processSender(gmail as unknown as GmailClient, "lensa.com", {
         newerThan: "30d",
         maxMatches: 500,
         dryRun: false,
@@ -366,7 +387,7 @@ describe("processSender", () => {
           b: { throw: { code: 503 }, message: "service unavailable" },
         },
       });
-      const r = await processSender(gmail, "lensa.com", {
+      const r = await processSender(gmail as unknown as GmailClient, "lensa.com", {
         newerThan: "30d",
         maxMatches: 500,
         dryRun: false,
@@ -389,12 +410,12 @@ describe("processSender", () => {
         },
       });
       await assert.rejects(
-        processSender(gmail, "lensa.com", {
+        processSender(gmail as unknown as GmailClient, "lensa.com", {
           newerThan: "30d",
           maxMatches: 500,
           dryRun: false,
         }),
-        (err) => err.code === 401
+        (err: unknown) => (err as FakeError).code === 401
       );
     })();
   });
@@ -404,7 +425,7 @@ describe("processSender", () => {
       const gmail = makeFakeGmail({
         pages: [{ messages: [{ id: "a" }, { id: "b" }] }],
       });
-      const r = await processSender(gmail, "lensa.com", {
+      const r = await processSender(gmail as unknown as GmailClient, "lensa.com", {
         newerThan: "30d",
         maxMatches: 500,
         dryRun: true,
@@ -418,7 +439,7 @@ describe("processSender", () => {
 
   it("sets capHit=true when the cap is hit", () => {
     return (async () => {
-      const msgs = [];
+      const msgs: Array<{ id: string }> = [];
       for (let i = 0; i < 100; i++) msgs.push({ id: `id${i}` });
       const gmail = makeFakeGmail({
         pages: [
@@ -426,7 +447,7 @@ describe("processSender", () => {
           { messages: msgs },
         ],
       });
-      const r = await processSender(gmail, "lensa.com", {
+      const r = await processSender(gmail as unknown as GmailClient, "lensa.com", {
         newerThan: "30d",
         maxMatches: 150,
         dryRun: true,
