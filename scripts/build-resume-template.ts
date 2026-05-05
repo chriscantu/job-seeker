@@ -26,6 +26,7 @@ import {
   LevelFormat,
   convertInchesToTwip,
 } from 'docx';
+import { errorMessage } from './lib/util';
 
 // ── docx unit converters ─────────────────────────────────────────────────────
 // docx OOXML uses three different unit systems for different fields:
@@ -221,7 +222,7 @@ Packer.toBuffer(doc)
     console.log(`wrote ${OUTPUT_PATH} (${buf.length} bytes)`);
   })
   .catch(err => {
-    const msg = err instanceof Error ? err.message : String(err);
+    const msg = errorMessage(err);
     console.error(`build-resume-template failed: ${msg}`);
     process.exit(1);
   });

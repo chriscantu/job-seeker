@@ -36,7 +36,7 @@ import * as seenPostings from './lib/seen-postings';
 import * as preferences from './lib/preferences';
 import * as applications from './lib/applications';
 import { inferStage } from './lib/stage-inference';
-import { resolveStateFile } from './lib/util';
+import { resolveStateFile, errorMessage, errorStackOrMessage } from './lib/util';
 
 const ROOT = path.resolve(__dirname, '..');
 const OUTPUT_DIR = process.env.OUTPUT_DIR || path.join(ROOT, 'output');
@@ -157,7 +157,7 @@ function parseJsonArg(jsonStr: string | undefined, label: string): Record<string
   try {
     entry = JSON.parse(jsonStr);
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
+    const msg = errorMessage(err);
     console.error(`Invalid JSON argument: ${msg}`);
     process.exit(1);
   }
@@ -216,9 +216,9 @@ function main(): void {
     // Default: clean message only (CLI users shouldn't see internal frames).
     // Set DEBUG=1 to get the full stack for troubleshooting.
     if (process.env.DEBUG) {
-      console.error(err instanceof Error ? (err.stack || err.message) : String(err));
+      console.error(errorStackOrMessage(err));
     } else {
-      console.error(err instanceof Error ? err.message : String(err));
+      console.error(errorMessage(err));
     }
     process.exit(1);
   }

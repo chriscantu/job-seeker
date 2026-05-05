@@ -25,6 +25,7 @@ import {
   getAuthUrl,
   exchangeCode,
 } from './lib/gmail-auth';
+import { errorMessage } from './lib/util';
 
 type GmailClient = gmail_v1.Gmail;
 
@@ -64,7 +65,7 @@ interface ApiError {
 // covers test fakes and non-gaxios HTTP errors that throw plain objects with
 // the same shape.
 function normalizeError(err: unknown): ApiError {
-  const message = err instanceof Error && err.message ? err.message : String(err);
+  const message = errorMessage(err);
   if (err instanceof GaxiosError) {
     return { status: err.response?.status ?? err.status ?? (typeof err.code === 'number' ? err.code : undefined), message };
   }
@@ -161,7 +162,7 @@ async function authCommand(): Promise<void> {
         server.close();
         resolve();
       } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
+        const msg = errorMessage(err);
         res.writeHead(500, { 'Content-Type': 'text/plain' });
         res.end('Authorization failed: ' + msg);
         clearTimeout(timer);
@@ -556,7 +557,7 @@ async function trashBySenderCommand(args: string[], envOverride?: NodeJS.Process
   try {
     parsed = parseTrashBySenderArgs(args);
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
+    const msg = errorMessage(err);
     console.error(`error: ${msg}`);
     process.exit(1);
   }
@@ -571,7 +572,7 @@ async function trashBySenderCommand(args: string[], envOverride?: NodeJS.Process
   try {
     maxMatches = resolveMaxMatches(env);
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
+    const msg = errorMessage(err);
     console.error(`error: ${msg}`);
     process.exit(1);
   }
@@ -705,7 +706,7 @@ async function main(): Promise<void> {
 // the entry point invoked from CLI, false when imported from a test.
 if (import.meta.main) {
   main().catch((err) => {
-    const msg = err instanceof Error ? err.message : String(err);
+    const msg = errorMessage(err);
     console.error(`Error: ${msg}`);
     process.exit(1);
   });

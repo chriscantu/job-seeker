@@ -5,6 +5,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
+import { errorMessage } from './lib/util';
 
 interface SkillEntry {
   file?: string;
@@ -125,7 +126,7 @@ if (fs.existsSync(pluginPath)) {
   try {
     plugin = JSON.parse(fs.readFileSync(pluginPath, 'utf8')) as PluginManifest;
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
+    const msg = errorMessage(err);
     issues.push(`Could not parse plugin.json: ${msg}`);
   }
 

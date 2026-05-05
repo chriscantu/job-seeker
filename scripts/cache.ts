@@ -12,6 +12,7 @@
 
 import * as path from 'path';
 import { readCache, writeCache, listCaches, cleanCaches } from './lib/cache';
+import { errorMessage } from './lib/util';
 
 const ROOT = path.resolve(__dirname, '..');
 const OUTPUT_DIR = process.env.OUTPUT_DIR || path.join(ROOT, 'output');
@@ -62,7 +63,7 @@ function main(): void {
         try {
           data = JSON.parse(args[3]);
         } catch (err) {
-          const msg = err instanceof Error ? err.message : String(err);
+          const msg = errorMessage(err);
           console.error(`Invalid JSON: ${msg}`);
           process.exit(1);
         }
@@ -93,7 +94,7 @@ function main(): void {
         usage();
     }
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
+    const msg = errorMessage(err);
     console.error(msg);
     process.exit(1);
   }

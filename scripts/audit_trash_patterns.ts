@@ -26,6 +26,7 @@ import { spawnSync } from 'child_process';
 
 import { extractAllTrashSubstrings } from './lib/trash-tables';
 import { classifySender, SenderCategory, Confidence } from './lib/sender-classifier';
+import { errorMessage } from './lib/util';
 
 const EXIT_OK = 0;
 const EXIT_CONFIG = 2;
@@ -204,7 +205,7 @@ function main(): number {
   try {
     args = parseArgs(process.argv);
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
+    const msg = errorMessage(err);
     process.stderr.write(`error: ${msg}\n`);
     printHelp();
     return EXIT_CONFIG;
@@ -224,7 +225,7 @@ function main(): number {
     const md = readSearchMd(searchPath);
     patterns = extractAllTrashSubstrings(md);
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
+    const msg = errorMessage(err);
     // ConfigError and extractAllTrashSubstrings errors (missing heading,
     // empty table) are config problems — report and exit cleanly.
     // Unexpected runtime errors (TypeError, etc.) should propagate with
@@ -244,7 +245,7 @@ function main(): number {
     try {
       checkCredentials(credsDir);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
+      const msg = errorMessage(err);
       process.stderr.write(`error: ${msg}\n`);
       return EXIT_CONFIG;
     }
@@ -254,7 +255,7 @@ function main(): number {
   try {
     messages = runGmailSearch(gmailBin, args.newerThan);
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
+    const msg = errorMessage(err);
     process.stderr.write(`error: ${msg}\n`);
     return EXIT_GMAIL_API;
   }

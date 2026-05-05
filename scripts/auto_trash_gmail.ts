@@ -67,6 +67,7 @@ import {
   EXIT_GMAIL_API,
   EXIT_PARTIAL,
 } from './lib/trash-output';
+import { errorMessage } from './lib/util';
 
 const REPO_ROOT = path.resolve(__dirname, '..');
 const DEFAULT_SEARCH_MD = path.join(REPO_ROOT, 'config', 'search.md');
@@ -239,7 +240,7 @@ function main(): number {
   try {
     args = parseArgs(process.argv);
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
+    const msg = errorMessage(err);
     process.stderr.write(`error: ${msg}\n`);
     printHelp();
     return EXIT_CONFIG;
@@ -253,7 +254,7 @@ function main(): number {
   try {
     plan = buildPlan(process.env, args);
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
+    const msg = errorMessage(err);
     if (err instanceof ConfigError) {
       process.stderr.write(`error: ${msg}\n`);
       return EXIT_CONFIG;
@@ -288,7 +289,7 @@ function main(): number {
     try {
       checkCredentials(plan.credsDir);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
+      const msg = errorMessage(err);
       process.stderr.write(`error: ${msg}\n`);
       return EXIT_CONFIG;
     }
@@ -298,7 +299,7 @@ function main(): number {
   try {
     result = runTrashBySender(plan, args.dryRun);
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
+    const msg = errorMessage(err);
     process.stderr.write(`error: ${msg}\n`);
     return EXIT_GMAIL_API;
   }

@@ -2,7 +2,7 @@
 import * as fs from 'fs';
 import { classifyStatusEmail, ClassifyStatusEmailInput, ApplicationsData as ClassifierApplicationsData } from './lib/status-classifier';
 import { parseApplicationsFile, ApplicationsData } from './lib/applications';
-import { resolveStateFile } from './lib/util';
+import { resolveStateFile, errorMessage } from './lib/util';
 
 // Exit codes:
 //   0  success (classification JSON or `null` on stdout)
@@ -86,7 +86,7 @@ function parseEmailFile(filePath: string): EmailData {
   try {
     raw = fs.readFileSync(filePath, 'utf8');
   } catch (err) {
-    const detail = err instanceof Error ? err.message : String(err);
+    const detail = errorMessage(err);
     structuredError(EXIT_INPUT, 'email_read_failed', { file: filePath, detail });
   }
 
@@ -94,7 +94,7 @@ function parseEmailFile(filePath: string): EmailData {
   try {
     parsed = JSON.parse(raw);
   } catch (err) {
-    const detail = err instanceof Error ? err.message : String(err);
+    const detail = errorMessage(err);
     structuredError(EXIT_INPUT, 'email_read_failed', { file: filePath, detail });
   }
 
@@ -132,7 +132,7 @@ function loadApplicationsData(applicationsDir: string): ApplicationsData {
     }
     return parseApplicationsFile(applicationsFile);
   } catch (err) {
-    const detail = err instanceof Error ? err.message : String(err);
+    const detail = errorMessage(err);
     structuredError(EXIT_STATE, 'applications_read_failed', { dir: applicationsDir, detail });
   }
 }
@@ -157,7 +157,7 @@ function main(): void {
   try {
     result = classifyStatusEmail(input);
   } catch (err) {
-    const detail = err instanceof Error ? err.message : String(err);
+    const detail = errorMessage(err);
     structuredError(EXIT_CLASSIFIER, 'classifier_failed', { detail });
   }
 

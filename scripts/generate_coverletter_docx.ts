@@ -15,6 +15,7 @@ import * as fs from 'fs';
 import { Document, Packer, Paragraph, TextRun } from 'docx';
 import { COLORS, FONT, PAGE } from './docx-styles';
 import { parseFrontmatter } from './lib/frontmatter';
+import { errorMessage } from './lib/util';
 
 // ── CLI ──────────────────────────────────────────────────────────────────────
 const [,, inputPath, outputPath] = process.argv;
@@ -103,7 +104,7 @@ Packer.toBuffer(doc).then(buf => {
   fs.writeFileSync(outputPath, buf);
   console.log("DOCX written to:", outputPath);
 }).catch(err => {
-  const msg = err instanceof Error ? err.message : String(err);
+  const msg = errorMessage(err);
   console.error("Failed to generate DOCX:", msg);
   process.exit(1);
 });

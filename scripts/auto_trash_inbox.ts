@@ -49,6 +49,7 @@ import {
   EXIT_OSASCRIPT,
   EXIT_PARTIAL,
 } from './lib/trash-output';
+import { errorMessage } from './lib/util';
 
 const REPO_ROOT = path.resolve(__dirname, '..');
 const DEFAULT_SEARCH_MD = path.join(REPO_ROOT, 'config', 'search.md');
@@ -202,7 +203,7 @@ function main(): number {
   try {
     args = parseArgs(process.argv);
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
+    const msg = errorMessage(err);
     process.stderr.write(`error: ${msg}\n`);
     printHelp();
     return EXIT_CONFIG;
@@ -216,7 +217,7 @@ function main(): number {
   try {
     plan = buildPlan(process.env);
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
+    const msg = errorMessage(err);
     if (err instanceof ConfigError) {
       process.stderr.write(`error: ${msg}\n`);
       return EXIT_CONFIG;
@@ -247,7 +248,7 @@ function main(): number {
   try {
     result = runTrashScript(plan);
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
+    const msg = errorMessage(err);
     process.stderr.write(`error: ${msg}\n`);
     return EXIT_OSASCRIPT;
   }

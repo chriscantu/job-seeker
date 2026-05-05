@@ -13,6 +13,7 @@ import {
   AlignmentType, BorderStyle, LevelFormat,
 } from 'docx';
 import { parseFrontmatter } from './lib/frontmatter';
+import { errorMessage } from './lib/util';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 const PAGE_W   = 12240;
@@ -445,7 +446,7 @@ async function main(): Promise<void> {
 }
 
 main().catch((err: unknown) => {
-  const msg = err instanceof Error ? err.message : String(err);
+  const msg = errorMessage(err);
   process.stderr.write(msg + "\n");
   process.exit(1);
 });

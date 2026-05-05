@@ -16,6 +16,7 @@ import {
   Document, Packer, Paragraph, TextRun, ImageRun,
   AlignmentType, ExternalHyperlink, BorderStyle,
 } from 'docx';
+import { errorMessage } from './lib/util';
 
 // ── Config ──────────────────────────────────────────────────────────────────
 const FONT = "Calibri";
@@ -297,7 +298,7 @@ Packer.toBuffer(doc).then(buf => {
   fs.writeFileSync(OUTPUT, buf);
   console.log("DOCX written to:", OUTPUT);
 }).catch(err => {
-  const msg = err instanceof Error ? err.message : String(err);
+  const msg = errorMessage(err);
   console.error("Failed to generate DOCX:", msg);
   process.exit(1);
 });
