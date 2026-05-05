@@ -67,7 +67,8 @@ export function getAuthenticatedClient(projectRoot: string) {
       const merged = { ...current, ...newTokens };
       saveTokens(paths.tokens, merged);
     } catch (err) {
-      console.error(`Warning: failed to persist refreshed tokens: ${(err as Error).message}`);
+      const message = err instanceof Error ? err.message : String(err);
+      console.error(`Warning: failed to persist refreshed tokens: ${message}`);
       console.error('You may need to re-authenticate: bun scripts/gmail.js auth');
     }
   });

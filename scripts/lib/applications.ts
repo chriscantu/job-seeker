@@ -853,7 +853,8 @@ export function staleApplications(dir: string, opts: StaleApplicationsOptions = 
       // One malformed date should not lose the whole batch — surface this
       // entry with daysSinceLastActivity:null + error message so callers
       // (follow-up nags, dashboards) can still render the rest.
-      return { ...entry, daysSinceLastActivity: null, error: (err as Error).message };
+      const message = err instanceof Error ? err.message : String(err);
+      return { ...entry, daysSinceLastActivity: null, error: message };
     }
     const enriched: StaleApplicationResult = { ...entry, daysSinceLastActivity: days };
     if (hasWarn && hasAlert) {
