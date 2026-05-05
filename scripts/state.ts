@@ -44,40 +44,41 @@ const OUTPUT_DIR = process.env.OUTPUT_DIR || path.join(ROOT, 'output');
 const STATE_TYPES = ['seen-postings', 'preferences', 'applications'] as const;
 type StateType = typeof STATE_TYPES[number];
 
-type ArgShape = 'type' | 'type+json' | 'json' | 'remaining';
-
-interface CommandSpec {
-  handler: (...args: never[]) => void;
-  argShape: ArgShape;
-  allowedTypes?: readonly StateType[];
-}
-
-// Command dispatch table. Each entry describes how main() routes the command:
-//   handler:     the function to invoke
-//   argShape:    'type' | 'type+json' | 'remaining' | 'json'
-//                'type'       → handler(type)
-//                'type+json'  → handler(type, args[2])
-//                'remaining'  → handler(args.slice(2))
-//                'json'       → handler(args[2])
-//   allowedTypes (optional): if set, type must be in this list — otherwise
-//                we exit with "<command> is only supported for <allowedTypes[0]>"
+// Command dispatch table — discriminated union by argShape so the type checker
+// can verify each handler matches the args main() forwards. Adding a new
+// subcommand = one entry here; the union forces handler signature alignment.
 //
-// Adding a new subcommand = one entry here. No parallel membership arrays.
+// argShape semantics:
+//   'type'           → handler(type)
+//   'type+json'      → handler(type, args[2])
+//   'json'           → handler(args[2])
+//   'remaining'      → handler(args.slice(2))
+//   'type+remaining' → handler(type, args.slice(2))   [used by read for --stage]
+//
+// allowedTypes (optional): if set, type must be in this list — otherwise main
+// exits with "<command> is only supported for <allowedTypes[0]>".
+type CommandSpec =
+  | { argShape: 'type';           handler: (t: StateType) => void;                          allowedTypes?: readonly StateType[] }
+  | { argShape: 'type+json';      handler: (t: StateType, j: string | undefined) => void;   allowedTypes?: readonly StateType[] }
+  | { argShape: 'json';           handler: (j: string | undefined) => void;                 allowedTypes?: readonly StateType[] }
+  | { argShape: 'remaining';      handler: (r: string[]) => void;                           allowedTypes?: readonly StateType[] }
+  | { argShape: 'type+remaining'; handler: (t: StateType, r: string[]) => void;             allowedTypes?: readonly StateType[] };
+
 const COMMANDS: Record<string, CommandSpec> = {
-  'read':                { handler: handleRead as never,                argShape: 'type' },
-  'append':              { handler: handleAppend as never,              argShape: 'type+json' },
-  'query':               { handler: handleQuery as never,               argShape: 'remaining', allowedTypes: ['seen-postings'] },
-  'dedup-check':         { handler: handleDedupCheck as never,          argShape: 'remaining', allowedTypes: ['seen-postings'] },
-  'flag':                { handler: handleFlag as never,                argShape: 'remaining', allowedTypes: ['seen-postings'] },
-  'update':              { handler: handleUpdate as never,              argShape: 'remaining', allowedTypes: ['applications'] },
-  'add-note':            { handler: handleAddNote as never,             argShape: 'remaining', allowedTypes: ['applications'] },
-  'close':               { handler: handleClose as never,               argShape: 'remaining', allowedTypes: ['applications'] },
-  'reopen':              { handler: handleReopen as never,              argShape: 'remaining', allowedTypes: ['applications'] },
-  'create':              { handler: handleCreate as never,              argShape: 'json',      allowedTypes: ['applications'] },
-  'stale-applications':  { handler: handleStaleApplications as never,   argShape: 'remaining', allowedTypes: ['applications'] },
-  'flag-for-review':     { handler: handleFlagForReview as never,       argShape: 'json',      allowedTypes: ['applications'] },
-  'mark-status-changed': { handler: handleMarkStatusChanged as never,   argShape: 'json',      allowedTypes: ['applications'] },
-  'infer-stage':         { handler: handleInferStage as never,          argShape: 'remaining', allowedTypes: ['applications'] },
+  'read':                { argShape: 'type+remaining', handler: handleRead },
+  'append':              { argShape: 'type+json',      handler: handleAppend },
+  'query':               { argShape: 'remaining',      handler: handleQuery,               allowedTypes: ['seen-postings'] },
+  'dedup-check':         { argShape: 'remaining',      handler: handleDedupCheck,          allowedTypes: ['seen-postings'] },
+  'flag':                { argShape: 'remaining',      handler: handleFlag,                allowedTypes: ['seen-postings'] },
+  'update':              { argShape: 'remaining',      handler: handleUpdate,              allowedTypes: ['applications'] },
+  'add-note':            { argShape: 'remaining',      handler: handleAddNote,             allowedTypes: ['applications'] },
+  'close':               { argShape: 'remaining',      handler: handleClose,               allowedTypes: ['applications'] },
+  'reopen':              { argShape: 'remaining',      handler: handleReopen,              allowedTypes: ['applications'] },
+  'create':              { argShape: 'json',           handler: handleCreate,              allowedTypes: ['applications'] },
+  'stale-applications':  { argShape: 'remaining',      handler: handleStaleApplications,   allowedTypes: ['applications'] },
+  'flag-for-review':     { argShape: 'json',           handler: handleFlagForReview,       allowedTypes: ['applications'] },
+  'mark-status-changed': { argShape: 'json',           handler: handleMarkStatusChanged,   allowedTypes: ['applications'] },
+  'infer-stage':         { argShape: 'remaining',      handler: handleInferStage,          allowedTypes: ['applications'] },
 };
 
 function usage(): never {
@@ -144,6 +145,29 @@ function isStateType(t: string): t is StateType {
   return (STATE_TYPES as readonly string[]).includes(t);
 }
 
+// Narrows JSON-parsed unknown to a string-keyed record at the CLI boundary.
+// Lib functions then runtime-validate field shapes and throw with a precise
+// error — this just stops the type checker lying about the cast site.
+function parseJsonArg(jsonStr: string | undefined, label: string): Record<string, unknown> {
+  if (!jsonStr) {
+    console.error(`${label} requires a JSON argument`);
+    process.exit(1);
+  }
+  let entry: unknown;
+  try {
+    entry = JSON.parse(jsonStr);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`Invalid JSON argument: ${msg}`);
+    process.exit(1);
+  }
+  if (typeof entry !== 'object' || entry === null || Array.isArray(entry)) {
+    console.error(`${label}: JSON argument must be an object, got ${Array.isArray(entry) ? 'array' : typeof entry}`);
+    process.exit(1);
+  }
+  return entry as Record<string, unknown>;
+}
+
 function main(): void {
   const args = process.argv.slice(2);
 
@@ -173,16 +197,19 @@ function main(): void {
   try {
     switch (entry.argShape) {
       case 'type':
-        (entry.handler as (t: StateType) => void)(type);
+        entry.handler(type);
         break;
       case 'type+json':
-        (entry.handler as (t: StateType, j: string | undefined) => void)(type, args[2]);
+        entry.handler(type, args[2]);
         break;
       case 'json':
-        (entry.handler as (j: string | undefined) => void)(args[2]);
+        entry.handler(args[2]);
         break;
       case 'remaining':
-        (entry.handler as (r: string[]) => void)(args.slice(2));
+        entry.handler(args.slice(2));
+        break;
+      case 'type+remaining':
+        entry.handler(type, args.slice(2));
         break;
     }
   } catch (err) {
@@ -197,7 +224,7 @@ function main(): void {
   }
 }
 
-function handleRead(type: StateType): void {
+function handleRead(type: StateType, remainingArgs: string[]): void {
   if (type === 'seen-postings') {
     const entries = seenPostings.parseSeenPostings(OUTPUT_DIR);
     console.log(JSON.stringify(entries, null, 2));
@@ -217,7 +244,7 @@ function handleRead(type: StateType): void {
       return;
     }
     const data = applications.parseApplicationsFile(file);
-    const opts = parseArgs(process.argv.slice(4));
+    const opts = parseArgs(remainingArgs);
     let entries = [...data.active, ...data.closed];
     if (opts.stage) {
       entries = entries.filter(e => e.stage === opts.stage);
@@ -227,19 +254,7 @@ function handleRead(type: StateType): void {
 }
 
 function handleAppend(type: StateType, jsonStr: string | undefined): void {
-  if (!jsonStr) {
-    console.error('append requires a JSON argument');
-    process.exit(1);
-  }
-
-  let entry: unknown;
-  try {
-    entry = JSON.parse(jsonStr);
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.error(`Invalid JSON argument: ${msg}`);
-    process.exit(1);
-  }
+  const entry = parseJsonArg(jsonStr, 'append');
 
   if (type === 'applications') {
     console.error('append is not supported for applications. Use "create" instead.');
@@ -247,10 +262,10 @@ function handleAppend(type: StateType, jsonStr: string | undefined): void {
   }
 
   if (type === 'seen-postings') {
-    seenPostings.appendSeenPosting(OUTPUT_DIR, entry as seenPostings.SeenPostingEntry);
+    seenPostings.appendSeenPosting(OUTPUT_DIR, entry as unknown as seenPostings.SeenPostingEntry);
     console.log(JSON.stringify({ success: true }));
   } else if (type === 'preferences') {
-    preferences.appendPreferences(OUTPUT_DIR, entry as preferences.PreferencesEntry);
+    preferences.appendPreferences(OUTPUT_DIR, entry as unknown as preferences.PreferencesEntry);
     console.log(JSON.stringify({ success: true }));
   }
 }
@@ -350,19 +365,8 @@ function handleReopen(remainingArgs: string[]): void {
 }
 
 function handleCreate(jsonStr: string | undefined): void {
-  if (!jsonStr) {
-    console.error('create requires a JSON argument');
-    process.exit(1);
-  }
-  let entry: unknown;
-  try {
-    entry = JSON.parse(jsonStr);
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.error(`Invalid JSON argument: ${msg}`);
-    process.exit(1);
-  }
-  applications.createApplication(OUTPUT_DIR, entry as applications.CreateApplicationInput);
+  const entry = parseJsonArg(jsonStr, 'create');
+  applications.createApplication(OUTPUT_DIR, entry as unknown as applications.CreateApplicationInput);
   console.log(JSON.stringify({ success: true }));
 }
 
@@ -397,36 +401,14 @@ function handleInferStage(remainingArgs: string[]): void {
 }
 
 function handleMarkStatusChanged(jsonStr: string | undefined): void {
-  if (!jsonStr) {
-    console.error('mark-status-changed requires a JSON argument');
-    process.exit(1);
-  }
-  let entry: unknown;
-  try {
-    entry = JSON.parse(jsonStr);
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.error(`Invalid JSON argument: ${msg}`);
-    process.exit(1);
-  }
-  const result = applications.markStatusChanged(OUTPUT_DIR, entry as Parameters<typeof applications.markStatusChanged>[1]);
+  const entry = parseJsonArg(jsonStr, 'mark-status-changed');
+  const result = applications.markStatusChanged(OUTPUT_DIR, entry as unknown as applications.MarkStatusChangedInput);
   console.log(JSON.stringify({ success: true, ...result }));
 }
 
 function handleFlagForReview(jsonStr: string | undefined): void {
-  if (!jsonStr) {
-    console.error('flag-for-review requires a JSON argument');
-    process.exit(1);
-  }
-  let entry: unknown;
-  try {
-    entry = JSON.parse(jsonStr);
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.error(`Invalid JSON argument: ${msg}`);
-    process.exit(1);
-  }
-  const result = applications.flagForReview(OUTPUT_DIR, entry as Parameters<typeof applications.flagForReview>[1]);
+  const entry = parseJsonArg(jsonStr, 'flag-for-review');
+  const result = applications.flagForReview(OUTPUT_DIR, entry as unknown as applications.FlagForReviewInput);
   console.log(JSON.stringify({ success: true, ...result }));
 }
 

@@ -19,6 +19,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as http from 'http';
 import { google, gmail_v1 } from 'googleapis';
+import { GaxiosError } from 'gaxios';
 import {
   getAuthenticatedClient,
   getAuthUrl,
@@ -38,10 +39,33 @@ interface ParsedFlags {
   positional: string[];
 }
 
-interface ApiError {
-  code?: number;
-  status?: number;
-  message?: string;
+// HTTP-status extraction over googleapis errors. Real production errors are
+// `GaxiosError` (extends Error) with `response?.status` (HTTP) and
+// `code?: string | number` (errno OR API-level numeric code per AIP-193).
+// Test fixtures and some non-gaxios errors throw plain objects with the
+// same `code`/`status` shape — fall back to structural duck-typing so
+// the classifier sees `401` and `503` from both surfaces. String `code`
+// (errno like 'ENOTFOUND') is intentionally ignored — only numeric
+// values are HTTP statuses.
+function httpStatus(err: unknown): number | undefined {
+  if (err instanceof GaxiosError) {
+    if (typeof err.response?.status === 'number') return err.response.status;
+    if (typeof err.status === 'number') return err.status;
+    if (typeof err.code === 'number') return err.code;
+    return undefined;
+  }
+  if (typeof err === 'object' && err !== null) {
+    const e = err as { code?: unknown; status?: unknown; response?: { status?: unknown } };
+    if (typeof e.response?.status === 'number') return e.response.status;
+    if (typeof e.status === 'number') return e.status;
+    if (typeof e.code === 'number') return e.code;
+  }
+  return undefined;
+}
+
+function errorReason(err: unknown): string {
+  if (err instanceof Error && err.message) return err.message;
+  return String(err);
 }
 
 function usage(): never {
@@ -91,15 +115,15 @@ function parseFlags(args: string[]): ParsedFlags {
   return { flags, positional };
 }
 
-function handleApiError(err: ApiError, context: string): never {
-  const status = err.code || err.status;
-  const reason = err.message || 'unknown error';
+function handleApiError(err: unknown, context: string): never {
+  const status = httpStatus(err);
+  const reason = errorReason(err);
   if (status === 401 || status === 403) {
     console.error(`Auth error (${status}): ${reason}`);
     console.error('Re-authenticate with: bun scripts/gmail.ts auth');
     process.exit(1);
   }
-  console.error(`Error: ${context} [${status || 'unknown'}] ${reason}`);
+  console.error(`Error: ${context} [${status ?? 'unknown'}] ${reason}`);
   process.exit(1);
 }
 
@@ -164,7 +188,7 @@ async function profileCommand(): Promise<void> {
       threadsTotal: res.data.threadsTotal,
     }, null, 2));
   } catch (err) {
-    handleApiError(err as ApiError, 'profile');
+    handleApiError(err, 'profile');
   }
 }
 
@@ -211,7 +235,7 @@ async function searchCommand(args: string[]): Promise<void> {
     }
     console.log(JSON.stringify(results, null, 2));
   } catch (err) {
-    handleApiError(err as ApiError, 'search');
+    handleApiError(err, 'search');
   }
 }
 
@@ -265,7 +289,7 @@ async function createDraftCommand(args: string[]): Promise<void> {
       messageId: res.data.message?.id,
     }, null, 2));
   } catch (err) {
-    handleApiError(err as ApiError, 'create-draft');
+    handleApiError(err, 'create-draft');
   }
 }
 
@@ -491,8 +515,7 @@ export async function processSender(
       await gmail.users.messages.trash({ userId: 'me', id });
       moved++;
     } catch (err) {
-      const e = err as ApiError;
-      const status = e.code || e.status;
+      const status = httpStatus(err);
       // Auth errors mid-loop are unrecoverable — propagate so the
       // caller can flush the summary and exit 1. Non-auth errors
       // (per-message 404, 500, etc.) go into the errors array and
@@ -500,7 +523,7 @@ export async function processSender(
       if (status === 401 || status === 403) {
         throw err;
       }
-      errors.push(`${id}:${status || 'err'}`);
+      errors.push(`${id}:${status ?? 'err'}`);
     }
   }
   return {
@@ -563,9 +586,8 @@ async function trashBySenderCommand(args: string[], envOverride?: NodeJS.Process
       });
       results.push(r);
     } catch (err) {
-      const e = err as ApiError;
-      const status = e.code || e.status;
-      const reason = e.message || 'unknown error';
+      const status = httpStatus(err);
+      const reason = errorReason(err);
       if (status === 401 || status === 403) {
         fatalError = {
           kind: 'AUTH_REQUIRED',
@@ -575,7 +597,7 @@ async function trashBySenderCommand(args: string[], envOverride?: NodeJS.Process
       } else {
         fatalError = {
           kind: 'GMAIL_ERROR',
-          message: `list failed for "${sender}" [${status || 'unknown'}] ${reason}`,
+          message: `list failed for "${sender}" [${status ?? 'unknown'}] ${reason}`,
           sender,
         };
       }
@@ -628,9 +650,8 @@ async function trashCommand(messageIds: string[]): Promise<void> {
       await gmail.users.messages.trash({ userId: 'me', id });
       console.log(`trashed: ${id}`);
     } catch (err) {
-      const e = err as ApiError;
-      const status = e.code || e.status;
-      const reason = e.message || 'unknown error';
+      const status = httpStatus(err);
+      const reason = errorReason(err);
 
       if (status === 401 || status === 403) {
         console.error(`Auth error (${status}): ${reason}`);
@@ -638,7 +659,7 @@ async function trashCommand(messageIds: string[]): Promise<void> {
         process.exit(1);
       }
 
-      console.error(`error: ${id} [${status || 'unknown'}] ${reason}`);
+      console.error(`error: ${id} [${status ?? 'unknown'}] ${reason}`);
       failed++;
     }
   }
