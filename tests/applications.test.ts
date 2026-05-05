@@ -1,9 +1,9 @@
-const { describe, it, beforeEach, afterEach } = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('fs');
-const os = require('os');
-const path = require('path');
-const {
+import { describe, it, beforeEach, afterEach } from 'node:test';
+import assert from 'node:assert/strict';
+import * as fs from 'fs';
+import * as os from 'os';
+import * as path from 'path';
+import {
   parseApplicationsContent,
   parseApplicationsFile,
   parseApplications,
@@ -13,14 +13,17 @@ const {
   createApplication,
   updateApplication,
   addNote,
-  findApplication,
   closeApplication,
   reopenApplication,
   flagForReview,
   markStatusChanged,
   daysBetween,
   staleApplications,
-} = require('../scripts/lib/applications');
+} from '../scripts/lib/applications';
+import type { MarkStatusChangedInput, CloseApplicationInput } from '../scripts/lib/applications';
+import type { ProjectedMatch } from '../scripts/lib/status-classifier';
+import { parseFrontmatter } from '../scripts/lib/frontmatter';
+import { resolveStateFile } from '../scripts/lib/util';
 
 const FIXTURES = path.join(__dirname, 'fixtures');
 const FIXTURE_PATH = path.join(FIXTURES, 'applications.md');
@@ -121,20 +124,20 @@ describe('applications parser', () => {
   describe('entry parsing — Acme Corp (empty optional fields)', () => {
     it('has empty string for contacts when blank', () => {
       const { active } = parseApplicationsFile(FIXTURE_PATH);
-      const acme = active.find(e => e.company === 'Acme Corp');
+      const acme = active.find(e => e.company === 'Acme Corp')!;
       assert.ok(acme, 'should find Acme Corp');
       assert.equal(acme.contacts, '');
     });
 
     it('has empty string for notes when blank', () => {
       const { active } = parseApplicationsFile(FIXTURE_PATH);
-      const acme = active.find(e => e.company === 'Acme Corp');
+      const acme = active.find(e => e.company === 'Acme Corp')!;
       assert.equal(acme.notes, '');
     });
 
     it('extracts title correctly', () => {
       const { active } = parseApplicationsFile(FIXTURE_PATH);
-      const acme = active.find(e => e.company === 'Acme Corp');
+      const acme = active.find(e => e.company === 'Acme Corp')!;
       assert.equal(acme.title, 'Senior Director of Engineering');
     });
   });
@@ -142,7 +145,7 @@ describe('applications parser', () => {
   describe('entry parsing — GlobalTech (null applied)', () => {
     it('has null applied when field is blank', () => {
       const { active } = parseApplicationsFile(FIXTURE_PATH);
-      const globaltech = active.find(e => e.company === 'GlobalTech');
+      const globaltech = active.find(e => e.company === 'GlobalTech')!;
       assert.ok(globaltech, 'should find GlobalTech');
       assert.equal(globaltech.applied, null);
     });
@@ -151,32 +154,32 @@ describe('applications parser', () => {
   describe('entry parsing — Initech (closed with reason and summary)', () => {
     it('parses closed entry stage as full string "Closed (rejected)"', () => {
       const { closed } = parseApplicationsFile(FIXTURE_PATH);
-      const initech = closed.find(e => e.company === 'Initech');
+      const initech = closed.find(e => e.company === 'Initech')!;
       assert.ok(initech, 'should find Initech');
       assert.equal(initech.stage, 'Closed (rejected)');
     });
 
     it('parses closed.date', () => {
       const { closed } = parseApplicationsFile(FIXTURE_PATH);
-      const initech = closed.find(e => e.company === 'Initech');
-      assert.equal(initech.closed.date, '2026-03-28');
+      const initech = closed.find(e => e.company === 'Initech')!;
+      assert.equal(initech.closed!.date, '2026-03-28');
     });
 
     it('parses closed.reason from stage string', () => {
       const { closed } = parseApplicationsFile(FIXTURE_PATH);
-      const initech = closed.find(e => e.company === 'Initech');
-      assert.equal(initech.closed.reason, 'rejected');
+      const initech = closed.find(e => e.company === 'Initech')!;
+      assert.equal(initech.closed!.reason, 'rejected');
     });
 
     it('parses closed.summary', () => {
       const { closed } = parseApplicationsFile(FIXTURE_PATH);
-      const initech = closed.find(e => e.company === 'Initech');
-      assert.equal(initech.closed.summary, 'No response after phone screen');
+      const initech = closed.find(e => e.company === 'Initech')!;
+      assert.equal(initech.closed!.summary, 'No response after phone screen');
     });
 
     it('extracts history for closed entry', () => {
       const { closed } = parseApplicationsFile(FIXTURE_PATH);
-      const initech = closed.find(e => e.company === 'Initech');
+      const initech = closed.find(e => e.company === 'Initech')!;
       assert.equal(initech.history.length, 3);
     });
   });
@@ -184,14 +187,14 @@ describe('applications parser', () => {
   describe('entry parsing — TechStart Labs (multiple history entries)', () => {
     it('parses 4 history entries', () => {
       const { active } = parseApplicationsFile(FIXTURE_PATH);
-      const techstart = active.find(e => e.company === 'TechStart Labs');
+      const techstart = active.find(e => e.company === 'TechStart Labs')!;
       assert.ok(techstart, 'should find TechStart Labs');
       assert.equal(techstart.history.length, 4);
     });
 
     it('parses stage with parens correctly', () => {
       const { active } = parseApplicationsFile(FIXTURE_PATH);
-      const techstart = active.find(e => e.company === 'TechStart Labs');
+      const techstart = active.find(e => e.company === 'TechStart Labs')!;
       assert.equal(techstart.stage, 'Interview (2+)');
     });
   });
@@ -227,9 +230,9 @@ describe('applications parser', () => {
       applied: '2026-03-15',
       lastActivity: { date: null, detail: null },
       nextAction: null,
-      contacts: null,
+      contacts: '',
       url: null,
-      notes: null,
+      notes: '',
       history: [
         { date: '2026-03-15', stage: 'Applied', detail: 'Submitted via referral' },
       ],
@@ -291,7 +294,7 @@ describe('applications parser', () => {
   });
 
   describe('createApplication', () => {
-    let tmpDir;
+    let tmpDir: string;
 
     beforeEach(() => {
       tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'app-test-'));
@@ -374,7 +377,7 @@ describe('applications parser', () => {
   });
 
   describe('updateApplication', () => {
-    let tmpDir;
+    let tmpDir: string;
 
     beforeEach(() => {
       tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'app-update-test-'));
@@ -392,7 +395,7 @@ describe('applications parser', () => {
     it('transitions stage and appends history', () => {
       updateApplication(tmpDir, { company: 'Maven', stage: 'Screen' });
       const { active } = parseApplications(tmpDir);
-      const entry = active.find(e => e.company === 'Maven');
+      const entry = active.find(e => e.company === 'Maven')!;
       assert.equal(entry.stage, 'Screen');
       assert.equal(entry.history.length, 2);
       assert.equal(entry.history[1].stage, 'Screen');
@@ -402,21 +405,21 @@ describe('applications parser', () => {
       const today = new Date().toISOString().slice(0, 10);
       updateApplication(tmpDir, { company: 'Maven', stage: 'Screen' });
       const { active } = parseApplications(tmpDir);
-      const entry = active.find(e => e.company === 'Maven');
+      const entry = active.find(e => e.company === 'Maven')!;
       assert.equal(entry.lastActivity.date, today);
     });
 
     it('finds company case-insensitively', () => {
       updateApplication(tmpDir, { company: 'maven', stage: 'Screen' });
       const { active } = parseApplications(tmpDir);
-      const entry = active.find(e => e.company === 'Maven');
+      const entry = active.find(e => e.company === 'Maven')!;
       assert.equal(entry.stage, 'Screen');
     });
 
     it('finds company by substring', () => {
       updateApplication(tmpDir, { company: 'Mav', stage: 'Screen' });
       const { active } = parseApplications(tmpDir);
-      const entry = active.find(e => e.company === 'Maven');
+      const entry = active.find(e => e.company === 'Maven')!;
       assert.equal(entry.stage, 'Screen');
     });
 
@@ -448,7 +451,7 @@ describe('applications parser', () => {
   });
 
   describe('addNote', () => {
-    let tmpDir;
+    let tmpDir: string;
 
     beforeEach(() => {
       tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'app-note-test-'));
@@ -466,14 +469,14 @@ describe('applications parser', () => {
     it('appends note text to notes field', () => {
       addNote(tmpDir, { company: 'Maven', note: 'Cover letter generated 2026-04-09' });
       const { active } = parseApplications(tmpDir);
-      const entry = active.find(e => e.company === 'Maven');
+      const entry = active.find(e => e.company === 'Maven')!;
       assert.ok(entry.notes.includes('Cover letter generated 2026-04-09'));
     });
 
     it('appends history entry with note as detail', () => {
       addNote(tmpDir, { company: 'Maven', note: 'Cover letter generated 2026-04-09' });
       const { active } = parseApplications(tmpDir);
-      const entry = active.find(e => e.company === 'Maven');
+      const entry = active.find(e => e.company === 'Maven')!;
       const last = entry.history[entry.history.length - 1];
       assert.ok(last.detail.includes('Cover letter generated 2026-04-09'));
     });
@@ -482,7 +485,7 @@ describe('applications parser', () => {
       const today = new Date().toISOString().slice(0, 10);
       addNote(tmpDir, { company: 'Maven', note: 'Some note' });
       const { active } = parseApplications(tmpDir);
-      const entry = active.find(e => e.company === 'Maven');
+      const entry = active.find(e => e.company === 'Maven')!;
       assert.equal(entry.lastActivity.date, today);
     });
 
@@ -511,7 +514,7 @@ describe('applications parser', () => {
       addNote(tmpDir, { company: 'Maven', note: 'First note' });
       addNote(tmpDir, { company: 'Maven', note: 'Second note' });
       const { active } = parseApplications(tmpDir);
-      const entry = active.find(e => e.company === 'Maven');
+      const entry = active.find(e => e.company === 'Maven')!;
       assert.ok(entry.notes.includes('First note'));
       assert.ok(entry.notes.includes('Second note'));
       assert.ok(entry.notes.includes('; '));
@@ -519,7 +522,7 @@ describe('applications parser', () => {
   });
 
   describe('closeApplication', () => {
-    let tmpDir;
+    let tmpDir: string;
 
     beforeEach(() => {
       tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'app-close-test-'));
@@ -568,10 +571,8 @@ describe('applications parser', () => {
     });
 
     it('updates frontmatter counts after close', () => {
-      const { parseFrontmatter } = require('../scripts/lib/frontmatter');
-      const { resolveStateFile } = require('../scripts/lib/util');
       closeApplication(tmpDir, { company: 'Maven', reason: 'rejected', summary: 'No fit' });
-      const filePath = resolveStateFile(tmpDir, 'applications');
+      const filePath = resolveStateFile(tmpDir, 'applications')!;
       const { meta } = parseFrontmatter(fs.readFileSync(filePath, 'utf8'));
       assert.equal(meta.active_count, '0');
       assert.equal(meta.closed_count, '1');
@@ -594,7 +595,7 @@ describe('applications parser', () => {
 
     it('requires reason', () => {
       assert.throws(
-        () => closeApplication(tmpDir, { company: 'Maven', summary: 'No fit' }),
+        () => closeApplication(tmpDir, { company: 'Maven', summary: 'No fit' } as CloseApplicationInput),
         /reason is required/
       );
     });
@@ -611,7 +612,7 @@ describe('applications parser', () => {
   });
 
   describe('reopenApplication', () => {
-    let tmpDir;
+    let tmpDir: string;
 
     beforeEach(() => {
       tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'app-reopen-test-'));
@@ -656,10 +657,8 @@ describe('applications parser', () => {
     });
 
     it('updates frontmatter counts after reopen', () => {
-      const { parseFrontmatter } = require('../scripts/lib/frontmatter');
-      const { resolveStateFile } = require('../scripts/lib/util');
       reopenApplication(tmpDir, { company: 'Maven', stage: 'Screen' });
-      const filePath = resolveStateFile(tmpDir, 'applications');
+      const filePath = resolveStateFile(tmpDir, 'applications')!;
       const { meta } = parseFrontmatter(fs.readFileSync(filePath, 'utf8'));
       assert.equal(meta.active_count, '1');
       assert.equal(meta.closed_count, '0');
@@ -725,7 +724,6 @@ Last updated: 2026-04-09
     });
 
     it('formatApplicationsFile includes frontmatter with correct fields', () => {
-      const { parseFrontmatter } = require('../scripts/lib/frontmatter');
       const data = {
         active: [makeEntry({ company: 'Acme', title: 'VP Eng', stage: 'Applied', applied: '2026-04-09', history: [{ date: '2026-04-09', stage: 'Applied', detail: 'Added' }] })],
         closed: [makeEntry({ company: 'Old Co', title: 'Director', stage: 'Closed (rejected)', applied: '2026-03-01', closed: { date: '2026-03-15', reason: 'rejected', summary: 'No fit' }, history: [{ date: '2026-03-01', stage: 'Applied', detail: 'Added' }] })],
@@ -742,7 +740,6 @@ Last updated: 2026-04-09
     });
 
     it('round-trip with both active and closed entries is stable', () => {
-      const { parseFrontmatter } = require('../scripts/lib/frontmatter');
       const data = {
         active: [makeEntry({ company: 'Acme', title: 'VP Eng', stage: 'Screen', applied: '2026-04-01', lastActivity: { date: '2026-04-08', detail: 'Phone screen' }, nextAction: 'Technical interview', contacts: 'Jane Doe', url: 'https://example.com/job/1', notes: 'Good fit', history: [{ date: '2026-04-01', stage: 'Applied', detail: 'Submitted' }, { date: '2026-04-08', stage: 'Screen', detail: 'Phone screen' }] })],
         closed: [makeEntry({ company: 'Old Co', title: 'Director', stage: 'Closed (rejected)', applied: '2026-03-01', closed: { date: '2026-03-15', reason: 'rejected', summary: 'No fit' }, history: [{ date: '2026-03-01', stage: 'Applied', detail: 'Added' }, { date: '2026-03-15', stage: 'Closed (rejected)', detail: 'No fit' }] })],
@@ -761,7 +758,6 @@ Last updated: 2026-04-09
     });
 
     it('round-trip: formatApplicationsFile -> parseApplicationsContent -> formatApplicationsFile is stable', () => {
-      const { parseFrontmatter } = require('../scripts/lib/frontmatter');
       const data = {
         active: [makeEntry({ company: 'Acme', title: 'VP Eng', stage: 'Screen', applied: '2026-04-01', lastActivity: { date: '2026-04-08', detail: 'Phone screen' }, nextAction: 'Technical interview', contacts: 'Jane Doe', url: 'https://example.com/job/1', notes: 'Good fit', history: [{ date: '2026-04-01', stage: 'Applied', detail: 'Submitted' }, { date: '2026-04-08', stage: 'Screen', detail: 'Phone screen' }] })],
         closed: [],
@@ -784,7 +780,7 @@ Last updated: 2026-04-09
     });
 
     describe('createApplication with frontmatter', () => {
-      let tmpDir;
+      let tmpDir: string;
 
       beforeEach(() => {
         tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'app-fm-test-'));
@@ -795,11 +791,9 @@ Last updated: 2026-04-09
       });
 
       it('new file has frontmatter with correct counts', () => {
-        const { parseFrontmatter } = require('../scripts/lib/frontmatter');
-        createApplication(tmpDir, { company: 'Acme', title: 'VP Eng', stage: 'Applied' });
+          createApplication(tmpDir, { company: 'Acme', title: 'VP Eng', stage: 'Applied' });
 
-        const { resolveStateFile } = require('../scripts/lib/util');
-        const filePath = resolveStateFile(tmpDir, 'applications');
+          const filePath = resolveStateFile(tmpDir, 'applications')!;
         const raw = fs.readFileSync(filePath, 'utf8');
         const { meta } = parseFrontmatter(raw);
 
@@ -809,12 +803,10 @@ Last updated: 2026-04-09
       });
 
       it('second create updates counts in frontmatter', () => {
-        const { parseFrontmatter } = require('../scripts/lib/frontmatter');
-        createApplication(tmpDir, { company: 'Acme', title: 'VP Eng', stage: 'Applied' });
+          createApplication(tmpDir, { company: 'Acme', title: 'VP Eng', stage: 'Applied' });
         createApplication(tmpDir, { company: 'Beta', title: 'Director', stage: 'Screen' });
 
-        const { resolveStateFile } = require('../scripts/lib/util');
-        const filePath = resolveStateFile(tmpDir, 'applications');
+          const filePath = resolveStateFile(tmpDir, 'applications')!;
         const raw = fs.readFileSync(filePath, 'utf8');
         const { meta } = parseFrontmatter(raw);
 
@@ -873,7 +865,7 @@ format_version: 1
   });
 
   describe('updateApplication — section guards', () => {
-    let tmpDir;
+    let tmpDir: string;
 
     beforeEach(() => {
       tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'app-guard-test-'));
@@ -945,7 +937,7 @@ format_version: 1
   });
 
   describe('flagForReview / markStatusChanged', () => {
-    let dir;
+    let dir: string;
 
     beforeEach(() => {
       dir = fs.mkdtempSync(path.join(os.tmpdir(), 'apps-status-'));
@@ -977,7 +969,7 @@ format_version: 1
       assert.match(raw, /flagged_count:\s*1/);
     });
 
-    const atlassianActive = {
+    const atlassianActive: ProjectedMatch = {
       company: 'Atlassian',
       title: 'VP Engineering',
       url: 'https://boards.greenhouse.io/atlassian/jobs/5123456',
@@ -985,7 +977,7 @@ format_version: 1
       section: 'active',
     };
 
-    const realtorActive = {
+    const realtorActive: ProjectedMatch = {
       company: 'Realtor.com',
       title: 'Director, Software Engineering',
       url: 'https://boards.greenhouse.io/realtor/jobs/5234567',
@@ -1006,9 +998,9 @@ format_version: 1
 
       const data = parseApplications(dir);
       assert.equal(data.active.find(e => e.company === 'Atlassian'), undefined);
-      const closed = data.closed.find(e => e.company === 'Atlassian');
+      const closed = data.closed.find(e => e.company === 'Atlassian')!;
       assert.notEqual(closed, undefined);
-      assert.match(closed.stage, /Closed \(rejected\)/);
+      assert.match(closed.stage!, /Closed \(rejected\)/);
 
       const raw = fs.readFileSync(path.join(dir, '2026-04-13-applications.md'), 'utf8');
       assert.match(raw, /\(msg-id: <fixture-atlassian-001@mail\.gmail\.com>\)/);
@@ -1072,7 +1064,7 @@ format_version: 1
         detectedAt: '2026-04-13',
       });
       const data = parseApplications(dir);
-      const entry = data.active.find(e => e.company === 'Realtor.com');
+      const entry = data.active.find(e => e.company === 'Realtor.com')!;
       // Classifier emits 'Interview' but VALID_STAGES requires 'Interview (1)' or
       // 'Interview (2+)'. Regression test for C1.
       assert.equal(entry.stage, 'Interview (1)');
@@ -1098,7 +1090,7 @@ format_version: 1
         detectedAt: '2026-04-14',
       });
       const data = parseApplications(dir);
-      const entry = data.active.find(e => e.company === 'Realtor.com');
+      const entry = data.active.find(e => e.company === 'Realtor.com')!;
       assert.equal(entry.stage, 'Interview (2+)');
     });
 
@@ -1123,7 +1115,7 @@ format_version: 1
         detectedAt: '2026-04-13',
       });
       const data = parseApplications(dir);
-      const entry = data.active.find(e => e.company === 'Realtor.com');
+      const entry = data.active.find(e => e.company === 'Realtor.com')!;
       assert.equal(entry.stage, 'Offer');
     });
 
@@ -1155,7 +1147,7 @@ format_version: 1
 
       const data = parseApplications(dir);
       // Atlassian should still be Active (wasn't rejected because we skipped)
-      const active = data.active.find(e => e.company === 'Atlassian');
+      const active = data.active.find(e => e.company === 'Atlassian')!;
       assert.notEqual(active, undefined);
       assert.equal(active.stage, 'Applied');
     });
@@ -1207,7 +1199,7 @@ format_version: 1
         detectedAt: '2026-04-13',
       });
       assert.equal(result.skipped, true);
-      assert.match(result.reason, /closed/);
+      assert.match(result.reason!, /closed/);
       // File must be unchanged — no silent mutation of closed entries.
       const after = fs.readFileSync(path.join(dir, '2026-04-13-applications.md'), 'utf8');
       assert.equal(before, after);
@@ -1229,7 +1221,7 @@ format_version: 1
         detectedAt: '2026-04-13',
       });
       assert.equal(result.skipped, true);
-      assert.match(result.reason, /flagged/);
+      assert.match(result.reason!, /flagged/);
     });
 
     it('markStatusChanged(Rejected) on disappeared Active entry flags for review instead of throwing', () => {
@@ -1265,7 +1257,7 @@ format_version: 1
           signal: 'not moving forward',
           atsSender: 'greenhouse',
           detectedAt: '2026-04-13',
-        }),
+        } as MarkStatusChangedInput),
         /matchedEntry is required/
       );
     });
@@ -1274,6 +1266,7 @@ format_version: 1
       assert.throws(
         () => markStatusChanged(dir, {
           msgId: '<fixture-no-section@mail>',
+          // @ts-expect-error — intentionally constructing invalid input (no section) to assert runtime fail-closed
           matchedEntry: { company: 'X', title: 'Y', url: null, stage: 'Applied' },
           status: 'Rejected',
           signal: 'not moving forward',
@@ -1309,7 +1302,7 @@ describe('daysBetween', () => {
 
   it('throws on invalid input', () => {
     assert.throws(() => daysBetween('2026-05', '2026-05-04'), /YYYY-MM-DD/);
-    assert.throws(() => daysBetween(null, '2026-05-04'), /YYYY-MM-DD/);
+    assert.throws(() => daysBetween(null as unknown as string, '2026-05-04'), /YYYY-MM-DD/);
   });
 
   it('handles leap-day correctly (2024 is a leap year)', () => {
@@ -1335,7 +1328,7 @@ describe('daysBetween', () => {
 
 describe('staleApplications', () => {
   const APPLICATIONS_FIXTURE = path.join(__dirname, 'fixtures', 'applications.md');
-  let tmpDir;
+  let tmpDir: string;
 
   beforeEach(() => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'stale-'));
@@ -1361,7 +1354,7 @@ describe('staleApplications', () => {
   it('omits closed entries', () => {
     const result = staleApplications(tmpDir, { today: '2026-05-04' });
     for (const entry of result) {
-      assert.ok(!entry.stage.startsWith('Closed'));
+      assert.ok(!entry.stage!.startsWith('Closed'));
     }
   });
 
@@ -1374,7 +1367,7 @@ describe('staleApplications', () => {
       const md = `---\nformat_version: 1\nlast_updated: 2026-05-04\n---\n# Application Pipeline\n\nLast updated: 2026-05-04\n\n## Active Applications\n\n### Vector Co — VP Eng\n- **Stage**: Screen\n- **Applied**: 2026-04-01\n- **Last activity**: 2026-04-25 — Phone screen\n- **URL**: https://example.com/vector\n\n#### History\n- 2026-04-01: Applied — Submitted\n- 2026-04-25: Screen — Phone screen\n`;
       fs.writeFileSync(path.join(lastActivityDir, '2026-05-04-applications.md'), md);
       const result = staleApplications(lastActivityDir, { today: '2026-05-04' });
-      const e = result.find(x => x.company === 'Vector Co');
+      const e = result.find(x => x.company === 'Vector Co')!;
       assert.ok(e, 'fixture must produce a Vector Co entry');
       assert.ok(e.lastActivity?.date, 'entry must carry lastActivity.date');
       // 2026-04-25 → 2026-05-04 is 9 days; using `applied` (2026-04-01)
@@ -1394,7 +1387,7 @@ describe('staleApplications', () => {
       const md = `---\nformat_version: 1\nlast_updated: 2026-05-04\n---\n# Application Pipeline\n\nLast updated: 2026-05-04\n\n## Active Applications\n\n### Bare Co — VP Eng\n- **Stage**: Applied\n- **Applied**: 2026-04-15\n- **URL**: https://example.com/bare\n\n#### History\n- 2026-04-15: Applied — Submitted\n`;
       fs.writeFileSync(path.join(fallbackDir, '2026-05-04-applications.md'), md);
       const result = staleApplications(fallbackDir, { today: '2026-05-04' });
-      const e = result.find(x => x.company === 'Bare Co');
+      const e = result.find(x => x.company === 'Bare Co')!;
       assert.ok(e, 'fixture must produce Bare Co entry');
       assert.ok(!e.lastActivity?.date, 'entry must NOT carry lastActivity.date');
       // 2026-04-15 → 2026-05-04 = 19 days.
@@ -1407,10 +1400,10 @@ describe('staleApplications', () => {
   it('tags stalenessLevel when --warn and --alert provided', () => {
     const result = staleApplications(tmpDir, { today: '2026-05-04', warn: 14, alert: 21 });
     for (const entry of result) {
-      assert.ok(['ok', 'warn', 'alert'].includes(entry.stalenessLevel));
-      if (entry.daysSinceLastActivity >= 21) {
+      assert.ok(['ok', 'warn', 'alert'].includes(entry.stalenessLevel!));
+      if (entry.daysSinceLastActivity! >= 21) {
         assert.equal(entry.stalenessLevel, 'alert');
-      } else if (entry.daysSinceLastActivity >= 14) {
+      } else if (entry.daysSinceLastActivity! >= 14) {
         assert.equal(entry.stalenessLevel, 'warn');
       } else {
         assert.equal(entry.stalenessLevel, 'ok');
@@ -1484,13 +1477,13 @@ describe('staleApplications', () => {
       const result = staleApplications(corruptDir, { today: '2026-05-04' });
       assert.equal(result.length, 2, 'both entries should surface (no batch-loss)');
 
-      const good = result.find(e => e.company === 'Good Co');
+      const good = result.find(e => e.company === 'Good Co')!;
       assert.equal(good.daysSinceLastActivity, 14);
       assert.equal(good.error, undefined);
 
-      const bad = result.find(e => e.company === 'Bad Co');
+      const bad = result.find(e => e.company === 'Bad Co')!;
       assert.equal(bad.daysSinceLastActivity, null);
-      assert.match(bad.error, /YYYY-MM-DD|invalid/i);
+      assert.match(bad.error!, /YYYY-MM-DD|invalid/i);
     } finally {
       fs.rmSync(corruptDir, { recursive: true, force: true });
     }
@@ -1498,7 +1491,7 @@ describe('staleApplications', () => {
 });
 
 describe('flagForReview — empty-payload guard', () => {
-  let dir;
+  let dir: string;
 
   beforeEach(() => {
     dir = fs.mkdtempSync(path.join(os.tmpdir(), 'flag-empty-'));

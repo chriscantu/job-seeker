@@ -1,7 +1,7 @@
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-const { inferStage, INFERABLE_STAGES } = require('../scripts/lib/stage-inference');
-const { VALID_STAGES } = require('../scripts/lib/validators');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { inferStage, INFERABLE_STAGES } from '../scripts/lib/stage-inference';
+import { VALID_STAGES } from '../scripts/lib/validators';
 
 describe('inferStage', () => {
   const cases = [
@@ -41,10 +41,10 @@ describe('inferStage', () => {
   });
 
   it('throws on non-string input (programmer error, distinct from no-match)', () => {
-    assert.throws(() => inferStage(null), /string/i);
-    assert.throws(() => inferStage(undefined), /string/i);
-    assert.throws(() => inferStage(42), /string/i);
-    assert.throws(() => inferStage({}), /string/i);
+    assert.throws(() => inferStage(null as unknown as string), /string/i);
+    assert.throws(() => inferStage(undefined as unknown as string), /string/i);
+    assert.throws(() => inferStage(42 as unknown as string), /string/i);
+    assert.throws(() => inferStage({} as unknown as string), /string/i);
   });
 
   it('first-match wins (rules ordered most-specific first)', () => {
@@ -79,7 +79,7 @@ describe('INFERABLE_STAGES', () => {
       'final round', 'got an offer', 'negotiating', 'rejected',
     ];
     for (const text of sampleHits) {
-      const stage = inferStage(text);
+      const stage = inferStage(text)!;
       assert.ok(INFERABLE_STAGES.includes(stage), `inferStage("${text}") = "${stage}" not in INFERABLE_STAGES`);
     }
   });

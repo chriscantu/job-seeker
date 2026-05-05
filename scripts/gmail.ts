@@ -27,7 +27,7 @@ import {
 } from './lib/gmail-auth';
 import { errorMessage } from './lib/util';
 
-type GmailClient = gmail_v1.Gmail;
+export type GmailClient = gmail_v1.Gmail;
 
 const ROOT = path.resolve(__dirname, '..');
 

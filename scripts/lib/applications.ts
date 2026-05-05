@@ -3,6 +3,7 @@ import * as path from 'path';
 import { resolveStateFile, atomicWriteFileSync, ensureDir, getTodayUtc } from './util';
 import { validateApplicationEntry, VALID_STAGES } from './validators';
 import { parseFrontmatter, serializeFrontmatter } from './frontmatter';
+import type { ProjectedMatch } from './status-classifier';
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -693,7 +694,7 @@ export function flagForReview(dir: string, opts: FlagForReviewInput): OperationR
 }
 
 export interface MarkStatusChangedInput {
-  matchedEntry: { company: string; title?: string | null; section: string };
+  matchedEntry: ProjectedMatch;
   status: string;
   msgId: string;
   atsSender: string;
