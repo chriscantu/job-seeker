@@ -1,7 +1,7 @@
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-const path = require('path');
-const { querySeenPostings, dedupCheck, normalizeUrl, parseSeenPostingsContent } = require('../scripts/lib/seen-postings');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import * as path from 'path';
+import { querySeenPostings, dedupCheck, normalizeUrl, parseSeenPostingsContent } from '../scripts/lib/seen-postings';
 
 const FIXTURES = path.join(__dirname, 'fixtures', 'multi');
 
@@ -9,7 +9,7 @@ describe('seen-postings query', () => {
   it('filters by company (case-insensitive substring)', () => {
     const results = querySeenPostings(FIXTURES, { company: 'natera' });
     assert.ok(results.length > 0);
-    assert.ok(results.every(e => e.company.toLowerCase().includes('natera')));
+    assert.ok(results.every(e => e.company!.toLowerCase().includes('natera')));
   });
 
   it('filters by not-flagged', () => {
@@ -46,7 +46,7 @@ describe('seen-postings query', () => {
     assert.ok(filtered.length < all.length, 'notFlagged should reduce results');
     filtered.forEach(e => {
       assert.ok(!e.flags.includes('RESEARCHED'));
-      assert.ok(e.company.toLowerCase().includes('natera'));
+      assert.ok(e.company!.toLowerCase().includes('natera'));
     });
   });
 });

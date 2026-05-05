@@ -1,13 +1,16 @@
-const { describe, it, beforeEach, afterEach } = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('fs');
-const path = require('path');
-const {
+import { describe, it, beforeEach, afterEach } from 'node:test';
+import assert from 'node:assert/strict';
+import * as fs from 'fs';
+import * as path from 'path';
+import {
   appendSeenPosting,
   flagSeenPosting,
   formatEntry,
-} = require('../scripts/lib/seen-postings');
-const { resolveStateFile } = require('../scripts/lib/util');
+  makeEntry,
+  parseSeenPostingsFile,
+} from '../scripts/lib/seen-postings';
+import { resolveStateFile } from '../scripts/lib/util';
+import { parseFrontmatter } from '../scripts/lib/frontmatter';
 
 const TMP_DIR = path.join(__dirname, 'tmp-writer');
 
@@ -26,56 +29,56 @@ describe('seen-postings writer', () => {
 
   describe('formatEntry', () => {
     it('formats entry with posted date', () => {
-      const line = formatEntry({
+      const line = formatEntry(makeEntry({
         company: 'Natera',
         title: 'VP of Engineering',
         url: 'https://job-boards.greenhouse.io/natera/jobs/123',
         posted: '2026-04-06',
-      });
+      }));
       assert.equal(line, '- Natera | VP of Engineering | https://job-boards.greenhouse.io/natera/jobs/123 | posted:2026-04-06');
     });
 
     it('formats entry with discovered date', () => {
-      const line = formatEntry({
+      const line = formatEntry(makeEntry({
         company: 'Stealth',
         title: 'Head of Engineering',
         url: null,
         discovered: '2026-04-09',
-      });
+      }));
       assert.equal(line, '- Stealth | Head of Engineering | discovered:2026-04-09');
     });
 
     it('formats entry with flags', () => {
-      const line = formatEntry({
+      const line = formatEntry(makeEntry({
         company: 'Acme',
         title: 'VP Engineering',
         url: 'https://example.com/job/1',
         posted: '2026-04-06',
         flags: ['RESEARCHED'],
-      });
+      }));
       assert.equal(line, '- Acme | VP Engineering | https://example.com/job/1 | posted:2026-04-06 | RESEARCHED');
     });
 
     it('formats entry with source tag', () => {
-      const line = formatEntry({
+      const line = formatEntry(makeEntry({
         company: 'Acme',
         title: 'VP Engineering',
         url: 'https://example.com/job/1',
         posted: '2026-04-06',
         source: 'email-linkedin',
-      });
+      }));
       assert.equal(line, '- Acme | VP Engineering | https://example.com/job/1 | posted:2026-04-06 | source:email-linkedin');
     });
   });
 
   describe('appendSeenPosting', () => {
     it('creates new file when none exists', () => {
-      appendSeenPosting(TMP_DIR, {
+      appendSeenPosting(TMP_DIR, makeEntry({
         company: 'Natera',
         title: 'VP of Engineering',
         url: 'https://example.com/job/1',
         posted: '2026-04-09',
-      });
+      }));
 
       const files = fs.readdirSync(TMP_DIR).filter(f => f.includes('seen-postings'));
       assert.equal(files.length, 1);
@@ -94,12 +97,12 @@ describe('seen-postings writer', () => {
         `# Job Search — Seen Postings\n\n## ${today}\n- Existing | VP Eng | https://example.com/old | posted:${today}\n`
       );
 
-      appendSeenPosting(TMP_DIR, {
+      appendSeenPosting(TMP_DIR, makeEntry({
         company: 'NewCo',
         title: 'VP Engineering',
         url: 'https://example.com/new',
         posted: '2026-04-09',
-      });
+      }));
 
       const content = fs.readFileSync(path.join(TMP_DIR, fileName), 'utf8');
       assert.ok(content.includes('Existing'), 'should keep existing entry');
@@ -112,12 +115,12 @@ describe('seen-postings writer', () => {
         '# Job Search — Seen Postings\n\n## 2026-04-01\n- Old | VP Eng | https://example.com | posted:2026-04-01\n'
       );
 
-      appendSeenPosting(TMP_DIR, {
+      appendSeenPosting(TMP_DIR, makeEntry({
         company: 'NewCo',
         title: 'VP Engineering',
         url: 'https://example.com/new',
         posted: '2026-04-09',
-      });
+      }));
 
       const content = fs.readFileSync(path.join(TMP_DIR, fileName), 'utf8');
       const today = new Date().toISOString().slice(0, 10);
@@ -127,11 +130,11 @@ describe('seen-postings writer', () => {
 
     it('throws on invalid entry', () => {
       assert.throws(() => {
-        appendSeenPosting(TMP_DIR, {
+        appendSeenPosting(TMP_DIR, makeEntry({
           company: '',
           title: 'VP Engineering',
           url: 'https://example.com',
-        });
+        }));
       });
     });
   });
@@ -175,7 +178,7 @@ describe('seen-postings writer', () => {
 
       const result = flagSeenPosting(TMP_DIR, 'https://not-found.com/job', 'RESEARCHED');
       assert.equal(result.success, false);
-      assert.ok(result.error.includes('No entry found'));
+      assert.ok(result.error!.includes('No entry found'));
     });
   });
 
@@ -185,7 +188,7 @@ describe('seen-postings writer', () => {
       fs.writeFileSync(path.join(TMP_DIR, '2026-04-01-seen-postings.md'), 'new');
 
       const result = resolveStateFile(TMP_DIR, 'seen-postings');
-      assert.ok(result.endsWith('2026-04-01-seen-postings.md'));
+      assert.ok(result!.endsWith('2026-04-01-seen-postings.md'));
     });
 
     it('returns null when no files exist', () => {
@@ -201,20 +204,18 @@ describe('seen-postings writer', () => {
 
   describe('round-trip (append then parse)', () => {
     it('produces entries the parser can read back correctly', () => {
-      const { parseSeenPostingsFile } = require('../scripts/lib/seen-postings');
-
-      appendSeenPosting(TMP_DIR, {
+      appendSeenPosting(TMP_DIR, makeEntry({
         company: 'RoundTrip Co',
         title: 'VP of Engineering',
         url: 'https://example.com/roundtrip/1',
         posted: '2026-04-09',
         source: 'email-linkedin',
         flags: ['RESEARCHED'],
-      });
+      }));
 
       const files = fs.readdirSync(TMP_DIR).filter(f => f.includes('seen-postings'));
       const entries = parseSeenPostingsFile(path.join(TMP_DIR, files[0]));
-      const entry = entries.find(e => e.company === 'RoundTrip Co');
+      const entry = entries.find(e => e.company === 'RoundTrip Co')!;
 
       assert.ok(entry, 'should find appended entry');
       assert.equal(entry.title, 'VP of Engineering');
@@ -227,19 +228,18 @@ describe('seen-postings writer', () => {
 
   describe('frontmatter support', () => {
     it('appendSeenPosting preserves existing frontmatter and updates last_updated', () => {
-      const { parseFrontmatter } = require('../scripts/lib/frontmatter');
       const today = new Date().toISOString().slice(0, 10);
       const fileName = `${today}-seen-postings.md`;
       fs.writeFileSync(path.join(TMP_DIR, fileName),
         `---\nformat_version: 1\nlast_updated: 2026-01-01\n---\n# Job Search — Seen Postings\n\n## ${today}\n- Old | VP Eng | https://example.com/old | posted:${today}\n`
       );
 
-      appendSeenPosting(TMP_DIR, {
+      appendSeenPosting(TMP_DIR, makeEntry({
         company: 'NewCo',
         title: 'VP Engineering',
         url: 'https://example.com/new',
         posted: '2026-04-09',
-      });
+      }));
 
       const content = fs.readFileSync(path.join(TMP_DIR, fileName), 'utf8');
       const { meta, body } = parseFrontmatter(content);
@@ -251,19 +251,18 @@ describe('seen-postings writer', () => {
     });
 
     it('appendSeenPosting backfills frontmatter when none exists', () => {
-      const { parseFrontmatter } = require('../scripts/lib/frontmatter');
       const today = new Date().toISOString().slice(0, 10);
       const fileName = `${today}-seen-postings.md`;
       fs.writeFileSync(path.join(TMP_DIR, fileName),
         `# Job Search — Seen Postings\n\n## ${today}\n- Old | VP Eng | https://example.com/old | posted:${today}\n`
       );
 
-      appendSeenPosting(TMP_DIR, {
+      appendSeenPosting(TMP_DIR, makeEntry({
         company: 'NewCo',
         title: 'VP Engineering',
         url: 'https://example.com/new',
         posted: '2026-04-09',
-      });
+      }));
 
       const content = fs.readFileSync(path.join(TMP_DIR, fileName), 'utf8');
       const { meta } = parseFrontmatter(content);
@@ -273,14 +272,13 @@ describe('seen-postings writer', () => {
     });
 
     it('appendSeenPosting creates new file with frontmatter', () => {
-      const { parseFrontmatter } = require('../scripts/lib/frontmatter');
 
-      appendSeenPosting(TMP_DIR, {
+      appendSeenPosting(TMP_DIR, makeEntry({
         company: 'FreshCo',
         title: 'VP Engineering',
         url: 'https://example.com/fresh',
         posted: '2026-04-09',
-      });
+      }));
 
       const files = fs.readdirSync(TMP_DIR).filter(f => f.includes('seen-postings'));
       const content = fs.readFileSync(path.join(TMP_DIR, files[0]), 'utf8');
@@ -292,7 +290,6 @@ describe('seen-postings writer', () => {
     });
 
     it('flagSeenPosting backfills frontmatter on legacy file (no existing frontmatter)', () => {
-      const { parseFrontmatter } = require('../scripts/lib/frontmatter');
       const targetUrl = 'https://example.com/job/legacy-flag';
       const fileName = '2026-03-01-seen-postings.md';
       fs.writeFileSync(path.join(TMP_DIR, fileName),
@@ -311,7 +308,6 @@ describe('seen-postings writer', () => {
     });
 
     it('flagSeenPosting preserves frontmatter and updates last_updated', () => {
-      const { parseFrontmatter } = require('../scripts/lib/frontmatter');
       const targetUrl = 'https://example.com/job/flag-test';
       const fileName = '2026-04-01-seen-postings.md';
       fs.writeFileSync(path.join(TMP_DIR, fileName),

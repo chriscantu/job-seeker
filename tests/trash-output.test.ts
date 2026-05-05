@@ -1,6 +1,4 @@
-"use strict";
-
-// Unit tests for scripts/lib/trash-output.js — specifically the
+// Unit tests for scripts/lib/trash-output.ts — specifically the
 // Gmail-side classifier classifyGmailResult. The Apple-Mail-side
 // detectPartialFailure and classifyOsascriptResult already have
 // coverage in tests/auto-trash-classify.test.js; that file imports
@@ -12,16 +10,16 @@
 // meaning "Gmail API error"). These tests pin each branch so a
 // future refactor can't silently collapse them.
 
-const { describe, it } = require("node:test");
-const assert = require("node:assert/strict");
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
 
-const {
+import {
   classifyGmailResult,
   detectPartialFailure,
   EXIT_OK,
   EXIT_GMAIL_API,
   EXIT_PARTIAL,
-} = require("../scripts/lib/trash-output.js");
+} from "../scripts/lib/trash-output";
 
 describe("classifyGmailResult", () => {
   it("returns EXIT_OK for clean success", () => {
