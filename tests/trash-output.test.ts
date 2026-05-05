@@ -2,7 +2,7 @@
 // Gmail-side classifier classifyGmailResult. The Apple-Mail-side
 // detectPartialFailure and classifyOsascriptResult already have
 // coverage in tests/auto-trash-classify.test.js; that file imports
-// them via the auto_trash_inbox.js re-export, which exercises the
+// them via the auto_trash_inbox.ts re-export, which exercises the
 // relocation path.
 //
 // classifyGmailResult shares detectPartialFailure but has its own
