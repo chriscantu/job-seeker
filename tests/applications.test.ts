@@ -21,6 +21,7 @@ import {
   staleApplications,
 } from '../scripts/lib/applications';
 import type { MarkStatusChangedInput, CloseApplicationInput } from '../scripts/lib/applications';
+import type { ProjectedMatch } from '../scripts/lib/status-classifier';
 import { parseFrontmatter } from '../scripts/lib/frontmatter';
 import { resolveStateFile } from '../scripts/lib/util';
 
@@ -968,7 +969,7 @@ format_version: 1
       assert.match(raw, /flagged_count:\s*1/);
     });
 
-    const atlassianActive = {
+    const atlassianActive: ProjectedMatch = {
       company: 'Atlassian',
       title: 'VP Engineering',
       url: 'https://boards.greenhouse.io/atlassian/jobs/5123456',
@@ -976,7 +977,7 @@ format_version: 1
       section: 'active',
     };
 
-    const realtorActive = {
+    const realtorActive: ProjectedMatch = {
       company: 'Realtor.com',
       title: 'Director, Software Engineering',
       url: 'https://boards.greenhouse.io/realtor/jobs/5234567',
@@ -1082,7 +1083,7 @@ format_version: 1
       });
       markStatusChanged(dir, {
         msgId: '<fixture-interview-second@mail>',
-        matchedEntry: { ...realtorActive, stage: 'Interview (1)' } as MarkStatusChangedInput['matchedEntry'],
+        matchedEntry: { ...realtorActive, stage: 'Interview (1)' },
         status: 'Interview',
         signal: 'interview scheduled',
         atsSender: 'greenhouse',
@@ -1097,7 +1098,7 @@ format_version: 1
       // C5 regression: stray interview reminder on an Offer-stage app used to
       // downgrade to 'Interview (1)'. STAGES_OUTRANKING_INTERVIEW prevents it.
       // Seed an Offer entry first.
-      const offerEntry = { ...realtorActive, stage: 'Offer' } as MarkStatusChangedInput['matchedEntry'];
+      const offerEntry = { ...realtorActive, stage: 'Offer' };
       // Manually put Realtor at Offer stage by writing the file directly.
       const raw = fs.readFileSync(path.join(dir, '2026-04-13-applications.md'), 'utf8');
       fs.writeFileSync(
@@ -1191,7 +1192,7 @@ format_version: 1
           url: null,
           stage: 'Closed (rejected)',
           section: 'closed',
-        } as MarkStatusChangedInput['matchedEntry'],
+        },
         status: 'Rejected',
         signal: 'we regret to inform',
         atsSender: 'greenhouse',
@@ -1213,7 +1214,7 @@ format_version: 1
           url: null,
           stage: null,
           section: 'flagged',
-        } as MarkStatusChangedInput['matchedEntry'],
+        },
         status: 'Rejected',
         signal: 'not moving forward',
         atsSender: 'greenhouse',
@@ -1234,7 +1235,7 @@ format_version: 1
           url: null,
           stage: 'Applied',
           section: 'active',
-        } as MarkStatusChangedInput['matchedEntry'],
+        },
         status: 'Rejected',
         signal: 'not moving forward',
         atsSender: 'greenhouse',
@@ -1265,7 +1266,8 @@ format_version: 1
       assert.throws(
         () => markStatusChanged(dir, {
           msgId: '<fixture-no-section@mail>',
-          matchedEntry: { company: 'X', title: 'Y', url: null, stage: 'Applied' } as unknown as MarkStatusChangedInput['matchedEntry'],
+          // @ts-expect-error — intentionally constructing invalid input (no section) to assert runtime fail-closed
+          matchedEntry: { company: 'X', title: 'Y', url: null, stage: 'Applied' },
           status: 'Rejected',
           signal: 'not moving forward',
           atsSender: 'greenhouse',
