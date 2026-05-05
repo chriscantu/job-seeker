@@ -4,7 +4,7 @@ const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
-const STATE_JS = path.join(__dirname, '..', 'scripts', 'state.js');
+const STATE_JS = path.join(__dirname, '..', 'scripts', 'state.ts');
 const FIXTURES_DIR = path.join(__dirname, 'fixtures', 'multi');
 const TMP_DIR = path.join(__dirname, 'tmp-cli');
 
