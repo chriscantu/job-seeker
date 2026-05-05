@@ -18,19 +18,19 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Validate plugin structure
-        run: bun scripts/validate-plugin-structure.js
+        run: bun scripts/validate-plugin-structure.ts
 
       - name: Validate config (CI mode)
-        run: bun scripts/validate-config.js --ci
+        run: bun scripts/validate-config.ts --ci
 
       - name: Validate STRUCTURE.md
-        run: bun scripts/validate-structure.js
+        run: bun scripts/validate-structure.ts
 
       - name: Test PII guard
-        run: bun scripts/test-pii-guard.js
+        run: bun scripts/test-pii-guard.ts
 
       - name: Validate markdown links
-        run: bun scripts/validate-links.js
+        run: bun scripts/validate-links.ts
 
       - name: Run tests
         run: bun test
