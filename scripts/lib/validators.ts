@@ -23,14 +23,14 @@ export function validateSeenPostingsEntry(entry: ValidatorInput): ValidationResu
     errors.push('title must not contain pipe character (|)');
   }
 
-  if (entry.url !== null && entry.url !== undefined && (typeof entry.url !== 'string' || !URL_RE.test(entry.url))) {
+  if (entry.url !== null && entry.url !== undefined && !URL_RE.test(entry.url as string)) {
     errors.push('url must be a valid HTTP(S) URL or null');
   }
 
-  if (entry.posted && (typeof entry.posted !== 'string' || !DATE_FORMAT_RE.test(entry.posted))) {
+  if (entry.posted && !DATE_FORMAT_RE.test(entry.posted as string)) {
     errors.push('posted date must be in YYYY-MM-DD format');
   }
-  if (entry.discovered && (typeof entry.discovered !== 'string' || !DATE_FORMAT_RE.test(entry.discovered))) {
+  if (entry.discovered && !DATE_FORMAT_RE.test(entry.discovered as string)) {
     errors.push('discovered date must be in YYYY-MM-DD format');
   }
   if (!entry.posted && !entry.discovered) {
@@ -84,15 +84,15 @@ export function validateApplicationEntry(entry: ValidatorInput): ValidationResul
     errors.push('title must not contain pipe character (|)');
   }
 
-  if (!entry.stage || typeof entry.stage !== 'string' || !(VALID_STAGES as readonly string[]).includes(entry.stage)) {
+  if (!entry.stage || !(VALID_STAGES as readonly string[]).includes(entry.stage as string)) {
     errors.push(`stage must be one of: ${VALID_STAGES.join(', ')}`);
   }
 
-  if (entry.url !== null && entry.url !== undefined && (typeof entry.url !== 'string' || !URL_RE.test(entry.url))) {
+  if (entry.url !== null && entry.url !== undefined && !URL_RE.test(entry.url as string)) {
     errors.push('url must be a valid HTTP(S) URL or null');
   }
 
-  if (entry.applied && (typeof entry.applied !== 'string' || !DATE_FORMAT_RE.test(entry.applied))) {
+  if (entry.applied && !DATE_FORMAT_RE.test(entry.applied as string)) {
     errors.push('applied date must be in YYYY-MM-DD format');
   }
 
