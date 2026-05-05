@@ -1,24 +1,23 @@
-#!/usr/bin/env node
-// scripts/cache.js
+#!/usr/bin/env bun
 // Phase cache utility for resumable skill execution.
 //
 // Usage:
-//   bun scripts/cache.js read <skill> <phase>
-//   bun scripts/cache.js write <skill> <phase> '<json>'
-//   bun scripts/cache.js list [skill]
-//   bun scripts/cache.js clean [skill]
+//   bun scripts/cache.ts read <skill> <phase>
+//   bun scripts/cache.ts write <skill> <phase> '<json>'
+//   bun scripts/cache.ts list [skill]
+//   bun scripts/cache.ts clean [skill]
 //
 // Exit codes: 0 = success, 1 = error or cache miss
 // Output: JSON on stdout (read, write) or text (list, clean)
 
-const path = require('path');
-const { readCache, writeCache, listCaches, cleanCaches } = require('./lib/cache');
+import * as path from 'path';
+import { readCache, writeCache, listCaches, cleanCaches } from './lib/cache';
 
 const ROOT = path.resolve(__dirname, '..');
 const OUTPUT_DIR = process.env.OUTPUT_DIR || path.join(ROOT, 'output');
 
-function usage() {
-  console.error(`Usage: bun scripts/cache.js <command> [args]
+function usage(): never {
+  console.error(`Usage: bun scripts/cache.ts <command> [args]
 
 Commands:
   read <skill> <phase>           Read cached phase result (exit 1 if miss/expired)
@@ -28,7 +27,7 @@ Commands:
   process.exit(1);
 }
 
-function formatAge(cachedAt) {
+function formatAge(cachedAt: string): string {
   const ms = Date.now() - new Date(cachedAt).getTime();
   const mins = Math.floor(ms / 60000);
   if (mins < 60) return `${mins} min ago`;
@@ -36,7 +35,7 @@ function formatAge(cachedAt) {
   return `${hours}h ${mins % 60}m ago`;
 }
 
-function main() {
+function main(): void {
   const args = process.argv.slice(2);
   if (args.length < 1) usage();
 
@@ -59,11 +58,12 @@ function main() {
           console.error('write requires <skill> <phase> <json>');
           process.exit(1);
         }
-        let data;
+        let data: unknown;
         try {
           data = JSON.parse(args[3]);
         } catch (err) {
-          console.error(`Invalid JSON: ${err.message}`);
+          const msg = err instanceof Error ? err.message : String(err);
+          console.error(`Invalid JSON: ${msg}`);
           process.exit(1);
         }
         writeCache(OUTPUT_DIR, args[1], args[2], data);
@@ -93,7 +93,8 @@ function main() {
         usage();
     }
   } catch (err) {
-    console.error(err.message);
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(msg);
     process.exit(1);
   }
 }
