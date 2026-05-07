@@ -73,6 +73,7 @@ interface Job {
   title: string;
   company: string;
   meta: string;
+  mandate?: string;
   items: JobItem[];
 }
 
@@ -168,9 +169,23 @@ function parseResume(md: string): ParsedResume {
       job = { title: parts[0].trim(), company: parts[1] ? parts[1].trim() : "", meta: "", items: [] };
       i++;
       while (i < lines.length && !lines[i].trim()) i++;
+      const stripItalicLine = (raw: string): string =>
+        clean(raw.trim().replace(/\\$/, "").replace(/^\*/, "").replace(/\*$/, ""));
       if (i < lines.length && lines[i].trim().startsWith("*")) {
-        job.meta = clean(lines[i].trim().replace(/^\*/, "").replace(/\*$/, ""));
+        job.meta = stripItalicLine(lines[i]);
         i++;
+      }
+      // Optional second italic line = hiring mandate.
+      let j = i;
+      while (j < lines.length && !lines[j].trim()) j++;
+      if (
+        j < lines.length &&
+        lines[j].trim().startsWith("*") &&
+        !lines[j].trim().startsWith("**") &&
+        !lines[j].trim().startsWith("- ")
+      ) {
+        job.mandate = stripItalicLine(lines[j]);
+        i = j + 1;
       }
       continue;
     }
@@ -324,7 +339,15 @@ function buildDoc(parsed: ParsedResume): Document {
     if (job.meta) {
       children.push(new Paragraph({
         children: [new TextRun({ text: job.meta, italics: true, size: 19, font: FONT, color: GRAY })],
-        spacing: { after: 40 },
+        spacing: { after: job.mandate ? 20 : 40 },
+        keepNext: true,
+      }));
+    }
+
+    if (job.mandate) {
+      children.push(new Paragraph({
+        children: [new TextRun({ text: job.mandate, italics: true, size: 19, font: FONT, color: GRAY })],
+        spacing: { after: 60 },
         keepNext: true,
       }));
     }

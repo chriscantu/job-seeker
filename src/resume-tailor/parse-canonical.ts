@@ -127,8 +127,10 @@ function parseRoles(section: string): Role[] {
 function parseRoleBlock(block: string): Role {
   const lines = block.split('\n');
   const { title, company } = parseRoleHeading(lines[0]);
-  const meta = parseRoleMeta(lines);
+  const italicLines = collectItalicLines(lines);
+  const meta = stripItalic(italicLines[0] ?? '');
   const role: Role = { title, company, meta, bullets: [] };
+  if (italicLines[1]) role.mandate = stripItalic(italicLines[1]);
 
   if (containsSubRoleLabels(lines)) {
     role.subRoles = parseSubRoles(lines);
@@ -143,9 +145,15 @@ function parseRoleHeading(headingLine: string): { title: string; company: string
   return { title, company };
 }
 
-function parseRoleMeta(lines: string[]): string {
-  const metaLine = lines.find((l) => l.startsWith('*')) ?? '';
-  return metaLine.replace(/^\*|\*$/g, '').trim();
+function collectItalicLines(lines: string[]): string[] {
+  return lines.filter((l) => {
+    const t = l.trim().replace(/\\$/, '');
+    return t.startsWith('*') && !t.startsWith('**') && t.endsWith('*');
+  });
+}
+
+function stripItalic(line: string): string {
+  return line.trim().replace(/\\$/, '').replace(/^\*|\*$/g, '').trim();
 }
 
 function containsSubRoleLabels(lines: string[]): boolean {
