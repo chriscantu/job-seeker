@@ -90,7 +90,7 @@ School
 - Each bullet is one sentence ending in `.`. CAR is implicit by ordering.
 - Skills line: single line, ` | `-delimited, max 10.
 - Key Accomplishments: `- **<Label>** — <single sentence>.` (no pipe-delimited Impact field).
-- Mandate line (italic, one sentence) is preserved verbatim from `references/resume.md`. Not scored, not droppable, not rewritten. Sits directly under the role's location/dates italic.
+- Mandate line (italic, one sentence) is preserved verbatim from `references/resume.md`. Not scored, not droppable, not rewritten. Sits directly under the role's location/dates italic. **Preconditions:** mandate is the *second* italic line under a role heading — it requires the meta italic line to be present. Mandate is single-line; multi-line mandates would break the 2-page budget rationale. Mandate sits at the role level, not the sub-role level (e.g. one mandate for Vrbo, not one per sub-role).
 
 ## Phase 6: Render and Enforce
 

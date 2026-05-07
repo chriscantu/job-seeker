@@ -127,10 +127,12 @@ function parseRoles(section: string): Role[] {
 function parseRoleBlock(block: string): Role {
   const lines = block.split('\n');
   const { title, company } = parseRoleHeading(lines[0]);
-  const italicLines = collectItalicLines(lines);
+  const headerLines = headerRegionLines(lines);
+  const italicLines = headerLines.filter(isItalicLine);
   const meta = stripItalic(italicLines[0] ?? '');
   const role: Role = { title, company, meta, bullets: [] };
-  if (italicLines[1]) role.mandate = stripItalic(italicLines[1]);
+  const mandate = italicLines[1] ? stripItalic(italicLines[1]) : '';
+  if (mandate) role.mandate = mandate;
 
   if (containsSubRoleLabels(lines)) {
     role.subRoles = parseSubRoles(lines);
@@ -145,11 +147,19 @@ function parseRoleHeading(headingLine: string): { title: string; company: string
   return { title, company };
 }
 
-function collectItalicLines(lines: string[]): string[] {
-  return lines.filter((l) => {
-    const t = l.trim().replace(/\\$/, '');
-    return t.startsWith('*') && !t.startsWith('**') && t.endsWith('*');
-  });
+function headerRegionLines(lines: string[]): string[] {
+  const out: string[] = [];
+  for (const line of lines) {
+    const t = line.trim();
+    if (t.startsWith(BULLET_PREFIX) || SUBROLE_LABEL_RE.test(t)) break;
+    out.push(line);
+  }
+  return out;
+}
+
+function isItalicLine(line: string): boolean {
+  const t = line.trim().replace(/\\$/, '');
+  return t.startsWith('*') && !t.startsWith('**') && t.endsWith('*');
 }
 
 function stripItalic(line: string): string {

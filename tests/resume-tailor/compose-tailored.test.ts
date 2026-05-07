@@ -17,6 +17,38 @@ describe('composeTailoredResumeMarkdown', () => {
     expect(reparsed.roles).toHaveLength(ast.roles.length);
   });
 
+  test('emits mandate as second italic line joined by markdown line-break', () => {
+    const ast = parseCanonicalResume(md);
+    const out = composeTailoredResumeMarkdown(ast, {
+      company: 'X', role: 'Y', posting_url: '', generated: '2026-05-01',
+    });
+    const procoreMandate = ast.roles[0].mandate!;
+    expect(procoreMandate).toBeTruthy();
+    expect(out).toContain(`*${ast.roles[0].meta}*\\\n*${procoreMandate}*`);
+  });
+
+  test('omits mandate emission entirely when role.mandate is undefined', () => {
+    const ast = parseCanonicalResume(md);
+    delete ast.roles[0].mandate;
+    const out = composeTailoredResumeMarkdown(ast, {
+      company: 'X', role: 'Y', posting_url: '', generated: '2026-05-01',
+    });
+    expect(out).toContain(`*${ast.roles[0].meta}*\n`);
+    expect(out).not.toContain(`*${ast.roles[0].meta}*\\`);
+  });
+
+  test('round-trip preserves mandate verbatim across all roles', () => {
+    const ast = parseCanonicalResume(md);
+    const out = composeTailoredResumeMarkdown(ast, {
+      company: 'X', role: 'Y', posting_url: '', generated: '2026-05-01',
+    });
+    const reparsed = parseCanonicalResume(out);
+    for (let i = 0; i < ast.roles.length; i++) {
+      expect(reparsed.roles[i].mandate).toBe(ast.roles[i].mandate);
+      expect(reparsed.roles[i].meta).toBe(ast.roles[i].meta);
+    }
+  });
+
   test('writes frontmatter with company/role/posting_url', () => {
     const ast = parseCanonicalResume(md);
     const out = composeTailoredResumeMarkdown(ast, {
