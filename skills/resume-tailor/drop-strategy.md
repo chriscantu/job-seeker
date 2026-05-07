@@ -14,6 +14,7 @@ Protected:
 - Skills line (10 entries)
 - Education
 - Current role (role index 0) — never drop
+- Mandate line (italic, one per role) — never drop
 
 ## Selection Order
 

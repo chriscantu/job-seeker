@@ -19,6 +19,7 @@ export type Role = {
   title: string;
   company: string;
   meta: string;
+  mandate?: string;
   subRoles?: SubRole[];
   bullets: Bullet[];
 };

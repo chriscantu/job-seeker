@@ -64,19 +64,20 @@ function clean(text: string): string {
     .trim();
 }
 
-interface JobItem {
+export interface JobItem {
   type: 'bullet' | 'sublabel' | 'para';
   text: string;
 }
 
-interface Job {
+export interface Job {
   title: string;
   company: string;
   meta: string;
+  mandate?: string;
   items: JobItem[];
 }
 
-interface ParsedResume {
+export interface ParsedResume {
   name: string;
   tagline: string;
   contact: string;
@@ -88,7 +89,7 @@ interface ParsedResume {
 }
 
 // ── Markdown parser ──────────────────────────────────────────────────────────
-function parseResume(md: string): ParsedResume {
+export function parseResume(md: string): ParsedResume {
   const lines = md.split("\n");
   const result: ParsedResume = {
     name: "", tagline: "", contact: "",
@@ -168,9 +169,23 @@ function parseResume(md: string): ParsedResume {
       job = { title: parts[0].trim(), company: parts[1] ? parts[1].trim() : "", meta: "", items: [] };
       i++;
       while (i < lines.length && !lines[i].trim()) i++;
-      if (i < lines.length && lines[i].trim().startsWith("*")) {
-        job.meta = clean(lines[i].trim().replace(/^\*/, "").replace(/\*$/, ""));
+      const isItalicLine = (raw: string): boolean => {
+        const t = raw.trim().replace(/\\$/, "");
+        return t.startsWith("*") && !t.startsWith("**") && t.endsWith("*");
+      };
+      const stripItalicLine = (raw: string): string =>
+        clean(raw.trim().replace(/\\$/, "").replace(/^\*/, "").replace(/\*$/, ""));
+      if (i < lines.length && isItalicLine(lines[i])) {
+        job.meta = stripItalicLine(lines[i]);
         i++;
+      }
+      // Optional second italic line = hiring mandate.
+      let j = i;
+      while (j < lines.length && !lines[j].trim()) j++;
+      if (j < lines.length && isItalicLine(lines[j])) {
+        const mandate = stripItalicLine(lines[j]);
+        if (mandate) job.mandate = mandate;
+        i = j + 1;
       }
       continue;
     }
@@ -324,7 +339,15 @@ function buildDoc(parsed: ParsedResume): Document {
     if (job.meta) {
       children.push(new Paragraph({
         children: [new TextRun({ text: job.meta, italics: true, size: 19, font: FONT, color: GRAY })],
-        spacing: { after: 40 },
+        spacing: { after: job.mandate ? 20 : 40 },
+        keepNext: true,
+      }));
+    }
+
+    if (job.mandate) {
+      children.push(new Paragraph({
+        children: [new TextRun({ text: job.mandate, italics: true, size: 19, font: FONT, color: GRAY })],
+        spacing: { after: 60 },
         keepNext: true,
       }));
     }
@@ -445,8 +468,10 @@ async function main(): Promise<void> {
   process.stdout.write("ATS resume written to: " + outputPath + "\n");
 }
 
-main().catch((err: unknown) => {
-  const msg = errorMessage(err);
-  process.stderr.write(msg + "\n");
-  process.exit(1);
-});
+if (import.meta.main) {
+  main().catch((err: unknown) => {
+    const msg = errorMessage(err);
+    process.stderr.write(msg + "\n");
+    process.exit(1);
+  });
+}

@@ -29,7 +29,9 @@ Output: ` | `-delimited single line under `## Skills`.
 
 Use the recruiter draft from `references/resume.md` as the baseline. Swap the lead
 clause ("Senior Engineering Leader specializing in ___") with the JD's top requirement.
-Preserve the rest verbatim.
+Preserve the rest verbatim. Mandate-line keywords across all roles are eligible signal
+when the JD's top requirement matches a mandate term (e.g. JD asks for "platform
+reliability" → favor the Babylon mandate's framing).
 
 ## Phase 5: Compose
 
@@ -68,6 +70,8 @@ A | B | C | D | E | F | G | H | I | J
 
 *Location | Date range | Team size context*
 
+*Hired to <one-sentence mandate — preserved verbatim from canonical>.*
+
 - Single-sentence bullet: action verb + scope/numbers + outcome clause.
 - ...
 
@@ -86,6 +90,7 @@ School
 - Each bullet is one sentence ending in `.`. CAR is implicit by ordering.
 - Skills line: single line, ` | `-delimited, max 10.
 - Key Accomplishments: `- **<Label>** — <single sentence>.` (no pipe-delimited Impact field).
+- Mandate line (italic, one sentence) is preserved verbatim from `references/resume.md`. Not scored, not droppable, not rewritten. Sits directly under the role's location/dates italic. **Preconditions:** mandate is the *second* italic line under a role heading — it requires the meta italic line to be present. Mandate is single-line; multi-line mandates would break the 2-page budget rationale. Mandate sits at the role level, not the sub-role level (e.g. one mandate for Vrbo, not one per sub-role).
 
 ## Phase 6: Render and Enforce
 

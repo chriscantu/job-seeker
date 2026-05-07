@@ -46,6 +46,113 @@ describe('parseCanonicalResume', () => {
     expect(ast.roles[2].company).toContain('Vrbo');
   });
 
+  test('parses hiring mandate when second italic line present', () => {
+    const ast = parseCanonicalResume(fixture);
+    expect(ast.roles[0].mandate).toContain("Hired to lead Procore's $50M+ web experience");
+    expect(ast.roles[1].mandate).toContain('Hired to streamline delivery');
+    expect(ast.roles[2].mandate).toContain('Hired to lead monolith-to-microservices migration');
+  });
+
+  test('mandate is undefined when only one italic line present', () => {
+    const minimal = [
+      '---',
+      'template_version: 1',
+      'canonical_version: 2026-05-03',
+      '---',
+      '',
+      '# Test',
+      '',
+      '**Tag**',
+      '',
+      'a@b.com',
+      '',
+      'summary',
+      '',
+      '## Key Accomplishments',
+      '',
+      '- **A** — desc.',
+      '- **B** — desc.',
+      '- **C** — desc.',
+      '- **D** — desc.',
+      '- **E** — desc.',
+      '- **F** — desc.',
+      '',
+      '## Skills',
+      '',
+      'X | Y | Z',
+      '',
+      '## Professional Experience',
+      '',
+      '### Title | Company',
+      '',
+      '*Loc | dates | scope*',
+      '',
+      '- bullet one.',
+      '',
+      '## Education',
+      '',
+      '**Degree**',
+      '',
+      'School',
+      '',
+    ].join('\n');
+    const ast = parseCanonicalResume(minimal);
+    expect(ast.roles[0].mandate).toBeUndefined();
+    expect(ast.roles[0].meta).toContain('Loc');
+  });
+
+  test('does not hoist italic lines from sub-role bodies into role.mandate', () => {
+    const md = [
+      '---',
+      'template_version: 1',
+      'canonical_version: 2026-05-03',
+      '---',
+      '',
+      '# Test',
+      '',
+      '**Tag**',
+      '',
+      'a@b.com',
+      '',
+      'summary',
+      '',
+      '## Key Accomplishments',
+      '',
+      '- **A** — desc.',
+      '- **B** — desc.',
+      '- **C** — desc.',
+      '- **D** — desc.',
+      '- **E** — desc.',
+      '- **F** — desc.',
+      '',
+      '## Skills',
+      '',
+      'X | Y | Z',
+      '',
+      '## Professional Experience',
+      '',
+      '### Title | Company',
+      '',
+      '*Loc | dates*',
+      '',
+      'As Director (2020–2021):',
+      '',
+      '*This stray italic line is inside the sub-role body, not a mandate.*',
+      '',
+      '- bullet one.',
+      '',
+      '## Education',
+      '',
+      '**Degree**',
+      '',
+      'School',
+      '',
+    ].join('\n');
+    const ast = parseCanonicalResume(md);
+    expect(ast.roles[0].mandate).toBeUndefined();
+    expect(ast.roles[0].meta).toBe('Loc | dates');
+  });
+
   test('parses sub-roles for Vrbo', () => {
     const ast = parseCanonicalResume(fixture);
     const vrbo = ast.roles[2];
