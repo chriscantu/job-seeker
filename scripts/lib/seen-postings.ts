@@ -468,6 +468,11 @@ export function countReposts(dir: string, input: CountRepostsInput): number {
 
   if (!normTarget && !(normCompany && normTitle)) return 0;
 
+  // Validate `today` once up-front. Without this, a malformed today causes
+  // every per-entry daysBetween call to throw and be swallowed below,
+  // silently zeroing the count and disabling ghost-job detection.
+  daysBetween(today, today);
+
   const entries = parseSeenPostings(dir);
   let count = 0;
 

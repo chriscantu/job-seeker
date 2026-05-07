@@ -355,6 +355,55 @@ last_updated: 2026-04-09
       assert.equal(n, 0);
     });
 
+    it('throws on malformed today (do not silently zero)', () => {
+      writeSection('2026-04-15', [
+        '- Acme | VP Eng | https://jobs.lever.co/acme/abc',
+      ]);
+      assert.throws(
+        () =>
+          countReposts(tmpDir, {
+            url: 'https://jobs.lever.co/acme/abc',
+            today: 'not-a-date',
+          }),
+        /YYYY-MM-DD/,
+      );
+    });
+
+    it('lookback is inclusive at the boundary', () => {
+      writeSection('2026-04-08', [
+        '- Acme | VP Eng | https://jobs.lever.co/acme/abc',
+      ]);
+      const n = countReposts(tmpDir, {
+        url: 'https://jobs.lever.co/acme/abc',
+        today: '2026-05-07',
+        withinDays: 29,
+      });
+      assert.equal(n, 1);
+    });
+
+    it('withinDays=0 only counts entries dated today', () => {
+      writeSection('2026-05-07', [
+        '- Acme | VP Eng | https://jobs.lever.co/acme/abc',
+      ]);
+      writeSection('2026-05-06', [
+        '- Acme | VP Eng | https://jobs.lever.co/acme/abc',
+      ]);
+      const n = countReposts(tmpDir, {
+        url: 'https://jobs.lever.co/acme/abc',
+        today: '2026-05-07',
+        withinDays: 0,
+      });
+      assert.equal(n, 1);
+    });
+
+    it('returns 0 for nonexistent directory', () => {
+      const n = countReposts('/tmp/nonexistent-reposts-dir-12345', {
+        url: 'https://jobs.lever.co/acme/abc',
+        today: '2026-05-07',
+      });
+      assert.equal(n, 0);
+    });
+
     it('respects custom withinDays', () => {
       writeSection('2026-04-30', [
         '- Acme | VP Eng | https://jobs.lever.co/acme/abc',

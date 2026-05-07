@@ -101,27 +101,22 @@ For each role surviving ATS verification, compute a legitimacy tier
 (Active | Verify | Skip) using
 `skills/_shared/legitimacy-check.md`.
 
-Run `bun scripts/state.ts read seen-postings` was already done in Phase 0a;
-reuse those entries to count reposts (URL match OR company+title match)
-within the last 90 days. Then call:
+Build a JSON batch of all verified roles and pipe to the CLI in one
+call (the script handles repost counting against `output/*-seen-postings.md`
+internally):
 
 ```
-bun -e "
-  import { computeLegitimacyTier } from './scripts/lib/legitimacy';
-  import { countReposts } from './scripts/lib/seen-postings';
-  import { getTodayUtc } from './scripts/lib/util';
-  const today = getTodayUtc();
-  // for each role:
-  const reposts = countReposts('output', { url, company, title });
-  const r = computeLegitimacyTier({ posted, today, repostCount: reposts });
-  // attach r.tier and r.reasons to the role record
-"
+echo '{"roles":[
+  {"url":"...","company":"...","title":"...","posted":"YYYY-MM-DD"},
+  ...
+]}' | bun scripts/legitimacy-check.ts
 ```
 
-Attach `legitimacy: { tier, reasons }` to each verified role record.
+Stdout is JSON: each input role with a `legitimacy: { tier, reasons, signals }`
+field attached. Parse and route:
 
 - **Skip** roles: drop from main digest, list in the Phase 3 footer
-  ("Filtered as Ghost Postings") with company, title, and reasons.
+  ("Filtered as Ghost Postings") with company, title, and `reasons`.
 - **Verify** roles: include in digest with the Status row showing
   `Verify ({reasons joined})`.
 - **Active** roles: include with `Status: Active`.

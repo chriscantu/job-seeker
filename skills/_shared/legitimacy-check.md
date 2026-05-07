@@ -23,11 +23,11 @@ data already pulled by Phase 1/2.
 
 | Signal | Source | Constant |
 |--------|--------|----------|
-| Posting age (days) | `posted` field from ATS verification | `ACTIVE_AGE_MAX_DAYS=60`, `VERIFY_AGE_MAX_DAYS=120` |
+| Posting age (days) | `posted` field from ATS verification | `ACTIVE_AGE_MAX_DAYS=60`, `VERIFY_AGE_MAX_DAYS=120`, `STALE_AGE_THRESHOLD_DAYS=90` |
 | Repost count | `output/*-seen-postings.md` parsed via `countReposts` | `VERIFY_REPOST_COUNT=2`, `SKIP_REPOST_COUNT=3`, lookback `REPOST_LOOKBACK_DAYS=90` |
 
-Thresholds reflect VP/Director roles, which legitimately stay open longer
-than IC roles (60–120d is normal at the executive level).
+Thresholds are set higher than IC roles to reflect longer executive
+hiring cycles.
 
 ## Tier rules
 
@@ -43,23 +43,36 @@ than IC roles (60–120d is normal at the executive level).
 
 ## Usage
 
+Skills invoke the check via the CLI wrapper, matching the pattern used
+for `state.ts` and `cache.ts`:
+
+```
+echo '{"roles":[{"url":"...","company":"...","title":"...","posted":"YYYY-MM-DD"}]}' \
+  | bun scripts/legitimacy-check.ts
+```
+
+Output is JSON: each role gets a `legitimacy: { tier, reasons, signals }`
+field appended. `tier` is one of `'Active' | 'Verify' | 'Skip'`.
+
+Library callers can use the modules directly:
+
 ```ts
 import { computeLegitimacyTier } from '../../scripts/lib/legitimacy';
 import { countReposts } from '../../scripts/lib/seen-postings';
+import { getTodayUtc } from '../../scripts/lib/util';
 
+const today = getTodayUtc();
 const repostCount = countReposts(outputDir, {
   url: role.url,
   company: role.company,
   title: role.title,
+  today,
 });
-
 const result = computeLegitimacyTier({
   posted: role.posted,
-  today: getTodayUtc(),
+  today,
   repostCount,
 });
-// result.tier ∈ 'Active' | 'Verify' | 'Skip'
-// result.reasons: human-readable explanation strings
 ```
 
 ## Out of scope (PR 2+)
