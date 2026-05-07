@@ -38,11 +38,20 @@ from `config/candidate.md` before constructing the HTML body.
 <div><b><span style="font-size: 11px">🎯 Mission:</span></b><span style="font-size: 11px"> {1-sentence company mission}</span></div>
 <div><b><span style="font-size: 11px">💰 Comp:</span></b><span style="font-size: 11px"> {Comp range or estimate}</span></div>
 <div><b><span style="font-size: 11px">⭐ Fit:</span></b><span style="font-size: 11px"> {⭐⭐⭐⭐⭐ / ⭐⭐⭐⭐ / ⭐⭐⭐} — {one-word reason}</span></div>
+<div><b><span style="font-size: 11px">🛡️ Status:</span></b><span style="font-size: 11px"> {Active | Verify ({reasons})} {omit line for Active if no flags}</span></div>
 <div><b><span style="font-size: 11px">📅 Posted:</span></b><span style="font-size: 11px"> {date posted, e.g. "March 20" or "3 days ago"} {omit line if date unknown}</span></div>
 <div><b><span style="font-size: 11px">🔗 Link:</span></b><span style="font-size: 11px"> </span><a href="{DIRECT_COMPANY_URL}"><u><span style="font-size: 11px">View Posting</span></u></a></div>
 <div><b><span style="font-size: 11px">Why this fits:</span></b><span style="font-size: 11px"> {1-2 sentences tied to the candidate's specific background}</span></div>
 <div><span style="font-size: 11px"><br></span></div>
 <!-- Repeat role block above for each role -->
+
+<!-- Ghost-filtered section (if any roles tiered Skip — see skills/_shared/legitimacy-check.md) -->
+<div><b><span style="font-size: 15px">🚫 Filtered as Ghost Postings</span></b></div>
+<div><span style="font-size: 11px"><i>Excluded from the main digest. Listed for transparency.</i></span></div>
+<div><b><span style="font-size: 11px">🏢 {Company}</span></b><span style="font-size: 11px"> — {Title}</span></div>
+<div><span style="font-size: 11px">Reason: {comma-joined legitimacy reasons}</span></div>
+<div><span style="font-size: 11px">🔗 </span><a href="{DIRECT_URL}"><u><span style="font-size: 11px">View Posting</span></u></a></div>
+<div><span style="font-size: 11px"><br></span></div>
 
 <!-- Below-comp section (if applicable) -->
 <div><b><span style="font-size: 15px">📋 Noted But Below Comp Target</span></b></div>

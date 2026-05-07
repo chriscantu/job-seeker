@@ -95,6 +95,37 @@ candidate URLs in a single parallel batch.
 
 Wait for all verification results before composing the digest.
 
+### Phase 2a — Legitimacy Check
+
+For each role surviving ATS verification, compute a legitimacy tier
+(Active | Verify | Skip) using
+`skills/_shared/legitimacy-check.md`.
+
+Run `bun scripts/state.ts read seen-postings` was already done in Phase 0a;
+reuse those entries to count reposts (URL match OR company+title match)
+within the last 90 days. Then call:
+
+```
+bun -e "
+  import { computeLegitimacyTier } from './scripts/lib/legitimacy';
+  import { countReposts } from './scripts/lib/seen-postings';
+  import { getTodayUtc } from './scripts/lib/util';
+  const today = getTodayUtc();
+  // for each role:
+  const reposts = countReposts('output', { url, company, title });
+  const r = computeLegitimacyTier({ posted, today, repostCount: reposts });
+  // attach r.tier and r.reasons to the role record
+"
+```
+
+Attach `legitimacy: { tier, reasons }` to each verified role record.
+
+- **Skip** roles: drop from main digest, list in the Phase 3 footer
+  ("Filtered as Ghost Postings") with company, title, and reasons.
+- **Verify** roles: include in digest with the Status row showing
+  `Verify ({reasons joined})`.
+- **Active** roles: include with `Status: Active`.
+
 #### Cache Phase 2 Results
 
 After verification completes, cache the results:
