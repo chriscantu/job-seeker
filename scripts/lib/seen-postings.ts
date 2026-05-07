@@ -3,6 +3,7 @@ import * as path from 'path';
 import { resolveStateFile, atomicWriteFileSync, ensureDir, getTodayUtc } from './util';
 import { parseFrontmatter, serializeFrontmatter } from './frontmatter';
 import { validateSeenPostingsEntry } from './validators';
+import { daysBetween } from './applications';
 
 const URL_RE = /https?:\/\/[^\s|[\]]+/;
 const DATE_RE = /\d{4}-\d{2}-\d{2}/;
@@ -440,6 +441,71 @@ export interface DedupCheckResult {
   duplicate: boolean;
   match?: 'exact-url' | 'company-title';
   existing?: SeenPostingEntry;
+}
+
+export const DEFAULT_REPOST_LOOKBACK_DAYS = 90;
+
+export interface CountRepostsInput {
+  url?: string | null;
+  company?: string | null;
+  title?: string | null;
+  withinDays?: number;
+  today?: string;
+}
+
+export function countReposts(dir: string, input: CountRepostsInput): number {
+  const {
+    url,
+    company,
+    title,
+    withinDays = DEFAULT_REPOST_LOOKBACK_DAYS,
+    today = getTodayUtc(),
+  } = input;
+
+  const normTarget = url ? normalizeUrl(url) : null;
+  const normCompany = company ? company.toLowerCase().trim() : null;
+  const normTitle = title ? title.toLowerCase().trim() : null;
+
+  if (!normTarget && !(normCompany && normTitle)) return 0;
+
+  // Validate `today` once up-front. Without this, a malformed today causes
+  // every per-entry daysBetween call to throw and be swallowed below,
+  // silently zeroing the count and disabling ghost-job detection.
+  daysBetween(today, today);
+
+  const entries = parseSeenPostings(dir);
+  let count = 0;
+
+  for (const entry of entries) {
+    if (!entry.date) continue;
+
+    let matches = false;
+    if (normTarget && entry.url && normalizeUrl(entry.url) === normTarget) {
+      matches = true;
+    }
+    if (
+      !matches &&
+      normCompany &&
+      normTitle &&
+      entry.company &&
+      entry.title &&
+      entry.company.toLowerCase().trim() === normCompany &&
+      entry.title.toLowerCase().trim() === normTitle
+    ) {
+      matches = true;
+    }
+    if (!matches) continue;
+
+    let ageDays: number;
+    try {
+      ageDays = daysBetween(entry.date, today);
+    } catch {
+      continue;
+    }
+    if (ageDays >= 0 && ageDays <= withinDays) count++;
+  }
+
+  return count;
 }
 
 export function dedupCheck(dir: string, { url, company, title }: DedupCheckInput = {}): DedupCheckResult {

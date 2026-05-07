@@ -1,7 +1,14 @@
-import { describe, it } from 'node:test';
+import { describe, it, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
+import * as fs from 'fs';
+import * as os from 'os';
 import * as path from 'path';
-import { parseSeenPostings, parseSeenPostingsFile, parseSeenPostingsContent } from '../scripts/lib/seen-postings';
+import {
+  parseSeenPostings,
+  parseSeenPostingsFile,
+  parseSeenPostingsContent,
+  countReposts,
+} from '../scripts/lib/seen-postings';
 
 const FIXTURES = path.join(__dirname, 'fixtures');
 
@@ -235,6 +242,181 @@ last_updated: 2026-04-09
     it('returns empty array when directory does not exist', () => {
       const entries = parseSeenPostings('/tmp/nonexistent-dir-12345');
       assert.deepEqual(entries, []);
+    });
+  });
+
+  describe('countReposts', () => {
+    let tmpDir: string;
+
+    beforeEach(() => {
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'reposts-test-'));
+    });
+
+    afterEach(() => {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    });
+
+    function writeSection(date: string, lines: string[]): void {
+      const fileName = `${date}-seen-postings.md`;
+      const body = `# Seen\n\n## ${date}\n${lines.join('\n')}\n`;
+      fs.writeFileSync(path.join(tmpDir, fileName), body);
+    }
+
+    it('returns 0 when no entries match', () => {
+      writeSection('2026-05-01', [
+        '- Acme | VP Eng | https://jobs.lever.co/acme/abc',
+      ]);
+      const n = countReposts(tmpDir, {
+        url: 'https://jobs.lever.co/other/xyz',
+        today: '2026-05-07',
+      });
+      assert.equal(n, 0);
+    });
+
+    it('counts URL matches across multiple files within window', () => {
+      writeSection('2026-04-10', [
+        '- Acme | VP Eng | https://jobs.lever.co/acme/abc',
+      ]);
+      writeSection('2026-04-25', [
+        '- Acme | VP Eng | https://jobs.lever.co/acme/abc',
+      ]);
+      writeSection('2026-05-01', [
+        '- Acme | VP Eng | https://jobs.lever.co/acme/abc',
+      ]);
+      const n = countReposts(tmpDir, {
+        url: 'https://jobs.lever.co/acme/abc',
+        today: '2026-05-07',
+        withinDays: 90,
+      });
+      assert.equal(n, 3);
+    });
+
+    it('excludes entries outside lookback window', () => {
+      writeSection('2025-12-01', [
+        '- Acme | VP Eng | https://jobs.lever.co/acme/abc',
+      ]);
+      writeSection('2026-05-01', [
+        '- Acme | VP Eng | https://jobs.lever.co/acme/abc',
+      ]);
+      const n = countReposts(tmpDir, {
+        url: 'https://jobs.lever.co/acme/abc',
+        today: '2026-05-07',
+        withinDays: 90,
+      });
+      assert.equal(n, 1);
+    });
+
+    it('matches by company+title when URLs differ (re-post with new URL)', () => {
+      writeSection('2026-03-01', [
+        '- Hooli | VP Engineering | https://jobs.lever.co/hooli/old-url',
+      ]);
+      writeSection('2026-04-15', [
+        '- Hooli | VP Engineering | https://jobs.lever.co/hooli/new-url',
+      ]);
+      const n = countReposts(tmpDir, {
+        url: 'https://jobs.lever.co/hooli/new-url',
+        company: 'Hooli',
+        title: 'VP Engineering',
+        today: '2026-05-07',
+        withinDays: 90,
+      });
+      assert.equal(n, 2);
+    });
+
+    it('does not double-count when URL and company+title both match the same entry', () => {
+      writeSection('2026-04-15', [
+        '- Hooli | VP Engineering | https://jobs.lever.co/hooli/new-url',
+      ]);
+      const n = countReposts(tmpDir, {
+        url: 'https://jobs.lever.co/hooli/new-url',
+        company: 'Hooli',
+        title: 'VP Engineering',
+        today: '2026-05-07',
+      });
+      assert.equal(n, 1);
+    });
+
+    it('normalizes URL (host case, trailing slash, www prefix)', () => {
+      writeSection('2026-04-15', [
+        '- Acme | VP Eng | https://www.jobs.lever.co/acme/abc/',
+      ]);
+      const n = countReposts(tmpDir, {
+        url: 'https://JOBS.lever.co/acme/abc',
+        today: '2026-05-07',
+      });
+      assert.equal(n, 1);
+    });
+
+    it('returns 0 when no identifying input is given', () => {
+      writeSection('2026-04-15', [
+        '- Acme | VP Eng | https://jobs.lever.co/acme/abc',
+      ]);
+      const n = countReposts(tmpDir, { today: '2026-05-07' });
+      assert.equal(n, 0);
+    });
+
+    it('throws on malformed today (do not silently zero)', () => {
+      writeSection('2026-04-15', [
+        '- Acme | VP Eng | https://jobs.lever.co/acme/abc',
+      ]);
+      assert.throws(
+        () =>
+          countReposts(tmpDir, {
+            url: 'https://jobs.lever.co/acme/abc',
+            today: 'not-a-date',
+          }),
+        /YYYY-MM-DD/,
+      );
+    });
+
+    it('lookback is inclusive at the boundary', () => {
+      writeSection('2026-04-08', [
+        '- Acme | VP Eng | https://jobs.lever.co/acme/abc',
+      ]);
+      const n = countReposts(tmpDir, {
+        url: 'https://jobs.lever.co/acme/abc',
+        today: '2026-05-07',
+        withinDays: 29,
+      });
+      assert.equal(n, 1);
+    });
+
+    it('withinDays=0 only counts entries dated today', () => {
+      writeSection('2026-05-07', [
+        '- Acme | VP Eng | https://jobs.lever.co/acme/abc',
+      ]);
+      writeSection('2026-05-06', [
+        '- Acme | VP Eng | https://jobs.lever.co/acme/abc',
+      ]);
+      const n = countReposts(tmpDir, {
+        url: 'https://jobs.lever.co/acme/abc',
+        today: '2026-05-07',
+        withinDays: 0,
+      });
+      assert.equal(n, 1);
+    });
+
+    it('returns 0 for nonexistent directory', () => {
+      const n = countReposts('/tmp/nonexistent-reposts-dir-12345', {
+        url: 'https://jobs.lever.co/acme/abc',
+        today: '2026-05-07',
+      });
+      assert.equal(n, 0);
+    });
+
+    it('respects custom withinDays', () => {
+      writeSection('2026-04-30', [
+        '- Acme | VP Eng | https://jobs.lever.co/acme/abc',
+      ]);
+      writeSection('2026-04-01', [
+        '- Acme | VP Eng | https://jobs.lever.co/acme/abc',
+      ]);
+      const n = countReposts(tmpDir, {
+        url: 'https://jobs.lever.co/acme/abc',
+        today: '2026-05-07',
+        withinDays: 14,
+      });
+      assert.equal(n, 1);
     });
   });
 });
