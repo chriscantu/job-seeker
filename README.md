@@ -6,22 +6,23 @@ resume, and configure it for their own search. Runs in Claude Code CLI.
 
 ## What It Does
 
-Twelve skills that cover the full arc of a senior engineering leadership job search:
+Thirteen skills that cover the full arc of a senior engineering leadership job search:
 
 | Skill | Status | What it does |
 | ----- | ------ | ------------ |
 | `setup` | Active | First-time configuration wizard and ongoing health check — run this first |
-| `daily-digest` | Active | Searches executive job boards (TheirStack API + web search fallback) and writes a deduplicated digest to `output/` (and Apple Notes if configured) |
-| `scan-email` | Active | Scans Apple Mail for job alert emails (Indeed, LinkedIn, Wellfound, etc.), extracts postings, and trashes processed alerts |
+| `daily-digest` | Active | Searches executive job boards (TheirStack API + web search fallback) and writes a deduplicated digest to `output/` (and Apple Notes if configured); includes ghost-job legitimacy check on surfaced postings |
+| `scan-email` | Active | Scans Apple Mail and Gmail for job alert emails (Indeed, LinkedIn, Wellfound, etc.), extracts postings, and auto-trashes processed alerts by sender |
 | `company-research` | Active | Deep-dive research on a target company from a job posting URL, producing a positioning-focused brief consumed by other skills |
-| `resume-tailor` | Active | Reorders and emphasizes resume bullets for a specific posting, exports to docx |
+| `evaluate` | Active | Scored fit analysis of a posting across 6 blocks (role/archetype, CV match, level strategy, comp, personalization, interview prep); appends STAR+R stories to `output/story-bank.md` |
+| `resume-tailor` | Active | ATS-template resume builder — parses canonical resume, selects matching accomplishments, composes/renders/enforces visuals, exports to docx with per-role hiring mandate |
 | `cover-letter` | Active | Produces a tailored cover letter that maps accomplishments to role requirements |
 | `why-this-company` | Active | Generates a "Why did you apply?" response for a specific company, grounded in real career history |
-| `interview-prep` | Active | Behavioral and technical interview prep with STAR story mapping, backed by Apple Calendar interview lookup |
+| `interview-prep` | Active | Behavioral and technical interview prep with STAR story mapping, backed by Apple Calendar interview lookup and the story bank |
 | `follow-up` | Active | Drafts follow-up emails for stale applications and creates Gmail drafts via `scripts/gmail.ts` |
 | `application-tracker` | Active | Pipeline management across all opportunities — add, update, and view stages with staleness alerts |
 | `linkedin-article` | Active | Drafts LinkedIn posts and articles in the candidate's voice, backed by data and voice-rule audits |
-| `networking-outreach` | Planned | Outreach messages for target companies and contacts |
+| `networking-outreach` | Active | Drafts personalized outreach messages for target companies, warm intros, and recruiter relationships |
 
 ## Prerequisites
 

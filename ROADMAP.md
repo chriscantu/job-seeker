@@ -1,7 +1,7 @@
 # job-seeker — Product Roadmap
 
 **Format**: Near-Term / Long-Term / Won't Do / Open Questions / Deferred
-**Last updated**: 2026-03-26
+**Last updated**: 2026-05-07
 **Owner**: Cantu
 
 For a full history of what has shipped, see [CHANGELOG.md](CHANGELOG.md).
@@ -49,7 +49,7 @@ matching the eisenhower pattern. Version history currently lives only in git log
 
 ---
 
-## Near-Term — v0.4 (In Progress)
+## Near-Term — v0.4 (Complete)
 
 ### 3. Activate Planned Skills
 
@@ -65,7 +65,8 @@ priority order:
 | `interview-prep` | **Shipped** | STAR story mapping + Apple Calendar adapter for interview lookup (PR #15/#54) |
 | `follow-up` | **Shipped** | Drafts stale-application follow-ups via `scripts/gmail.ts` — Gmail CLI replaces MCP for a single OAuth2 flow (PR #55) |
 | `linkedin-article` | **Shipped** | Drafts LinkedIn posts and articles in the candidate's voice with voice-rule audits |
-| `networking-outreach` | Planned | Lower priority until applications are flowing |
+| `networking-outreach` | **Shipped** | Drafts personalized outreach for target companies, warm intros, recruiter relationships |
+| `evaluate` | **Shipped** | Scored fit analysis across 6 blocks + STAR+R story bank (PR #73, v0.5.0) |
 
 Each skill requires a spec in `integrations/specs/` before implementation.
 
@@ -104,6 +105,76 @@ work — without touching CLAUDE.md or hardcoded profile strings.
 - CI: both validators run in `.github/workflows/ci.yml`
 
 **Spec**: `integrations/specs/candidate-agnostic-config-spec.md`
+
+---
+
+## Near-Term — v0.5 (Complete)
+
+### 6. `/evaluate` Skill *(Shipped)*
+
+**Status**: Shipped (PR #73, 2026-04-22)
+
+Scored fit analysis of a job posting against the candidate's background.
+Produces a 6-block evaluation: role summary + archetype detection, CV match,
+level strategy, comp research, personalization plan, interview prep.
+Output saved to `output/{company-slug}/evaluation.md`. STAR+R stories
+appended to `output/story-bank.md`.
+
+**Triggers**: "evaluate this role", "is this a good fit", "score this job".
+
+---
+
+## Near-Term — v0.6 (Complete)
+
+### 7. ATS Resume Template *(Shipped)*
+
+**Status**: Shipped (PRs #96, #97, #98, #117, #118)
+
+Replaced bullet-reordering resume tailor with a full ATS template pipeline:
+parse canonical resume, select matching accomplishments per posting, compose
+sections, render to docx, enforce plain-Calibri-11 visuals, and inject a
+per-role hiring mandate line.
+
+**Files**: `skills/resume-tailor/SKILL.md`, `scripts/resume_*.ts`,
+`references/resume-template.md`.
+
+### 8. Ghost-Job Legitimacy Check (MVP) *(Shipped)*
+
+**Status**: Shipped (PR #116, issue #68)
+
+`/daily-digest` now runs a legitimacy check on surfaced postings to flag
+likely ghost jobs (re-posted indefinitely, no real intent to hire). MVP
+heuristics; deeper signals are v2.
+
+### 9. TypeScript Migration *(Shipped)*
+
+**Status**: Shipped (issue #100, PRs #112/#113/#114/#115)
+
+`scripts/lib/*.ts` and 17 CLI entry points migrated from JS to TS. Bun is
+the runtime; `bunx tsc --noEmit` is the type-check gate. See
+`tsconfig.json`. CLAUDE.md updated to mandate TS for new code and forbid
+plain `node` invocation.
+
+### 10. State Layer + Pipeline Hardening *(Shipped)*
+
+**Status**: Shipped (PRs #99, #103/#108, #109, #110, #111)
+
+- Derived-state CLI subcommands (`scripts/state.ts`)
+- Stage-inference docs + `infer-stage` CLI
+- `daysBetween` leap-day + overflow fix
+- Dispatcher switch replaced with command table
+- UTC helper centralized
+
+### 11. Scan-Email Hardening *(Shipped)*
+
+**Status**: Shipped (PRs #86/#87, #89, #90/#91, #92, #93/#94, #95)
+
+- LinkedIn alerts trashed regardless of classifier outcome
+- Phase 6 Step 1 made deterministic via `auto_trash_inbox` CLI
+- Auto-trash hardened against silent-failure regressions
+- Gmail-side auto-trash-by-sender added
+- iCloud relay variant auto-derive + Gmail sender audit CLI
+- `gmail create-draft --to` made optional
 
 ---
 
@@ -225,7 +296,6 @@ job search, not on building general-purpose tooling.
 
 | Item | Description | Why Deferred |
 |------|-------------|--------------|
-| CHANGELOG.md | Version history lives only in git log. | Low priority while the plugin is single-user and actively evolving. |
 | README.md polish | User-facing README could be cleaner. | Low priority while the plugin is single-user and actively evolving. |
 
 ---
