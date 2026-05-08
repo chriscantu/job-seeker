@@ -128,10 +128,13 @@ function parseRoleBlock(block: string): Role {
   const lines = block.split('\n');
   const { title, company } = parseRoleHeading(lines[0]);
   const headerLines = headerRegionLines(lines);
-  const italicLines = headerLines.filter(isItalicLine);
-  const meta = stripItalic(italicLines[0] ?? '');
+  const metaIdx = headerLines.findIndex(isItalicLine);
+  if (metaIdx < 0) {
+    throw new Error(`role missing italic meta line: ${title} | ${company}`);
+  }
+  const meta = stripItalic(headerLines[metaIdx]);
   const role: Role = { title, company, meta, bullets: [] };
-  const mandate = italicLines[1] ? stripItalic(italicLines[1]) : '';
+  const mandate = parseMandate(headerLines, metaIdx);
   if (mandate) role.mandate = mandate;
 
   if (containsSubRoleLabels(lines)) {
@@ -140,6 +143,26 @@ function parseRoleBlock(block: string): Role {
     role.bullets = parseFlatBullets(lines);
   }
   return role;
+}
+
+// Mandate sits after the italic meta line. Current schema: plain text with a
+// markdown soft-break (`\`) at end of meta. Legacy schema: italic-wrapped
+// (`*Hired to ...*`). Accept either — strip a single wrapping asterisk pair
+// so canonical can flip without a coordinated migration. The `\\$` strip
+// also handles a trailing soft-break marker on the mandate line itself.
+//
+// Bold lines (`**Foo**`) are explicitly rejected: a stray bold paragraph
+// between meta and bullets is a schema violation, not a mandate. (The ATS
+// parser at scripts/generate_ats_resume_docx.ts has the same guard.)
+function parseMandate(headerLines: string[], metaIdx: number): string {
+  for (let i = metaIdx + 1; i < headerLines.length; i++) {
+    const stripped = headerLines[i].trim().replace(/\\$/, '');
+    if (!stripped) continue;
+    if (stripped.startsWith('**')) return '';
+    const italicWrapped = /^\*([^*].*[^*]|[^*])\*$/.test(stripped);
+    return italicWrapped ? stripped.slice(1, -1).trim() : stripped;
+  }
+  return '';
 }
 
 function parseRoleHeading(headingLine: string): { title: string; company: string } {

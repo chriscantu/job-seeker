@@ -179,13 +179,25 @@ export function parseResume(md: string): ParsedResume {
         job.meta = stripItalicLine(lines[i]);
         i++;
       }
-      // Optional second italic line = hiring mandate.
+      // Optional hiring mandate sits on the line directly under the meta
+      // (markdown soft-break `\` joins the two into one paragraph). Accept
+      // either plain text (current schema) or italic-wrapped (legacy schema)
+      // so canonical resumes can flip without a coordinated migration.
       let j = i;
       while (j < lines.length && !lines[j].trim()) j++;
-      if (j < lines.length && isItalicLine(lines[j])) {
-        const mandate = stripItalicLine(lines[j]);
-        if (mandate) job.mandate = mandate;
-        i = j + 1;
+      if (j < lines.length) {
+        const candidate = lines[j].trim().replace(/\\$/, "");
+        const looksItalic = isItalicLine(lines[j]);
+        const looksLikeBullet = candidate.startsWith("- ");
+        const looksLikeSubrole = /^As .+?:$/.test(candidate);
+        const looksLikeBold = candidate.startsWith("**");
+        if (candidate && !looksLikeBullet && !looksLikeSubrole && !looksLikeBold) {
+          const mandate = looksItalic
+            ? stripItalicLine(lines[j])
+            : clean(candidate);
+          if (mandate) job.mandate = mandate;
+          i = j + 1;
+        }
       }
       continue;
     }
@@ -346,7 +358,7 @@ function buildDoc(parsed: ParsedResume): Document {
 
     if (job.mandate) {
       children.push(new Paragraph({
-        children: [new TextRun({ text: job.mandate, italics: true, size: 19, font: FONT, color: GRAY })],
+        children: [new TextRun({ text: job.mandate, size: 22, font: FONT })],
         spacing: { after: 60 },
         keepNext: true,
       }));

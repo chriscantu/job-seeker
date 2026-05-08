@@ -136,7 +136,7 @@ function renderAccomplishment(a: KeyAccomplishment): string {
 
 function renderRole(role: Role): string {
   const metaBlock = role.mandate
-    ? `*${role.meta}*\\\n*${role.mandate}*\n`
+    ? `*${role.meta}*\\\n${role.mandate}\n`
     : `*${role.meta}*\n`;
   const heading = `### ${role.title} | ${role.company}\n\n${metaBlock}`;
   const body = role.subRoles?.length
