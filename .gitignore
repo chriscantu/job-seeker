@@ -25,9 +25,10 @@ job-search-system.md
 # Dependencies
 node_modules/
 
-# Claude Code local session data — track only commands/
+# Claude Code local session data — track only commands/ and agents/
 .claude/*
 !.claude/commands/
+!.claude/agents/
 
 # Build/coverage artifacts
 default.profraw
