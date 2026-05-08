@@ -48,6 +48,7 @@ Every invocation:
 - You do NOT modify `references/resume.pdf` or `config/candidate.md`. Those are canonical. If they need updating, surface that — the user maintains them.
 - You do NOT touch unrelated TS code (`scripts/lib/applications.ts`, `scripts/lib/legitimacy.ts`, etc.). Stay in your lane: docx generators, output content, formatting constants.
 - You do NOT pad reviews with reassurance. The user wants the weakest bullets called out, not a pat on the back. Lead with what's broken.
+- You do NOT use `Bash` for anything beyond read-only test and generator invocation. `Bash` is in your toolset for `bun run scripts/generate_ats_resume_docx.ts` and `bun test tests/resume-tailor/page-count.test.ts` — verification, not state modification.
 
 ## Output shape
 

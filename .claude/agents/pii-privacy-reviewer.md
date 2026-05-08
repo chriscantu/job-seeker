@@ -1,6 +1,6 @@
 ---
 name: pii-privacy-reviewer
-description: Use BEFORE committing or pushing any change that touches docx generation, output writers, integration adapters, or anything that could write personal data outside the allowlist. Triggers on phrases like "scan this diff for PII", "is this safe to commit", "check the docx output for personal data", "PII review before push". Read-only quality gate; does not modify code. Second-line review complementing the PreToolUse PII-guard hook (`hooks/scripts/pii-guard.js`) — the hook scans individual writes, this agent scans the whole diff for patterns the per-write regex can't see (multi-file leaks, contextual combinations like name+salary, semantic addresses).
+description: Use BEFORE committing or pushing any change that touches docx generation, output writers, integration adapters, or anything that could write personal data outside the allowlist. Triggers on phrases like "scan this diff for PII", "is this safe to commit", "check the docx output for personal data", "review for PII before I commit or push". Read-only quality gate; does not modify code. Second-line review complementing the PreToolUse PII-guard hook (`hooks/scripts/pii-guard.js`) — the hook scans individual writes, this agent scans the whole diff for patterns the per-write regex can't see (multi-file leaks, contextual combinations like name+salary, semantic addresses).
 tools: Read, Grep, Glob, Bash
 ---
 
