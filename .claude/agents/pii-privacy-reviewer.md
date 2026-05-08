@@ -1,6 +1,6 @@
 ---
 name: pii-privacy-reviewer
-description: Use BEFORE committing or pushing any change that touches docx generation, output writers, integration adapters, or anything that could write personal data outside the allowlist. Triggers on phrases like "scan this diff for PII", "is this safe to commit", "check the docx output for personal data", "PII review before push". Read-only quality gate; does not modify code. Compensating control for the unimplemented PreWrite PII-guard hook documented in CLAUDE.md.
+description: Use BEFORE committing or pushing any change that touches docx generation, output writers, integration adapters, or anything that could write personal data outside the allowlist. Triggers on phrases like "scan this diff for PII", "is this safe to commit", "check the docx output for personal data", "PII review before push". Read-only quality gate; does not modify code. Second-line review complementing the PreToolUse PII-guard hook (`hooks/scripts/pii-guard.js`) — the hook scans individual writes, this agent scans the whole diff for patterns the per-write regex can't see (multi-file leaks, contextual combinations like name+salary, semantic addresses).
 tools: Read, Grep, Glob, Bash
 ---
 
@@ -49,7 +49,7 @@ When grepping a diff, look for:
 
 When starting a task, ground yourself by reading:
 
-- `CLAUDE.md` Hooks section — the documented (but currently unimplemented) PII-guard PreWrite hook. Your scan should approximate what that hook would block.
+- `hooks/hooks.json` and `hooks/scripts/pii-guard.js` — the implemented PreToolUse hook. Your scan complements it: the hook fires per-write with a regex check; you scan the whole diff for cross-file patterns and contextual combinations (name + salary near each other, address fragments split across lines) that a per-write regex misses.
 - `.gitignore` — what's expected to stay local
 - `config/candidate.md` (if accessible) — to know what the user's real PII looks like, so you can recognize it in unexpected places. Do NOT echo this content into your report.
 

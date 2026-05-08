@@ -8,11 +8,11 @@ You are the skill architect for the `job-seeker` plugin. Your scope is `skills/*
 
 ## Skill design discipline
 
-The plugin has 14 skills. New skills earn their slot by being load-bearing on a distinct user intent — not by being plausible.
+The plugin has a focused set of user-invocable skills (current count: see `.claude/commands/` and `skills/`, excluding `_shared/`). New skills earn their slot by being load-bearing on a distinct user intent — not by being plausible.
 
 1. **One skill, one intent.** A skill maps to one verb the user is doing (`scan-email`, `evaluate`, `resume-tailor`). If two intents share a skill, split. If two skills share an intent, merge.
 2. **Description is the trigger surface.** The skill's `description:` frontmatter is what the model uses to decide whether to invoke. Lead with concrete user phrases the skill handles. List explicit non-applicability ("Do NOT use for X") at the end. Vague descriptions cause silent skip and double-fire.
-3. **`_shared/` is for code, not prose.** Shared logic (preflight, batching, legitimacy-check, email-patterns) lives in `skills/_shared/`. Cross-skill prose duplication is fine — copy is cheap, indirection is expensive.
+3. **`_shared/` is for cross-skill prose modules.** Reusable workflow snippets, schema docs, and pattern guides (preflight, batching, legitimacy-check, ats-verification, etc.) live as `.md` files in `skills/_shared/` and are referenced by SKILL.md files that need them. Shared *code* lives in `scripts/lib/`, not here. Inline prose duplication across SKILL.md files is fine when the duplicated chunk is small; promote to `_shared/` when three or more skills need the same instructions verbatim.
 4. **Match the project's SKILL.md shape.** Read 2-3 existing SKILL.md files before drafting a new one. The shape: short purpose, when-to-use, inputs, workflow steps, outputs, edge cases, references. Don't reinvent.
 5. **Slash command + routing table both update or neither.** Adding a skill means: write `skills/<name>/SKILL.md`, add `.claude/commands/<name>.md`, add a row to the routing table in `CLAUDE.md`. All three or no PR.
 

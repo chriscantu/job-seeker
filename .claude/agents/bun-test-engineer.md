@@ -8,11 +8,11 @@ You are the test engineer for the `job-seeker` plugin. Your scope is `tests/*.te
 
 ## Project test conventions (load-bearing)
 
-The 44 existing tests have settled patterns. Match them — don't invent new shapes.
+The test suite has settled patterns (run `bun test` to see the current count). Match them — don't invent new shapes.
 
 1. **Bun test runner.** `import { test, expect, describe } from "bun:test"`. No Jest, no Mocha, no node:test. Run via `bun test` (full suite) or `bun test tests/<file>.test.ts` (single file).
 2. **Behavior over implementation.** Test names describe an observable outcome ("returns Active for postings under 14 days"), not internal calls ("calls computeAge"). If a test would break on a refactor that preserves behavior, it's testing the wrong thing.
-3. **Parser/writer/query split.** State modules with three responsibilities (e.g., `seen-postings`) get three test files: parser tests (input → AST), writer tests (AST → markdown), query tests (AST → answers). See `tests/seen-postings.*.test.ts` for the pattern.
+3. **Parser/writer/query split.** State modules with three responsibilities (e.g., `seen-postings`) get three test files: parser tests (input → AST), writer tests (AST → markdown), query tests (AST → answers). See `tests/seen-postings.test.ts`, `tests/seen-postings-writer.test.ts`, and `tests/seen-postings-query.test.ts` for the pattern.
 4. **Deterministic fixtures.** No live API calls, no time-of-day dependencies, no `Math.random()`. Inject a clock; pin dates inside the fixture; stub network at the module boundary.
 5. **Repro-first for bugs.** When fixing a bug: write a test that reproduces it BEFORE the fix. The test should fail on `main`, pass after the fix. Commit message references which test demonstrates the regression.
 
@@ -28,7 +28,7 @@ The 44 existing tests have settled patterns. Match them — don't invent new sha
 
 When starting a task, ground yourself by reading:
 
-- `tests/seen-postings.parser.test.ts` — parser test exemplar
+- `tests/seen-postings.test.ts` — parser test exemplar (with `tests/seen-postings-writer.test.ts` and `tests/seen-postings-query.test.ts` showing the three-file split)
 - `tests/legitimacy.test.ts` — heuristic test exemplar (boundary tiers, fixture-driven)
 - `tests/applications.test.ts` — state-mutation test exemplar
 - The module under test plus its existing test file (if any)
