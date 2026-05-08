@@ -17,14 +17,17 @@ describe('composeTailoredResumeMarkdown', () => {
     expect(reparsed.roles).toHaveLength(ast.roles.length);
   });
 
-  test('emits mandate as second italic line joined by markdown line-break', () => {
+  test('emits mandate as plain line under italic meta joined by markdown line-break', () => {
     const ast = parseCanonicalResume(md);
     const out = composeTailoredResumeMarkdown(ast, {
       company: 'X', role: 'Y', posting_url: '', generated: '2026-05-01',
     });
     const procoreMandate = ast.roles[0].mandate!;
     expect(procoreMandate).toBeTruthy();
-    expect(out).toContain(`*${ast.roles[0].meta}*\\\n*${procoreMandate}*`);
+    expect(out).toContain(`*${ast.roles[0].meta}*\\\n${procoreMandate}\n`);
+    // Mandate must not be italic-wrapped: the template's body style applies
+    // Calibri 11 normal, gated by the run having no inline `*...*` markers.
+    expect(out).not.toContain(`\\\n*${procoreMandate}*`);
   });
 
   test('omits mandate emission entirely when role.mandate is undefined', () => {

@@ -37,7 +37,22 @@ function build(roleBlock: string): string {
 }
 
 describe('parseResume (ATS docx generator)', () => {
-  test('captures meta and mandate when both italic lines present (line-break form)', () => {
+  test('captures meta + plain mandate joined by soft line-break (current schema)', () => {
+    const md = build([
+      '### Title | Company',
+      '',
+      '*Loc | dates | scope*\\',
+      'Hired to do the thing.',
+      '',
+      '- bullet one.',
+      '',
+    ].join('\n'));
+    const parsed = parseResume(md);
+    expect(parsed.experience[0].meta).toBe('Loc | dates | scope');
+    expect(parsed.experience[0].mandate).toBe('Hired to do the thing.');
+  });
+
+  test('captures legacy italic-wrapped mandate (back-compat with PR #117)', () => {
     const md = build([
       '### Title | Company',
       '',
@@ -52,13 +67,13 @@ describe('parseResume (ATS docx generator)', () => {
     expect(parsed.experience[0].mandate).toBe('Hired to do the thing.');
   });
 
-  test('captures meta and mandate when separated by a blank line', () => {
+  test('captures mandate when separated by a blank line (plain or italic)', () => {
     const md = build([
       '### Title | Company',
       '',
       '*Loc | dates | scope*',
       '',
-      '*Hired to do the thing.*',
+      'Hired to do the thing.',
       '',
       '- bullet one.',
       '',
@@ -68,7 +83,7 @@ describe('parseResume (ATS docx generator)', () => {
     expect(parsed.experience[0].mandate).toBe('Hired to do the thing.');
   });
 
-  test('mandate undefined when only one italic line present', () => {
+  test('mandate undefined when no follow-on line present under meta', () => {
     const md = build([
       '### Title | Company',
       '',
@@ -102,7 +117,7 @@ describe('parseResume (ATS docx generator)', () => {
       '### Title | Company',
       '',
       '*Loc | dates | scope*\\',
-      '*Hired mandate.*',
+      'Hired mandate.',
       '',
       '- bullet one.',
       '- bullet two.',

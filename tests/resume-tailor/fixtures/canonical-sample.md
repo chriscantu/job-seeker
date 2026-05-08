@@ -34,7 +34,7 @@ Delivery Transformation | Multinational Team Leadership | Engineering Strategy |
 ### Director of Engineering | Procore Technologies
 
 *Austin, TX (Hybrid) | September 2023 – April 2026 | 60 engineers, 8 international teams*\
-*Hired to lead Procore's $50M+ web experience vision across 100+ global teams and unblock global expansion.*
+Hired to lead Procore's $50M+ web experience vision across 100+ global teams and unblock global expansion.
 
 - Led $50M+ frontend modernization across 125+ repos and 65+ global teams, unlocking $12M+ in revenue across all markets by enabling faster delivery and unblocking strategic customer features.
 - Cut localization deployment from 6-9 months to minutes, enabling multiple new international markets in 2026.
@@ -45,7 +45,7 @@ Delivery Transformation | Multinational Team Leadership | Engineering Strategy |
 ### Director of Front-End Platforms | Babylon Health
 
 *Austin, TX (Remote) | September 2021 – August 2023 | 30 engineers, 5 platform teams*\
-*Hired to streamline delivery via automation, achieving best-in-industry releases across regulated European and domestic markets.*
+Hired to streamline delivery via automation, achieving best-in-industry releases across regulated European and domestic markets.
 
 - Led platform organizations across US and Europe to fully automate testing and mobile delivery for 20 product teams and deploy weekly mobile releases — best in industry.
 - Transformed CI/CD from 1% to 95% success rate by redesigning testing strategy, enabling product releases to be delivered consistently and with confidence.
@@ -54,7 +54,7 @@ Delivery Transformation | Multinational Team Leadership | Engineering Strategy |
 ### Senior Software Engineering Manager / Director of Engineering | Vrbo (Expedia Group)
 
 *Austin, TX | November 2016 – February 2021*\
-*Hired to lead monolith-to-microservices migration, generating $8M in additional annual revenue.*
+Hired to lead monolith-to-microservices migration, generating $8M in additional annual revenue.
 
 As Director of Engineering (July 2020 – February 2021):
 

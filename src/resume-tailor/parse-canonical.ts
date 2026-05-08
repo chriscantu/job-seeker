@@ -128,10 +128,10 @@ function parseRoleBlock(block: string): Role {
   const lines = block.split('\n');
   const { title, company } = parseRoleHeading(lines[0]);
   const headerLines = headerRegionLines(lines);
-  const italicLines = headerLines.filter(isItalicLine);
-  const meta = stripItalic(italicLines[0] ?? '');
+  const metaIdx = headerLines.findIndex(isItalicLine);
+  const meta = metaIdx >= 0 ? stripItalic(headerLines[metaIdx]) : '';
   const role: Role = { title, company, meta, bullets: [] };
-  const mandate = italicLines[1] ? stripItalic(italicLines[1]) : '';
+  const mandate = parseMandate(headerLines, metaIdx);
   if (mandate) role.mandate = mandate;
 
   if (containsSubRoleLabels(lines)) {
@@ -140,6 +140,21 @@ function parseRoleBlock(block: string): Role {
     role.bullets = parseFlatBullets(lines);
   }
   return role;
+}
+
+// Mandate sits after the italic meta line. New schema: plain text with a
+// markdown soft-break (`\`) at end of meta. Legacy schema (PR #117): also
+// italic-wrapped (`*Hired to ...*`). Accept both shapes — strip wrapping
+// asterisks if present so the canonical resume can move plain without a
+// flag-day. The `\\$` strip handles trailing soft-break markers too.
+function parseMandate(headerLines: string[], metaIdx: number): string {
+  if (metaIdx < 0) return '';
+  for (let i = metaIdx + 1; i < headerLines.length; i++) {
+    const stripped = headerLines[i].trim().replace(/\\$/, '');
+    if (!stripped) continue;
+    return stripped.replace(/^\*+|\*+$/g, '').trim();
+  }
+  return '';
 }
 
 function parseRoleHeading(headingLine: string): { title: string; company: string } {

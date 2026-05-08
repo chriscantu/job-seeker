@@ -46,14 +46,14 @@ describe('parseCanonicalResume', () => {
     expect(ast.roles[2].company).toContain('Vrbo');
   });
 
-  test('parses hiring mandate when second italic line present', () => {
+  test('parses hiring mandate from line under italic meta', () => {
     const ast = parseCanonicalResume(fixture);
     expect(ast.roles[0].mandate).toContain("Hired to lead Procore's $50M+ web experience");
     expect(ast.roles[1].mandate).toContain('Hired to streamline delivery');
     expect(ast.roles[2].mandate).toContain('Hired to lead monolith-to-microservices migration');
   });
 
-  test('mandate is undefined when only one italic line present', () => {
+  test('mandate is undefined when no follow-on line under meta', () => {
     const minimal = [
       '---',
       'template_version: 1',
@@ -101,7 +101,7 @@ describe('parseCanonicalResume', () => {
     expect(ast.roles[0].meta).toContain('Loc');
   });
 
-  test('does not hoist italic lines from sub-role bodies into role.mandate', () => {
+  test('does not hoist non-meta lines from sub-role bodies into role.mandate', () => {
     const md = [
       '---',
       'template_version: 1',
