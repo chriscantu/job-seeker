@@ -52,7 +52,7 @@ describe('parseResume (ATS docx generator)', () => {
     expect(parsed.experience[0].mandate).toBe('Hired to do the thing.');
   });
 
-  test('captures legacy italic-wrapped mandate (back-compat with PR #117)', () => {
+  test('captures legacy italic-wrapped mandate (back-compat)', () => {
     const md = build([
       '### Title | Company',
       '',

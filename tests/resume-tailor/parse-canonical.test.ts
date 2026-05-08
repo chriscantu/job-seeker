@@ -153,6 +153,100 @@ describe('parseCanonicalResume', () => {
     expect(ast.roles[0].meta).toBe('Loc | dates');
   });
 
+  test('does not consume a bold line as mandate', () => {
+    const md = [
+      '---',
+      'template_version: 1',
+      'canonical_version: 2026-05-03',
+      '---',
+      '',
+      '# Test',
+      '',
+      '**Tag**',
+      '',
+      'a@b.com',
+      '',
+      'summary',
+      '',
+      '## Key Accomplishments',
+      '',
+      '- **A** — desc.',
+      '- **B** — desc.',
+      '- **C** — desc.',
+      '- **D** — desc.',
+      '- **E** — desc.',
+      '- **F** — desc.',
+      '',
+      '## Skills',
+      '',
+      'X | Y | Z',
+      '',
+      '## Professional Experience',
+      '',
+      '### Title | Company',
+      '',
+      '*Loc | dates | scope*',
+      '',
+      '**Note: not a mandate.**',
+      '',
+      '- bullet one.',
+      '',
+      '## Education',
+      '',
+      '**Degree**',
+      '',
+      'School',
+      '',
+    ].join('\n');
+    const ast = parseCanonicalResume(md);
+    expect(ast.roles[0].mandate).toBeUndefined();
+    expect(ast.roles[0].meta).toBe('Loc | dates | scope');
+  });
+
+  test('throws when a role is missing its italic meta line', () => {
+    const md = [
+      '---',
+      'template_version: 1',
+      'canonical_version: 2026-05-03',
+      '---',
+      '',
+      '# Test',
+      '',
+      '**Tag**',
+      '',
+      'a@b.com',
+      '',
+      'summary',
+      '',
+      '## Key Accomplishments',
+      '',
+      '- **A** — desc.',
+      '- **B** — desc.',
+      '- **C** — desc.',
+      '- **D** — desc.',
+      '- **E** — desc.',
+      '- **F** — desc.',
+      '',
+      '## Skills',
+      '',
+      'X | Y | Z',
+      '',
+      '## Professional Experience',
+      '',
+      '### Title | Company',
+      '',
+      '- bullet one.',
+      '',
+      '## Education',
+      '',
+      '**Degree**',
+      '',
+      'School',
+      '',
+    ].join('\n');
+    expect(() => parseCanonicalResume(md)).toThrow(/missing italic meta/);
+  });
+
   test('parses sub-roles for Vrbo', () => {
     const ast = parseCanonicalResume(fixture);
     const vrbo = ast.roles[2];

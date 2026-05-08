@@ -89,7 +89,7 @@ School
 - Each bullet is one sentence ending in `.`. CAR is implicit by ordering.
 - Skills line: single line, ` | `-delimited, max 10.
 - Key Accomplishments: `- **<Label>** — <single sentence>.` (no pipe-delimited Impact field).
-- Mandate line (plain text, Calibri 11 normal, one sentence) is preserved verbatim from `references/resume.md`. Not scored, not droppable, not rewritten. Sits directly under the role's location/dates italic, joined by a markdown soft-break (`\`) so meta + mandate render as one paragraph (italic meta on line 1, plain mandate on line 2 — no extra paragraph spacing). **Preconditions:** mandate is the line directly under the italic meta. Mandate is single-line; multi-line mandates would break the 2-page budget rationale. Mandate sits at the role level, not the sub-role level (e.g. one mandate for Vrbo, not one per sub-role). Parsers accept either plain or italic-wrapped mandate (back-compat with PR #117), but composers always emit plain.
+- Mandate line (plain text, Calibri 11 normal, one sentence) is preserved verbatim from `references/resume.md`. Not scored, not droppable, not rewritten. Sits directly under the role's location/dates italic, joined by a markdown soft-break (`\`) so meta + mandate render as one paragraph (italic meta on line 1, plain mandate on line 2 — no extra paragraph spacing). **Preconditions:** mandate is the line directly under the italic meta. Mandate is single-line; multi-line mandates would break the 2-page budget rationale. Mandate sits at the role level, not the sub-role level (e.g. one mandate for Vrbo, not one per sub-role). Parsers accept either plain or italic-wrapped mandate (back-compat with the legacy italic schema), but composers always emit plain.
 
 ## Phase 6: Render and Enforce
 

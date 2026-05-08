@@ -181,8 +181,8 @@ export function parseResume(md: string): ParsedResume {
       }
       // Optional hiring mandate sits on the line directly under the meta
       // (markdown soft-break `\` joins the two into one paragraph). Accept
-      // either plain text (current schema) or italic-wrapped (PR #117 legacy)
-      // so canonical resumes can flip without a flag-day.
+      // either plain text (current schema) or italic-wrapped (legacy schema)
+      // so canonical resumes can flip without a coordinated migration.
       let j = i;
       while (j < lines.length && !lines[j].trim()) j++;
       if (j < lines.length) {

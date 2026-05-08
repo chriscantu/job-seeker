@@ -129,7 +129,10 @@ function parseRoleBlock(block: string): Role {
   const { title, company } = parseRoleHeading(lines[0]);
   const headerLines = headerRegionLines(lines);
   const metaIdx = headerLines.findIndex(isItalicLine);
-  const meta = metaIdx >= 0 ? stripItalic(headerLines[metaIdx]) : '';
+  if (metaIdx < 0) {
+    throw new Error(`role missing italic meta line: ${title} | ${company}`);
+  }
+  const meta = stripItalic(headerLines[metaIdx]);
   const role: Role = { title, company, meta, bullets: [] };
   const mandate = parseMandate(headerLines, metaIdx);
   if (mandate) role.mandate = mandate;
@@ -142,17 +145,22 @@ function parseRoleBlock(block: string): Role {
   return role;
 }
 
-// Mandate sits after the italic meta line. New schema: plain text with a
-// markdown soft-break (`\`) at end of meta. Legacy schema (PR #117): also
-// italic-wrapped (`*Hired to ...*`). Accept both shapes — strip wrapping
-// asterisks if present so the canonical resume can move plain without a
-// flag-day. The `\\$` strip handles trailing soft-break markers too.
+// Mandate sits after the italic meta line. Current schema: plain text with a
+// markdown soft-break (`\`) at end of meta. Legacy schema: italic-wrapped
+// (`*Hired to ...*`). Accept either — strip a single wrapping asterisk pair
+// so canonical can flip without a coordinated migration. The `\\$` strip
+// also handles a trailing soft-break marker on the mandate line itself.
+//
+// Bold lines (`**Foo**`) are explicitly rejected: a stray bold paragraph
+// between meta and bullets is a schema violation, not a mandate. (The ATS
+// parser at scripts/generate_ats_resume_docx.ts has the same guard.)
 function parseMandate(headerLines: string[], metaIdx: number): string {
-  if (metaIdx < 0) return '';
   for (let i = metaIdx + 1; i < headerLines.length; i++) {
     const stripped = headerLines[i].trim().replace(/\\$/, '');
     if (!stripped) continue;
-    return stripped.replace(/^\*+|\*+$/g, '').trim();
+    if (stripped.startsWith('**')) return '';
+    const italicWrapped = /^\*([^*].*[^*]|[^*])\*$/.test(stripped);
+    return italicWrapped ? stripped.slice(1, -1).trim() : stripped;
   }
   return '';
 }

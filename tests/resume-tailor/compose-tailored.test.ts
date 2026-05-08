@@ -25,8 +25,7 @@ describe('composeTailoredResumeMarkdown', () => {
     const procoreMandate = ast.roles[0].mandate!;
     expect(procoreMandate).toBeTruthy();
     expect(out).toContain(`*${ast.roles[0].meta}*\\\n${procoreMandate}\n`);
-    // Mandate must not be italic-wrapped: the template's body style applies
-    // Calibri 11 normal, gated by the run having no inline `*...*` markers.
+    // Guard against italic regression: mandate must not be wrapped in `*...*`.
     expect(out).not.toContain(`\\\n*${procoreMandate}*`);
   });
 
