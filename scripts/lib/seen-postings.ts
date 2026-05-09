@@ -1,9 +1,8 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { resolveStateFile, atomicWriteFileSync, ensureDir, getTodayUtc } from './util';
+import { resolveStateFile, atomicWriteFileSync, ensureDir, getTodayUtc, daysBetween } from './util';
 import { parseFrontmatter, serializeFrontmatter } from './frontmatter';
 import { validateSeenPostingsEntry } from './validators';
-import { daysBetween } from './applications';
 
 const URL_RE = /https?:\/\/[^\s|[\]]+/;
 const DATE_RE = /\d{4}-\d{2}-\d{2}/;

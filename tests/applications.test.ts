@@ -17,13 +17,12 @@ import {
   reopenApplication,
   flagForReview,
   markStatusChanged,
-  daysBetween,
   staleApplications,
 } from '../scripts/lib/applications';
 import type { MarkStatusChangedInput, CloseApplicationInput } from '../scripts/lib/applications';
 import type { ProjectedMatch } from '../scripts/lib/status-classifier';
 import { parseFrontmatter } from '../scripts/lib/frontmatter';
-import { resolveStateFile } from '../scripts/lib/util';
+import { resolveStateFile, daysBetween } from '../scripts/lib/util';
 
 const FIXTURES = path.join(__dirname, 'fixtures');
 const FIXTURE_PATH = path.join(FIXTURES, 'applications.md');
