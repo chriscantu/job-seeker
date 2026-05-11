@@ -1,4 +1,4 @@
-import { daysBetween } from './applications';
+import { daysBetween } from './util';
 
 export const ACTIVE_AGE_MAX_DAYS = 60;
 export const VERIFY_AGE_MAX_DAYS = 120;

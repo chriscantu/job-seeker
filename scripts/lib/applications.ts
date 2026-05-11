@@ -1,39 +1,9 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { resolveStateFile, atomicWriteFileSync, ensureDir, getTodayUtc } from './util';
+import { resolveStateFile, atomicWriteFileSync, ensureDir, getTodayUtc, daysBetween } from './util';
 import { validateApplicationEntry, VALID_STAGES } from './validators';
 import { parseFrontmatter, serializeFrontmatter } from './frontmatter';
 import type { ProjectedMatch } from './status-classifier';
-
-const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-
-function assertDate(label: string, value: string): void {
-  if (!DATE_RE.test(value)) {
-    throw new Error(`daysBetween: ${label} must be YYYY-MM-DD, got ${value}`);
-  }
-  const y = +value.slice(0, 4);
-  const m = +value.slice(5, 7);
-  const day = +value.slice(8, 10);
-  const d = new Date(Date.UTC(y, m - 1, day));
-  if (d.toISOString().slice(0, 10) !== value) {
-    throw new Error(`daysBetween: ${label} must be YYYY-MM-DD, got ${value}`);
-  }
-}
-
-/**
- * Returns the signed integer count of calendar days from `fromDate` to
- * `toDate`, both YYYY-MM-DD strings interpreted as UTC midnights. Result
- * is positive when `toDate` is later, zero when equal, negative when
- * earlier. Throws if either input is not a YYYY-MM-DD string.
- */
-export function daysBetween(fromDate: string, toDate: string): number {
-  assertDate('fromDate', fromDate);
-  assertDate('toDate', toDate);
-  const MS_PER_DAY = 86_400_000;
-  const from = Date.UTC(+fromDate.slice(0, 4), +fromDate.slice(5, 7) - 1, +fromDate.slice(8, 10));
-  const to = Date.UTC(+toDate.slice(0, 4), +toDate.slice(5, 7) - 1, +toDate.slice(8, 10));
-  return Math.round((to - from) / MS_PER_DAY);
-}
 
 const HEADING_RE = /^### (.+?) — (.+)$/;
 const KEY_VALUE_RE = /^- \*\*(.+?)\*\*:\s*(.*)$/;
@@ -418,6 +388,91 @@ export function formatApplicationsFile({ active, closed, flagged }: { active: Ap
   return serializeFrontmatter(meta, body);
 }
 
+/**
+ * Single source of truth for the applications-file read-modify-write
+ * sequence: resolve canonical file, parse, hand `data` to a mutator, then
+ * atomically write the formatted result. Concentrates path resolution,
+ * error-on-missing semantics, and atomic-write ordering — bug fixes here
+ * fix every mutator at once.
+ *
+ * @param dir - Output directory containing the dated applications.md file.
+ * @param mutator - Receives the parsed `data` and mutates it in place. Its
+ *   return value is passed to `shouldWrite` and returned from the HOF.
+ * @param options.initIfMissing - When set, the file is created with this
+ *   filename if no applications.md exists in `dir`. Without it, missing-file
+ *   throws.
+ * @param options.shouldWrite - Predicate run on the mutator's return value
+ *   to decide whether to commit. Default: always write. Skip-returning
+ *   mutators wire skip semantics through here instead of branching IO.
+ *
+ * @throws Error with `No applications file found in ${dir}` when the
+ *   directory has no applications.md and `initIfMissing` is not set.
+ *
+ * @remarks Mutators must complete pre-mutation skip checks BEFORE touching
+ * `data`. Once `data` is mutated, the write happens regardless of
+ * `shouldWrite` returning false — the predicate gates the write, not the
+ * mutation.
+ */
+function withApplicationsFile<T>(
+  dir: string,
+  mutator: (data: ApplicationsData) => T,
+  options: {
+    initIfMissing?: () => string;
+    shouldWrite?: (result: T) => boolean;
+  } = {}
+): T {
+  const existing = resolveStateFile(dir, 'applications');
+  let filePath: string;
+  let data: ApplicationsData;
+  if (existing) {
+    filePath = existing;
+    data = parseApplicationsFile(filePath);
+  } else if (options.initIfMissing) {
+    ensureDir(dir);
+    filePath = path.join(dir, options.initIfMissing());
+    data = { active: [], closed: [], flagged: [] };
+  } else {
+    throw new Error(`No applications file found in ${dir}`);
+  }
+  const result = mutator(data);
+  const shouldWrite = options.shouldWrite ? options.shouldWrite(result) : true;
+  if (shouldWrite) {
+    atomicWriteFileSync(filePath, formatApplicationsFile(data));
+  }
+  return result;
+}
+
+/**
+ * Pure data mutation extracted from `flagForReview` so `markStatusChanged`
+ * can compose flagging into its own `withApplicationsFile` transaction
+ * without triggering a nested file write that the outer transaction would
+ * clobber.
+ *
+ * @param data - The in-flight ApplicationsData; flagged array is mutated
+ *   in place on the commit path.
+ * @param opts - Flag payload. Caller is responsible for validating
+ *   `opts.company || opts.msgId` is set before invoking.
+ * @returns `{ skipped: true, reason: 'msg-id already processed' }` when
+ *   `opts.msgId` is already present in `data` (no mutation in this
+ *   case — the skip check runs before any data write).
+ */
+function pushFlagged(data: ApplicationsData, opts: FlagForReviewInput): OperationResult {
+  if (opts.msgId && hasMsgId(data, opts.msgId)) return { skipped: true, reason: 'msg-id already processed' };
+  data.flagged = data.flagged || [];
+  data.flagged.push({
+    company: opts.company || 'Unknown',
+    title: opts.title || 'Unknown role',
+    detectedAt: opts.detectedAt || getTodayUtc(),
+    signal: opts.signal || null,
+    status: opts.status || null,
+    sender: opts.sender || null,
+    matchMethod: opts.matchMethod || 'none',
+    msgId: opts.msgId || null,
+    action: opts.action || null,
+  });
+  return { skipped: false };
+}
+
 export interface CreateApplicationInput {
   company: string;
   title: string;
@@ -434,8 +489,6 @@ export function createApplication(dir: string, entry: CreateApplicationInput): v
   if (!validation.valid) {
     throw new Error(`Invalid application entry: ${validation.errors.join(', ')}`);
   }
-
-  ensureDir(dir);
 
   const today = getTodayUtc();
   const applied = entry.applied || today;
@@ -454,24 +507,20 @@ export function createApplication(dir: string, entry: CreateApplicationInput): v
     history: [{ date: applied, stage: entry.stage, detail: 'Added to pipeline' }],
   };
 
-  const existing = resolveStateFile(dir, 'applications');
-
-  if (existing) {
-    const data = parseApplicationsFile(existing);
-    const dupe = [...data.active, ...data.closed].find(
-      e => e.company?.toLowerCase() === entry.company.toLowerCase()
-        && e.title?.toLowerCase() === entry.title.toLowerCase()
-    );
-    if (dupe) {
-      throw new Error(`Application already exists: ${dupe.company} — ${dupe.title}`);
-    }
-    data.active.push(newEntry);
-    atomicWriteFileSync(existing, formatApplicationsFile(data));
-  } else {
-    const fileName = `${today}-applications.md`;
-    const data: ApplicationsData = { active: [newEntry], closed: [], flagged: [] };
-    atomicWriteFileSync(path.join(dir, fileName), formatApplicationsFile(data));
-  }
+  withApplicationsFile<void>(
+    dir,
+    data => {
+      const dupe = [...data.active, ...data.closed].find(
+        e => e.company?.toLowerCase() === entry.company.toLowerCase()
+          && e.title?.toLowerCase() === entry.title.toLowerCase()
+      );
+      if (dupe) {
+        throw new Error(`Application already exists: ${dupe.company} — ${dupe.title}`);
+      }
+      data.active.push(newEntry);
+    },
+    { initIfMissing: () => `${today}-applications.md` }
+  );
 }
 
 export function findApplication(data: ApplicationsData, companyQuery: string): ApplicationEntry {
@@ -528,19 +577,15 @@ export function updateApplication(dir: string, { company, stage, detail }: Updat
     throw new Error(`stage must be one of: ${VALID_STAGES.join(', ')}`);
   }
 
-  const filePath = resolveStateFile(dir, 'applications');
-  if (!filePath) throw new Error('No applications file found');
+  withApplicationsFile<void>(dir, data => {
+    const entry = findInSection(data, company, SECTION_ACTIVE);
+    const today = getTodayUtc();
+    const detailText = detail || stage;
 
-  const data = parseApplicationsFile(filePath);
-  const entry = findInSection(data, company, SECTION_ACTIVE);
-  const today = getTodayUtc();
-  const detailText = detail || stage;
-
-  entry.stage = stage;
-  entry.lastActivity = { date: today, detail: detailText };
-  entry.history.push({ date: today, stage, detail: detailText });
-
-  atomicWriteFileSync(filePath, formatApplicationsFile(data));
+    entry.stage = stage;
+    entry.lastActivity = { date: today, detail: detailText };
+    entry.history.push({ date: today, stage, detail: detailText });
+  });
 }
 
 export interface CloseApplicationInput {
@@ -554,25 +599,21 @@ export function closeApplication(dir: string, { company, reason, summary }: Clos
     throw new Error('reason is required');
   }
 
-  const filePath = resolveStateFile(dir, 'applications');
-  if (!filePath) throw new Error('No applications file found');
+  withApplicationsFile<void>(dir, data => {
+    const entry = findInSection(data, company, SECTION_ACTIVE);
+    const today = getTodayUtc();
+    const closedStage = `Closed (${reason.trim()})`;
+    const detailText = summary || reason;
 
-  const data = parseApplicationsFile(filePath);
-  const entry = findInSection(data, company, SECTION_ACTIVE);
-  const today = getTodayUtc();
-  const closedStage = `Closed (${reason.trim()})`;
-  const detailText = summary || reason;
+    data.active = data.active.filter(e => e !== entry);
 
-  data.active = data.active.filter(e => e !== entry);
+    entry.stage = closedStage;
+    entry.closed = { date: today, reason: reason.trim(), summary: summary || null };
+    entry.lastActivity = { date: today, detail: detailText };
+    entry.history.push({ date: today, stage: closedStage, detail: detailText });
 
-  entry.stage = closedStage;
-  entry.closed = { date: today, reason: reason.trim(), summary: summary || null };
-  entry.lastActivity = { date: today, detail: detailText };
-  entry.history.push({ date: today, stage: closedStage, detail: detailText });
-
-  data.closed.push(entry);
-
-  atomicWriteFileSync(filePath, formatApplicationsFile(data));
+    data.closed.push(entry);
+  });
 }
 
 export interface ReopenApplicationInput {
@@ -589,25 +630,21 @@ export function reopenApplication(dir: string, { company, stage, detail }: Reope
     throw new Error(`stage must be one of: ${VALID_STAGES.join(', ')}`);
   }
 
-  const filePath = resolveStateFile(dir, 'applications');
-  if (!filePath) throw new Error('No applications file found');
+  withApplicationsFile<void>(dir, data => {
+    const entry = findInSection(data, company, SECTION_CLOSED);
 
-  const data = parseApplicationsFile(filePath);
-  const entry = findInSection(data, company, SECTION_CLOSED);
+    const today = getTodayUtc();
+    const detailText = detail || `Reopened at ${stage}`;
 
-  const today = getTodayUtc();
-  const detailText = detail || `Reopened at ${stage}`;
+    data.closed = data.closed.filter(e => e !== entry);
 
-  data.closed = data.closed.filter(e => e !== entry);
+    entry.stage = stage;
+    entry.closed = null;
+    entry.lastActivity = { date: today, detail: detailText };
+    entry.history.push({ date: today, stage, detail: detailText });
 
-  entry.stage = stage;
-  entry.closed = null;
-  entry.lastActivity = { date: today, detail: detailText };
-  entry.history.push({ date: today, stage, detail: detailText });
-
-  data.active.push(entry);
-
-  atomicWriteFileSync(filePath, formatApplicationsFile(data));
+    data.active.push(entry);
+  });
 }
 
 // Structured msg-id lookup: checks both storage locations (history entries
@@ -631,6 +668,14 @@ function hasMsgId(data: ApplicationsData, msgId: string | null | undefined): boo
 }
 
 const STAGES_OUTRANKING_INTERVIEW = new Set(['Interview (2+)', 'Final Round', 'Offer', 'Decision']);
+
+// Auto-detected close from scan-email's rejection signal. Distinct from the
+// user-driven `close` command (which lets the operator pick any reason
+// string and produces `Closed (${reason})`). When scan-email infers
+// rejection, the reason is always 'rejected' — fixed here as named
+// constants so the writer side stays in sync.
+const REJECTED_REASON = 'rejected';
+const CLOSED_REJECTED_STAGE = `Closed (${REJECTED_REASON})`;
 
 function classifierStatusToStage(classifierStatus: string, currentStage: string | null): string | null {
   switch (classifierStatus) {
@@ -668,29 +713,11 @@ export function flagForReview(dir: string, opts: FlagForReviewInput): OperationR
   if (!opts || (!opts.company && !opts.msgId)) {
     throw new Error('flagForReview: at least one of company or msgId is required to identify the entry');
   }
-
-  const filePath = resolveStateFile(dir, 'applications');
-  if (!filePath) throw new Error('No applications file found');
-
-  const data = parseApplicationsFile(filePath);
-  data.flagged = data.flagged || [];
-
-  if (opts.msgId && hasMsgId(data, opts.msgId)) return { skipped: true, reason: 'msg-id already processed' };
-
-  data.flagged.push({
-    company: opts.company || 'Unknown',
-    title: opts.title || 'Unknown role',
-    detectedAt: opts.detectedAt || getTodayUtc(),
-    signal: opts.signal || null,
-    status: opts.status || null,
-    sender: opts.sender || null,
-    matchMethod: opts.matchMethod || 'none',
-    msgId: opts.msgId || null,
-    action: opts.action || null,
-  });
-
-  atomicWriteFileSync(filePath, formatApplicationsFile(data));
-  return { skipped: false };
+  return withApplicationsFile<OperationResult>(
+    dir,
+    data => pushFlagged(data, opts),
+    { shouldWrite: result => !result.skipped }
+  );
 }
 
 export interface MarkStatusChangedInput {
@@ -708,9 +735,6 @@ export interface MarkStatusChangedInput {
 // Single spelling; no backwards-compat shim. The caller (scan-email skill's
 // Phase 6 template) must pass the classifier's matchedEntry through verbatim.
 export function markStatusChanged(dir: string, opts: MarkStatusChangedInput): OperationResult {
-  const filePath = resolveStateFile(dir, 'applications');
-  if (!filePath) throw new Error('No applications file found');
-
   if (!opts.matchedEntry) {
     throw new Error('markStatusChanged: matchedEntry is required (pass classifier.matchedEntry verbatim)');
   }
@@ -723,72 +747,75 @@ export function markStatusChanged(dir: string, opts: MarkStatusChangedInput): Op
   if (!company) throw new Error('markStatusChanged: matchedEntry.company is required');
   if (!section) throw new Error('markStatusChanged: matchedEntry.section is required');
 
-  const status = opts.status;
-  const data = parseApplicationsFile(filePath);
+  return withApplicationsFile<OperationResult>(
+    dir,
+    data => {
+      if (hasMsgId(data, opts.msgId)) return { skipped: true, reason: 'msg-id already processed' };
 
-  if (hasMsgId(data, opts.msgId)) return { skipped: true, reason: 'msg-id already processed' };
+      if (section !== SECTION_ACTIVE) {
+        return { skipped: true, reason: `matched ${section} entry` };
+      }
 
-  if (section !== SECTION_ACTIVE) {
-    return { skipped: true, reason: `matched ${section} entry` };
-  }
+      const status = opts.status;
+      const query = company.toLowerCase();
+      const detectedAt = opts.detectedAt || getTodayUtc();
+      const detail = `scan-email detected ${opts.atsSender} ${status.toLowerCase()} (msg-id: ${opts.msgId})`;
 
-  const query = company.toLowerCase();
-  const detectedAt = opts.detectedAt || getTodayUtc();
-  const detail = `scan-email detected ${opts.atsSender} ${status.toLowerCase()} (msg-id: ${opts.msgId})`;
+      if (status === 'Rejected') {
+        const idx = data.active.findIndex(e => e.company?.toLowerCase() === query);
+        if (idx === -1) {
+          return pushFlagged(data, {
+            company,
+            title: matchedEntry.title || null,
+            signal: opts.signal,
+            status: 'Rejected',
+            sender: opts.sender || null,
+            matchMethod: 'none',
+            msgId: opts.msgId,
+            detectedAt,
+            action: `Active entry disappeared mid-processing — ${detail}`,
+          });
+        }
+        const entry = data.active[idx];
+        data.active.splice(idx, 1);
 
-  if (status === 'Rejected') {
-    const idx = data.active.findIndex(e => e.company?.toLowerCase() === query);
-    if (idx === -1) {
-      return flagForReview(dir, {
-        company,
-        title: matchedEntry.title || null,
-        signal: opts.signal,
-        status: 'Rejected',
-        sender: opts.sender || null,
-        matchMethod: 'none',
-        msgId: opts.msgId,
-        detectedAt,
-        action: `Active entry disappeared mid-processing — ${detail}`,
-      });
-    }
-    const entry = data.active[idx];
-    data.active.splice(idx, 1);
+        entry.stage = CLOSED_REJECTED_STAGE;
+        entry.closed = {
+          date: detectedAt,
+          reason: REJECTED_REASON,
+          summary: `scan-email detected ${opts.atsSender} rejection: "${opts.signal}"`,
+        };
+        entry.lastActivity = { date: detectedAt, detail: `${CLOSED_REJECTED_STAGE} — ${opts.signal}` };
+        entry.history.push({ date: detectedAt, stage: CLOSED_REJECTED_STAGE, detail });
+        data.closed.push(entry);
+      } else {
+        const entry = data.active.find(e => e.company?.toLowerCase() === query);
+        if (!entry) {
+          return pushFlagged(data, {
+            company,
+            title: matchedEntry.title || null,
+            signal: opts.signal,
+            status,
+            sender: opts.sender || null,
+            matchMethod: 'none',
+            msgId: opts.msgId,
+            detectedAt,
+            action: `Active entry disappeared mid-processing — ${detail}`,
+          });
+        }
+        const mappedStage = classifierStatusToStage(status, entry.stage);
+        if (!mappedStage) {
+          throw new Error(`markStatusChanged: unknown classifier status "${status}"`);
+        }
+        entry.stage = mappedStage;
+        entry.lastActivity = { date: detectedAt, detail: `${mappedStage} — ${opts.signal}` };
+        entry.history.push({ date: detectedAt, stage: mappedStage, detail });
+      }
 
-    entry.stage = 'Closed (rejected)';
-    entry.closed = {
-      date: detectedAt,
-      reason: 'rejected',
-      summary: `scan-email detected ${opts.atsSender} rejection: "${opts.signal}"`,
-    };
-    entry.lastActivity = { date: detectedAt, detail: `Closed (rejected) — ${opts.signal}` };
-    entry.history.push({ date: detectedAt, stage: 'Closed (rejected)', detail });
-    data.closed.push(entry);
-  } else {
-    const entry = data.active.find(e => e.company?.toLowerCase() === query);
-    if (!entry) {
-      return flagForReview(dir, {
-        company,
-        title: matchedEntry.title || null,
-        signal: opts.signal,
-        status,
-        sender: opts.sender || null,
-        matchMethod: 'none',
-        msgId: opts.msgId,
-        detectedAt,
-        action: `Active entry disappeared mid-processing — ${detail}`,
-      });
-    }
-    const mappedStage = classifierStatusToStage(status, entry.stage);
-    if (!mappedStage) {
-      throw new Error(`markStatusChanged: unknown classifier status "${status}"`);
-    }
-    entry.stage = mappedStage;
-    entry.lastActivity = { date: detectedAt, detail: `${mappedStage} — ${opts.signal}` };
-    entry.history.push({ date: detectedAt, stage: mappedStage, detail });
-  }
-
-  atomicWriteFileSync(filePath, formatApplicationsFile(data));
-  return { skipped: false };
+      return { skipped: false };
+    },
+    { shouldWrite: result => !result.skipped }
+  );
 }
 
 export interface AddNoteInput {
@@ -801,19 +828,14 @@ export function addNote(dir: string, { company, note }: AddNoteInput): void {
     throw new Error('note is required and must be a non-empty string');
   }
 
-  const filePath = resolveStateFile(dir, 'applications');
-  if (!filePath) throw new Error('No applications file found');
+  withApplicationsFile<void>(dir, data => {
+    const entry = findApplication(data, company);
+    const today = getTodayUtc();
 
-  const data = parseApplicationsFile(filePath);
-  const entry = findApplication(data, company);
-
-  const today = getTodayUtc();
-
-  entry.notes = entry.notes ? `${entry.notes}; ${note}` : note;
-  entry.lastActivity = { date: today, detail: note };
-  entry.history.push({ date: today, stage: entry.stage, detail: note });
-
-  atomicWriteFileSync(filePath, formatApplicationsFile(data));
+    entry.notes = entry.notes ? `${entry.notes}; ${note}` : note;
+    entry.lastActivity = { date: today, detail: note };
+    entry.history.push({ date: today, stage: entry.stage, detail: note });
+  });
 }
 
 export interface StaleApplicationsOptions {
