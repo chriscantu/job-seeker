@@ -388,24 +388,31 @@ export function formatApplicationsFile({ active, closed, flagged }: { active: Ap
   return serializeFrontmatter(meta, body);
 }
 
-// Single source of truth for the applications-file read-modify-write
-// sequence: resolve canonical file, parse, hand `data` to a mutator, then
-// atomically write the formatted result. Concentrates path resolution,
-// error-on-missing semantics, and atomic-write ordering — bug fixes here
-// fix every mutator at once.
-//
-// Options:
-//   initIfMissing: when set, the file is created with this filename if no
-//     applications.md exists in `dir`. Without it, missing-file throws.
-//     Only `createApplication` opts in; everything else requires a file.
-//   shouldWrite: predicate run on the mutator's return value to decide
-//     whether to commit. Default: always write. Mutators that may skip
-//     (flagForReview, markStatusChanged) wire skip semantics through here
-//     instead of doing their own IO branching.
-//
-// Mutators must complete pre-mutation skip checks BEFORE touching `data`
-// — once `data` is mutated, the write happens regardless of `shouldWrite`
-// returning false (the predicate gates the write, not the mutation).
+/**
+ * Single source of truth for the applications-file read-modify-write
+ * sequence: resolve canonical file, parse, hand `data` to a mutator, then
+ * atomically write the formatted result. Concentrates path resolution,
+ * error-on-missing semantics, and atomic-write ordering — bug fixes here
+ * fix every mutator at once.
+ *
+ * @param dir - Output directory containing the dated applications.md file.
+ * @param mutator - Receives the parsed `data` and mutates it in place. Its
+ *   return value is passed to `shouldWrite` and returned from the HOF.
+ * @param options.initIfMissing - When set, the file is created with this
+ *   filename if no applications.md exists in `dir`. Without it, missing-file
+ *   throws.
+ * @param options.shouldWrite - Predicate run on the mutator's return value
+ *   to decide whether to commit. Default: always write. Skip-returning
+ *   mutators wire skip semantics through here instead of branching IO.
+ *
+ * @throws Error with `No applications file found in ${dir}` when the
+ *   directory has no applications.md and `initIfMissing` is not set.
+ *
+ * @remarks Mutators must complete pre-mutation skip checks BEFORE touching
+ * `data`. Once `data` is mutated, the write happens regardless of
+ * `shouldWrite` returning false — the predicate gates the write, not the
+ * mutation.
+ */
 function withApplicationsFile<T>(
   dir: string,
   mutator: (data: ApplicationsData) => T,
@@ -435,11 +442,20 @@ function withApplicationsFile<T>(
   return result;
 }
 
-// Pure data mutation extracted from flagForReview so markStatusChanged can
-// compose flagging into its own withApplicationsFile transaction without
-// triggering a nested file write that the outer transaction would clobber.
-// Caller is responsible for validating opts (company or msgId set) before
-// invoking — keeps the skip check first, no mutation before the skip path.
+/**
+ * Pure data mutation extracted from `flagForReview` so `markStatusChanged`
+ * can compose flagging into its own `withApplicationsFile` transaction
+ * without triggering a nested file write that the outer transaction would
+ * clobber.
+ *
+ * @param data - The in-flight ApplicationsData; flagged array is mutated
+ *   in place on the commit path.
+ * @param opts - Flag payload. Caller is responsible for validating
+ *   `opts.company || opts.msgId` is set before invoking.
+ * @returns `{ skipped: true, reason: 'msg-id already processed' }` when
+ *   `opts.msgId` is already present in `data` (no mutation in this
+ *   case — the skip check runs before any data write).
+ */
 function pushFlagged(data: ApplicationsData, opts: FlagForReviewInput): OperationResult {
   if (opts.msgId && hasMsgId(data, opts.msgId)) return { skipped: true, reason: 'msg-id already processed' };
   data.flagged = data.flagged || [];
@@ -653,6 +669,14 @@ function hasMsgId(data: ApplicationsData, msgId: string | null | undefined): boo
 
 const STAGES_OUTRANKING_INTERVIEW = new Set(['Interview (2+)', 'Final Round', 'Offer', 'Decision']);
 
+// Auto-detected close from scan-email's rejection signal. Distinct from the
+// user-driven `close` command (which lets the operator pick any reason
+// string and produces `Closed (${reason})`). When scan-email infers
+// rejection, the reason is always 'rejected' — fixed here as named
+// constants so the writer side stays in sync.
+const REJECTED_REASON = 'rejected';
+const CLOSED_REJECTED_STAGE = `Closed (${REJECTED_REASON})`;
+
 function classifierStatusToStage(classifierStatus: string, currentStage: string | null): string | null {
   switch (classifierStatus) {
     case 'Applied':
@@ -755,14 +779,14 @@ export function markStatusChanged(dir: string, opts: MarkStatusChangedInput): Op
         const entry = data.active[idx];
         data.active.splice(idx, 1);
 
-        entry.stage = 'Closed (rejected)';
+        entry.stage = CLOSED_REJECTED_STAGE;
         entry.closed = {
           date: detectedAt,
-          reason: 'rejected',
+          reason: REJECTED_REASON,
           summary: `scan-email detected ${opts.atsSender} rejection: "${opts.signal}"`,
         };
-        entry.lastActivity = { date: detectedAt, detail: `Closed (rejected) — ${opts.signal}` };
-        entry.history.push({ date: detectedAt, stage: 'Closed (rejected)', detail });
+        entry.lastActivity = { date: detectedAt, detail: `${CLOSED_REJECTED_STAGE} — ${opts.signal}` };
+        entry.history.push({ date: detectedAt, stage: CLOSED_REJECTED_STAGE, detail });
         data.closed.push(entry);
       } else {
         const entry = data.active.find(e => e.company?.toLowerCase() === query);
