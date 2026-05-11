@@ -1244,6 +1244,37 @@ format_version: 1
       const data = parseApplications(dir);
       const flagged = data.flagged.find(e => e.msgId === '<fixture-missing-entry@mail>');
       assert.notEqual(flagged, undefined);
+      // The "Active entry disappeared mid-processing" prefix on `action` is
+      // the only observable difference between a race flag and a normal
+      // flag — pin it so a future refactor can't drop it silently.
+      assert.match(flagged!.action ?? '', /Active entry disappeared mid-processing/);
+    });
+
+    it('markStatusChanged(Interview) on disappeared Active entry flags for review instead of throwing', () => {
+      // Mirror of the Rejected-path coverage above for the non-Rejected
+      // branch in markStatusChanged. Both branches now compose via the
+      // same pushFlagged helper; without this test, only Rejected exercises
+      // the composition.
+      const result = markStatusChanged(dir, {
+        msgId: '<fixture-missing-interview@mail>',
+        matchedEntry: {
+          company: 'NonexistentCo',
+          title: 'VP Engineering',
+          url: null,
+          stage: 'Applied',
+          section: 'active',
+        },
+        status: 'Interview',
+        signal: 'schedule a 30 minute conversation',
+        atsSender: 'greenhouse',
+        detectedAt: '2026-04-13',
+      });
+      assert.equal(result.skipped, false);
+      const data = parseApplications(dir);
+      const flagged = data.flagged.find(e => e.msgId === '<fixture-missing-interview@mail>');
+      assert.notEqual(flagged, undefined);
+      assert.equal(flagged!.status, 'Interview');
+      assert.match(flagged!.action ?? '', /Active entry disappeared mid-processing/);
     });
 
     it('markStatusChanged throws when matchedEntry is missing', () => {
@@ -1517,5 +1548,87 @@ describe('flagForReview — empty-payload guard', () => {
   it('accepts when msgId is present even if company is missing', () => {
     const result = flagForReview(dir, { msgId: 'msg-only-1', title: 'VP Eng' });
     assert.equal(result.skipped, false);
+  });
+});
+
+describe('withApplicationsFile — missing-file guard (non-init mutators)', () => {
+  // All non-init mutators route through withApplicationsFile and must
+  // throw `No applications file found in ${dir}` when the dir has no
+  // applications.md. Only createApplication opts into the init-if-missing
+  // path; this test pins the throw-on-missing dual that the other six
+  // share. Previously covered only via staleApplications.
+  let dir: string;
+
+  beforeEach(() => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'apps-missing-'));
+  });
+
+  afterEach(() => {
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it('updateApplication throws when no applications file exists', () => {
+    assert.throws(
+      () => updateApplication(dir, { company: 'X', stage: 'Screen' }),
+      /No applications file found/
+    );
+  });
+
+  it('closeApplication throws when no applications file exists', () => {
+    assert.throws(
+      () => closeApplication(dir, { company: 'X', reason: 'rejected' }),
+      /No applications file found/
+    );
+  });
+
+  it('reopenApplication throws when no applications file exists', () => {
+    assert.throws(
+      () => reopenApplication(dir, { company: 'X', stage: 'Screen' }),
+      /No applications file found/
+    );
+  });
+
+  it('addNote throws when no applications file exists', () => {
+    assert.throws(
+      () => addNote(dir, { company: 'X', note: 'hello' }),
+      /No applications file found/
+    );
+  });
+
+  it('flagForReview throws when no applications file exists', () => {
+    assert.throws(
+      () => flagForReview(dir, { company: 'X', title: 'VP Eng' }),
+      /No applications file found/
+    );
+  });
+
+  it('markStatusChanged throws when no applications file exists', () => {
+    assert.throws(
+      () => markStatusChanged(dir, {
+        msgId: '<missing-file-test@mail>',
+        matchedEntry: {
+          company: 'X',
+          title: 'VP Eng',
+          url: null,
+          stage: 'Applied',
+          section: 'active',
+        },
+        status: 'Rejected',
+        signal: 'rejected',
+        atsSender: 'greenhouse',
+        detectedAt: '2026-04-13',
+      }),
+      /No applications file found/
+    );
+  });
+
+  it('error message includes the dir path for debuggability', () => {
+    // Regression guard: the staleApplications error includes ${dir};
+    // the HOF should match. A bare "No applications file found" message
+    // hides the path the operator needs to debug.
+    assert.throws(
+      () => addNote(dir, { company: 'X', note: 'hello' }),
+      new RegExp(`No applications file found in ${dir.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`)
+    );
   });
 });

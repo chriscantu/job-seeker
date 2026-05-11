@@ -425,7 +425,7 @@ function withApplicationsFile<T>(
     filePath = path.join(dir, options.initIfMissing());
     data = { active: [], closed: [], flagged: [] };
   } else {
-    throw new Error('No applications file found');
+    throw new Error(`No applications file found in ${dir}`);
   }
   const result = mutator(data);
   const shouldWrite = options.shouldWrite ? options.shouldWrite(result) : true;
@@ -438,12 +438,11 @@ function withApplicationsFile<T>(
 // Pure data mutation extracted from flagForReview so markStatusChanged can
 // compose flagging into its own withApplicationsFile transaction without
 // triggering a nested file write that the outer transaction would clobber.
+// Caller is responsible for validating opts (company or msgId set) before
+// invoking — keeps the skip check first, no mutation before the skip path.
 function pushFlagged(data: ApplicationsData, opts: FlagForReviewInput): OperationResult {
-  if (!opts || (!opts.company && !opts.msgId)) {
-    throw new Error('flagForReview: at least one of company or msgId is required to identify the entry');
-  }
-  data.flagged = data.flagged || [];
   if (opts.msgId && hasMsgId(data, opts.msgId)) return { skipped: true, reason: 'msg-id already processed' };
+  data.flagged = data.flagged || [];
   data.flagged.push({
     company: opts.company || 'Unknown',
     title: opts.title || 'Unknown role',
@@ -687,6 +686,9 @@ export interface OperationResult {
 }
 
 export function flagForReview(dir: string, opts: FlagForReviewInput): OperationResult {
+  if (!opts || (!opts.company && !opts.msgId)) {
+    throw new Error('flagForReview: at least one of company or msgId is required to identify the entry');
+  }
   return withApplicationsFile<OperationResult>(
     dir,
     data => pushFlagged(data, opts),
