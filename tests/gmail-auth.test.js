@@ -77,7 +77,7 @@ describe('gmail-auth', () => {
     });
 
     // Desktop-app OAuth clients ship with `redirect_uris: ["http://localhost"]`
-    // (no port). Our callback server listens on :3000, so the client must use
+    // (no port). Our callback server listens on :3737, so the client must use
     // the ported form regardless of what's in the client secret — otherwise
     // auth can never complete.
     it('uses the hardcoded loopback redirect URI regardless of client secret contents', () => {
@@ -92,7 +92,7 @@ describe('gmail-auth', () => {
       }));
       assert.equal(
         createOAuth2Client(bareLocalhost).redirectUri,
-        'http://localhost:3000/oauth2callback'
+        'http://localhost:3737/oauth2callback'
       );
 
       const unrelated = path.join(tmpDir, 'unrelated.json');
@@ -105,7 +105,7 @@ describe('gmail-auth', () => {
       }));
       assert.equal(
         createOAuth2Client(unrelated).redirectUri,
-        'http://localhost:3000/oauth2callback'
+        'http://localhost:3737/oauth2callback'
       );
     });
   });

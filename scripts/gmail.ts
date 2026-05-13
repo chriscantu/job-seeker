@@ -11,7 +11,7 @@
 //   bun scripts/gmail.ts trash <id>...                          # Trash messages by ID
 //   bun scripts/gmail.ts trash-by-sender --sender S [--sender S ...] [--newer-than 30d] [--dry-run]
 //
-// Note: `auth` starts a local HTTP server on :3000 for the OAuth callback.
+// Note: `auth` starts a local HTTP server on :3737 for the OAuth callback.
 //
 // Exit codes: 0 = success, 1 = error
 
@@ -24,6 +24,7 @@ import {
   getAuthenticatedClient,
   getAuthUrl,
   exchangeCode,
+  CALLBACK_PORT,
 } from './lib/gmail-auth';
 import { errorMessage } from './lib/util';
 
@@ -146,7 +147,7 @@ async function authCommand(): Promise<void> {
   return new Promise<void>((resolve, reject) => {
     const TIMEOUT = 5 * 60 * 1000;
     const server = http.createServer(async (req, res) => {
-      const reqUrl = new URL(req.url || '/', 'http://localhost:3000');
+      const reqUrl = new URL(req.url || '/', `http://localhost:${CALLBACK_PORT}`);
       const code = reqUrl.searchParams.get('code');
       if (!code) {
         res.writeHead(400, { 'Content-Type': 'text/plain' });
@@ -172,7 +173,7 @@ async function authCommand(): Promise<void> {
     });
     server.on('error', (err: NodeJS.ErrnoException) => {
       if (err.code === 'EADDRINUSE') {
-        reject(new Error('Port 3000 is already in use. Close the other process and try again.'));
+        reject(new Error(`Port ${CALLBACK_PORT} is already in use. Close the other process and try again.`));
       } else {
         reject(err);
       }
@@ -181,8 +182,8 @@ async function authCommand(): Promise<void> {
       server.close();
       reject(new Error('Authorization timed out after 5 minutes. Run auth again.'));
     }, TIMEOUT);
-    server.listen(3000, () => {
-      console.log('Listening on http://localhost:3000 for OAuth callback...');
+    server.listen(CALLBACK_PORT, () => {
+      console.log(`Listening on http://localhost:${CALLBACK_PORT} for OAuth callback...`);
     });
   });
 }

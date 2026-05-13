@@ -3,7 +3,8 @@ import * as path from 'path';
 import { google } from 'googleapis';
 
 export const SCOPES = ['https://www.googleapis.com/auth/gmail.modify'];
-const REDIRECT_URI = 'http://localhost:3000/oauth2callback';
+export const CALLBACK_PORT = 3737;
+export const REDIRECT_URI = `http://localhost:${CALLBACK_PORT}/oauth2callback`;
 
 export interface CredentialPaths {
   clientSecret: string;
