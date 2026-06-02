@@ -50,6 +50,19 @@ describe('classifyStatusEmail — sender matching', () => {
     assert.equal(result.atsSender, 'ashby');
   });
 
+  it('matches @evermoreoutcomes.com as greenhouse (custom domain routed via gh-mail)', () => {
+    const email = {
+      sender: 'noreply@evermoreoutcomes.com',
+      senderName: 'evermore',
+      subject: 'Update on Your Application for VP of Engineering',
+      body: 'we have filled the role with another applicant',
+      msgId: '<test-evermore@gh-mail.evermoreoutcomes.com>',
+    };
+    const result = classifyStatusEmail({ ...email, applicationsData: loadApplications() });
+    assert.notEqual(result, null);
+    assert.equal(result.atsSender, 'greenhouse');
+  });
+
   it('throws on missing sender — does not conflate programming error with non-ATS', () => {
     // C4 regression: used to return `null` on undefined sender, masking
     // upstream parser bugs as legitimate non-ATS classifications.
@@ -81,6 +94,44 @@ describe('classifyStatusEmail — signal extraction', () => {
     assert.equal(result.status, 'Rejected');
     // Pin the specific pattern — catches regressions if the rule is removed.
     assert.match(result.signal, /will not be moving forward/i);
+  });
+
+  it('extracts Rejected signal from "filled the role with another applicant" (evermore-style polite rejection)', () => {
+    const email = {
+      sender: 'noreply@evermoreoutcomes.com',
+      senderName: 'evermore',
+      subject: 'Update on Your Application for VP of Engineering',
+      body: 'After careful consideration, we have filled the role with another applicant. You are a strong candidate with lots to offer.',
+      msgId: '<test-evermore-fill@gh-mail.evermoreoutcomes.com>',
+    };
+    const result = classifyStatusEmail({ ...email, applicationsData: loadApplications() });
+    assert.notEqual(result, null);
+    assert.equal(result.status, 'Rejected');
+    assert.match(result.signal, /filled the role|another applicant/i);
+  });
+
+  it('does NOT classify "lots to offer" rejection boilerplate as Offer', () => {
+    const email = {
+      sender: 'no-reply@greenhouse-mail.io',
+      senderName: 'Test',
+      subject: 'Application update',
+      body: 'We regret to inform you we have filled the role. You have lots to offer and we wish you well.',
+      msgId: '<test-lots-to-offer@mail>',
+    };
+    const result = classifyStatusEmail({ ...email, applicationsData: loadApplications() });
+    assert.equal(result.status, 'Rejected');
+  });
+
+  it('extracts Offer signal from "pleased to offer"', () => {
+    const email = {
+      sender: 'no-reply@greenhouse-mail.io',
+      senderName: 'Test',
+      subject: 'Offer',
+      body: 'We are pleased to offer you the role of VP of Engineering.',
+      msgId: '<test-offer-pleased@mail>',
+    };
+    const result = classifyStatusEmail({ ...email, applicationsData: loadApplications() });
+    assert.equal(result.status, 'Offer');
   });
 
   it('extracts Interview signal from "schedule your interview"', () => {

@@ -5,7 +5,7 @@ export type MatchMethod = 'url' | 'name' | 'none';
 export type EntrySection = 'active' | 'closed' | 'flagged';
 
 export const ATS_SENDERS: Record<AtsName, RegExp[]> = {
-  greenhouse: [/@greenhouse\.io$/i, /@greenhouse-mail\.io$/i],
+  greenhouse: [/@greenhouse\.io$/i, /@greenhouse-mail\.io$/i, /@evermoreoutcomes\.com$/i],
   lever: [/@lever\.co$/i],
   ashby: [/@ashbyhq\.com$/i],
 };
@@ -30,7 +30,17 @@ export const SIGNAL_RULES: SignalRule[] = [
   {
     status: 'Offer',
     priority: 1,
-    patterns: [/\boffer\b/i, /excited to extend/i],
+    // Bare /\boffer\b/ collides with rejection boilerplate ("lots to offer",
+    // "a lot to offer"). Require offer-context phrases.
+    patterns: [
+      /pleased to offer/i,
+      /excited to offer/i,
+      /excited to extend/i,
+      /extend (a|an|our|the) offer/i,
+      /formal offer/i,
+      /offer letter/i,
+      /job offer/i,
+    ],
   },
   {
     status: 'Rejected',
@@ -44,6 +54,9 @@ export const SIGNAL_RULES: SignalRule[] = [
       /other candidates/i,
       /we regret to inform/i,
       /decided not to proceed/i,
+      /filled the (role|position)/i,
+      /(role|position) has been filled/i,
+      /another (applicant|candidate)/i,
     ],
   },
   {
