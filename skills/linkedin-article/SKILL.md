@@ -12,8 +12,12 @@ authentic voice, backed by data, and structured for maximum engagement.
 
 Read `skills/_shared/preflight.md` and execute.
 
-Then read this additional file:
+Then read these additional files:
 - `references/voice-guide.md` — the candidate's writing voice rules
+- `skills/_shared/anti-slop-tells.md` — structural AI-tell blocklist + cadence guard
+  shared across all prose skills; apply it when drafting and auditing
+- Glob `references/writing-samples/*.md` (skip `README.md`) — the candidate's real
+  published prose; study sentence-level texture, not just gist
 
 > **Path note:** Files prefixed with `references/` or `config/` above are at the
 > **project root**, not inside this skill's local `references/` directory. This
@@ -68,7 +72,7 @@ Consult `references/linkedin-formats.md` for format constraints and structure gu
 
 2. **Write the first draft.** Follow the structure from `references/linkedin-formats.md` for the chosen format.
 
-3. **Audit against the voice guide.** After drafting, perform a voice audit using the checklist in `references/voice-audit.md`. Present the audit table to the user. Fix any failures before presenting the final draft.
+3. **Audit against the voice guide.** After drafting, perform a voice audit using the checklist in `references/voice-audit.md` — which now includes the structural AI-tell rows from `skills/_shared/anti-slop-tells.md` (cleft sentences, antithesis flourishes, aphoristic closers, crutch metaphors, hedge preambles, staccato cadence). Present the audit table to the user. Fix any failures before presenting the final draft.
 
 4. **Iterate with the user.** Present the draft and audit together. Incorporate feedback. Re-audit after significant changes.
 

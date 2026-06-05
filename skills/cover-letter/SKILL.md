@@ -103,49 +103,15 @@ company and role. End with a clear call to action.
 - Underselling: own the candidate's actual scope — team size, org scale, company stage
 - Overselling: Don't claim CTO-level scope; be honest about Director-level experience with VP-level ambition
 
-### Structural AI Tells — Ban These
+### Structural AI Tells & Cadence
 
-Buzzwords are the obvious problem; these structural patterns are what actually
-make a letter read as machine-written. They are the LLM house style. Chris does
-not write this way — his blog posts contain almost none of these. Hunt them down
-before presenting. Each appeared in a real generated letter; the rewrite shows
-the fix.
-
-- **Cleft sentences** — "What made it stick *was*…", "What draws me to [Co] *is* that…".
-  Just say the thing. → "It stuck because we measured adoption weekly."
-- **Antithesis flourish** — "measure adoption — *not* announcements", "this isn't
-  procurement — *it's* mapping the duplication". One per letter, maximum; zero is
-  better. The em-dash-reversal is the single loudest tell. → "We measured adoption
-  weekly and cut anything nobody used."
-- **Rule-of-three imperative cadence** — "pick the problem, build the platform, and
-  measure the outcome." Reads like a TED talk. Break the rhythm or cut to one verb.
-- **Aphoristic closer with italics for punch** — "adoption *is* the product",
-  "the playbook is the same." Delete. State the fact plainly instead.
-- **Crutch metaphors reused across letters** — "path of least resistance,"
-  "playbook," "load-bearing," "the pattern repeats," "force-multiplier," "at scale."
-  If it shows up in two letters, it's a tell. Describe what actually happened.
-- **Em-dash sandwich for gravitas** — "That problem — turning X into Y — is exactly
-  the shape of this role." Rewrite as plain sentences.
-- **"Same X, same Y" parallelism** — "same fragmentation pattern, same modernization
-  opportunity." Pick the one real parallel and state it once.
-- **Hedge preambles before an admission** — "I want to be honest," "I want to be
-  straight about one gap," "To be candid," "Truthfully." Cut the preamble entirely
-  and state the thing. → not "I want to be honest: I haven't shipped X," just "I
-  haven't shipped X."
-
-Voice anchors from Chris's real prose (imitate these instead): start a paragraph
-with context, not "I." Use a dry one-line aside when it lands. Default to "we" for
-team work, "I" for personal decisions. Lead with the concrete number, then the
-meaning. Name a hard thing as hard ("Building a trusting organization is a nebulous
-task") rather than dressing it up.
-
-**Cadence — don't over-correct into choppiness.** Stripping the tells above must
-not leave staccato, clipped prose. Per `voice-guide.md`, Chris writes *medium-length,
-connected sentences — not clipped, not meandering.* Two short declaratives glued with
-a semicolon ("The technical solution came first; the work sat on top of it") reads as
-stilted, not surgical. Let sentences breathe and connect with "and," "but," "so,"
-"where," "though" — the way the blog posts do. A de-slopped letter that sounds like a
-telegram has traded one machine register for another.
+Read `skills/_shared/anti-slop-tells.md` and apply it before presenting. The
+structural-tell blocklist (cleft sentences, antithesis flourishes, aphoristic
+closers, crutch metaphors, hedge preambles, em-dash sandwiches), the cadence guard
+against choppiness, and the voice anchors all live there — shared across every prose
+skill so the guidance stays in one place. The `What to Avoid` items above are the
+cover-letter-specific additions (scope honesty, no resume regurgitation); the shared
+module covers the structural tells common to all written output.
 
 ## Output
 
@@ -193,7 +159,7 @@ Before presenting:
 - Does it address the top 3 requirements from the job posting?
 - Is it under 400 words? (Executives don't read long cover letters)
 - Would the candidate be comfortable sending this as-is?
-- **Anti-slop pass** — re-read against the "Structural AI Tells" list. Zero cleft
+- **Anti-slop pass** — re-read against `skills/_shared/anti-slop-tells.md`. Zero cleft
   sentences, ≤1 antithesis flourish, no italicized aphoristic closer, no crutch
   metaphor that you've used in another letter. Read the letter aloud in your head:
   does it sound like the person who wrote the two HomeAway blog posts, or like a

@@ -20,8 +20,10 @@ Read `skills/_shared/preflight.md` and execute.
 
 Then read these additional files:
 - `references/resume.md` — canonical markdown resume for detailed accomplishments
-- Glob `references/writing-samples/*.md` — if any files exist, read them to
-  calibrate tone before writing.
+- `skills/_shared/anti-slop-tells.md` — structural AI-tell blocklist + cadence guard
+  shared across all prose skills; apply it before presenting any draft
+- Glob `references/writing-samples/*.md` (skip `README.md`) — the candidate's real
+  published prose; study sentence-level texture, not just gist.
 
 ## Phase 0a — Load Preferences
 
@@ -68,19 +70,24 @@ Connect to the company's mission using a specific, personal thread.
 Not generic admiration — a real reason grounded in the candidate's experience.
 
 **Bad:** "I've always been passionate about [industry]."
-**Good:** "At Babylon Health, I saw firsthand how broken delivery systems
-block a company's ability to reach the people who need it most. [Company]
-is solving [specific problem] and I know what it takes to build the
-engineering platform that makes that possible at scale."
+**Good:** "At Babylon Health, I watched broken delivery keep good software from
+reaching the patients who needed it. [Company] is taking on [specific problem],
+which is the work I've spent the last few years closest to."
+
+(Note: the old "good" example here used "I know what it takes to build the
+engineering platform that makes that possible at scale" — that's a
+self-congratulatory anti-pattern and the "at scale" crutch. See
+`skills/_shared/anti-slop-tells.md`.)
 
 ### 2. The Bridge (2-3 sentences)
 Connect the candidate's specific accomplishments to the company's current challenges.
 Use numbers. Reference the actual role requirements if you have the posting.
 
-**Template:** "In my current role, I [specific accomplishment
-with numbers]. [Company] is at a stage where [specific challenge from
-job posting or research], and that's exactly the kind of problem I've
-built my career around solving."
+**Template:** "In my current role, I [specific accomplishment with numbers].
+[Company] is at the point where [specific challenge from the posting] — close to
+what I worked through at [previous company]." (Avoid "that's exactly the kind of
+problem I've built my career around solving" — see the cliché list in
+`skills/_shared/anti-slop-tells.md`.)
 
 ### 3. The Why Now (1-2 sentences)
 Explain what makes this company different from staying put. This is where
@@ -105,6 +112,9 @@ Before presenting the output:
 - Is the mission connection genuine, not manufactured?
 - Does it read at an executive level?
 - Would the candidate actually say this in conversation?
+- **Anti-slop pass** — re-read against `skills/_shared/anti-slop-tells.md`: no cleft
+  sentences, ≤1 antithesis flourish, no aphoristic closer, no hedge preamble, not
+  staccato. Especially watch the hook and bridge — they default to cliché.
 
 ## State Update
 

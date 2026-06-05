@@ -32,7 +32,10 @@ If unauthenticated, stop with guidance:
 
 Additionally read:
 - `references/voice-guide.md` — tone calibration
-- Glob `references/writing-samples/*.md` — if any exist, read to calibrate
+- `skills/_shared/anti-slop-tells.md` — structural AI-tell blocklist + cadence guard
+  shared across all prose skills; apply before presenting any draft
+- Glob `references/writing-samples/*.md` (skip `README.md`) — if any exist, read to
+  calibrate sentence-level texture
 
 ## Phase 1 — Input Parsing
 
@@ -115,8 +118,10 @@ For `warm-intro` type, also generate:
 
 3. **Forwardable blurb** — 2-3 sentence self-contained intro
 
-Apply the quality gate from message-rules.md before presenting. If any check
-fails, revise and re-check.
+Apply the quality gate from message-rules.md before presenting, plus the
+structural anti-slop pass from `skills/_shared/anti-slop-tells.md` (no cleft
+sentences, no aphoristic closer, no hedge preamble — short outreach is where these
+read worst). If any check fails, revise and re-check.
 
 ## Phase 4 — Review & Deliver
 

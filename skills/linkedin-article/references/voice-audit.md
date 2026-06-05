@@ -30,6 +30,24 @@ The draft should NOT sound like:
 - Open paragraphs with context, not with "I."
 - Close sections by pointing forward (what's next, what we're still learning).
 
+## Structural AI Tells
+
+These are the LLM house-style patterns that read as machine-written even when the
+buzzword rules above pass. The canonical list lives in
+`skills/_shared/anti-slop-tells.md` — read it and check the draft against every
+entry:
+
+| # | Tell | Flag if present |
+|---|------|-----------------|
+| 8 | **Cleft sentences** | "What made it work *was*…", "What draws me to X *is*…" |
+| 9 | **Antithesis flourish** | "measure adoption — *not* announcements" (≤1 per piece) |
+| 10 | **Rule-of-three cadence** | "pick the problem, build the platform, and measure it" |
+| 11 | **Aphoristic italic closer** | "adoption *is* the product" |
+| 12 | **Reused crutch metaphor** | "path of least resistance," "playbook," "at scale" |
+| 13 | **Em-dash sandwich** | "That problem — turning X into Y — is exactly the shape of…" |
+| 14 | **Hedge preamble** | "I want to be honest," "to be candid" before an admission |
+| 15 | **Staccato over-correction** | de-slopped prose that reads as clipped/telegraphic |
+
 ## Audit Format
 
 After drafting, present a table:
@@ -44,5 +62,6 @@ After drafting, present a table:
 | Dry/understated humor | | |
 | Opens with context, not "I" | | |
 | Points forward at close | | |
+| No structural AI tells (rows 8–15) | | |
 
 Flag any failures and propose specific rewrites before presenting the final draft.
