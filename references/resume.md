@@ -11,7 +11,7 @@ christopher.cantu@gmail.com | https://www.linkedin.com/in/christophercantu
 :::
 
 ::: {custom-style="BodyTextSummary"}
-Senior Engineering Leader specializing in delivery transformation at post-IPO and enterprise technology companies. Expert in rescuing broken delivery systems and building scalable platforms that enable consistent time to market. 15+ years leading multinational engineering organizations (60+ engineers) through complex transformations while maintaining quality and compliance. Track record: transformed CI/CD reliability from 1% to 95%; reduced deployment cycles from 6 months to minutes; unlocked $18M+ in business value.
+Senior Engineering Leader specializing in delivery transformation at post-IPO and enterprise technology companies. 15+ years leading multinational engineering organizations (60+ engineers) through complex transformations while maintaining quality and compliance. Track record: transformed CI/CD reliability from 1% to 95%; reduced deployment cycles from 6 months to minutes; unlocked $18M+ in business value.
 :::
 
 ## Key Accomplishments
@@ -19,7 +19,6 @@ Senior Engineering Leader specializing in delivery transformation at post-IPO an
 - **Revenue Impact** — Delivered $18M+ in business value through delivery transformation and international expansion, unlocking new market revenue 6 months ahead of schedule.
 - **Delivery Excellence** — Transformed CI/CD from 1% to 95% reliability for the organization, improving the delivery velocity 2x for all product teams.
 - **Speed to Market** — Cut localization delivery from 6 months to minutes driving a 20x release velocity, enabling entrance into international markets 1 year ahead of schedule.
-- **Platform Scaling** — Drove 85% design system adoption across 187 repositories in 6 months via automated PR-based migration, the fastest rollout in company history.
 - **Cost Optimization** — Delivered $10M+ in operational savings through automation and platform consolidation, freeing engineering capacity for product investment.
 - **Global Leadership** — Scaled multinational organizations across the US, Europe, Africa, and Asia, establishing 24/5 follow-the-sun delivery for global product and platform features.
 
@@ -36,11 +35,11 @@ Delivery Transformation | Multinational Team Leadership | Engineering Strategy |
 *Austin, TX (Hybrid) | September 2023 – April 2026 | 60 engineers, 8 international teams*\
 Hired to lead Procore's $50M+ web experience vision across 100+ global teams and unblock global expansion.
 
-- Led $50M+ frontend modernization across 125+ repos and 65+ global teams, unlocking $12M+ in revenue across all markets by enabling faster delivery and unblocking strategic customer features.
+- Led $50M+ frontend modernization across 125+ repos and 65+ global teams, unlocking $12M+ in revenue by enabling faster delivery and unblocking strategic customer features.
 - Cut localization deployment from 6-9 months to minutes, enabling multiple new international markets in 2026.
 - Drove 85% design system adoption across 187 repositories and 100+ global teams in 6 months via automated PR-based migration — fastest rollout in company history.
 - Led an AI-first customer onboarding and support product using agentic chatbots and workflows to make onboarding self-serve and cut support call volume.
-- Partnered with VP Product, VP Engineering, and VP Customer Success on international platform roadmap, surpassing original timeline by 1 year across European and Asian markets.
+- Partnered with VP Product, Engineering, and Customer Success on the international platform roadmap, beating the original timeline by a year.
 
 ### Director of Front-End Platforms | Babylon Health
 
