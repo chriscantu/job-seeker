@@ -139,6 +139,14 @@ team work, "I" for personal decisions. Lead with the concrete number, then the
 meaning. Name a hard thing as hard ("Building a trusting organization is a nebulous
 task") rather than dressing it up.
 
+**Cadence — don't over-correct into choppiness.** Stripping the tells above must
+not leave staccato, clipped prose. Per `voice-guide.md`, Chris writes *medium-length,
+connected sentences — not clipped, not meandering.* Two short declaratives glued with
+a semicolon ("The technical solution came first; the work sat on top of it") reads as
+stilted, not surgical. Let sentences breathe and connect with "and," "but," "so,"
+"where," "though" — the way the blog posts do. A de-slopped letter that sounds like a
+telegram has traded one machine register for another.
+
 ## Output
 
 All files go in `output/{company-slug}/` (e.g., `output/natera/`).
@@ -153,6 +161,21 @@ All files go in `output/{company-slug}/` (e.g., `output/natera/`).
    `skills/_shared/frontmatter.md` for the schema). The `word_count` field is
    the word count of the letter body (excluding frontmatter). The docx
    generation script strips frontmatter automatically before parsing.
+
+   **Markdown formatting contract** — the docx generator renders these, so use
+   them (and only them) for a clean, readable letter:
+   - `# Candidate Name` on its own line → letterhead (large, bold, dark blue).
+   - A contact line directly under it (`email | City, ST | linkedin/...`) →
+     rendered as a gray sub-line.
+   - `---` on its own line → a thin horizontal rule. Use one after the contact
+     line and one after the `RE:` block.
+   - The recipient block carries a `RE: {Role}` line, which renders bold.
+   - `**bold**` inline → bold run. Use it **sparingly** — emphasize exactly one
+     anchor metric per body paragraph (e.g. `**from 1% to 95%**`), nothing more.
+     Bolding whole sentences or every number reads junior; one metric per
+     paragraph aids skim without shouting.
+   - Body paragraphs are separated by blank lines; keep each paragraph on logical
+     prose, not hard-wrapped fragments.
 2. Generate the .docx:
    ```fish
    bun scripts/generate_coverletter_docx.ts \

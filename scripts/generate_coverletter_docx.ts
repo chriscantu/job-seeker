@@ -5,15 +5,19 @@
  * Usage:
  *   bun scripts/generate_coverletter_docx.ts <input.md> <output.docx>
  *
- * The markdown format is simple:
- *   - First line starting with "Dear" is the salutation
- *   - Body paragraphs separated by blank lines
- *   - Last non-empty line is the signature (candidate name)
+ * Supported markdown in the body (after frontmatter):
+ *   - `# Name`                     → letterhead (large, bold, dark blue)
+ *   - contact line with `|` + `@`  → gray contact line under the name
+ *   - `---`                        → horizontal rule
+ *   - `RE: ...` line               → bolded (rendered with line breaks in its block)
+ *   - `**bold**` inline            → bold run (use sparingly to emphasize a metric)
+ *   - blank-line-separated blocks  → body paragraphs
+ *   - last block                   → signature (rendered with line breaks)
  */
 
 import * as fs from 'fs';
 import { Document, Packer, Paragraph, TextRun } from 'docx';
-import { COLORS, FONT, PAGE } from './docx-styles';
+import { COLORS, FONT, PAGE, rule } from './docx-styles';
 import { parseFrontmatter } from './lib/frontmatter';
 import { errorMessage } from './lib/util';
 
@@ -25,65 +29,93 @@ if (!inputPath || !outputPath) {
 }
 const raw = parseFrontmatter(fs.readFileSync(inputPath, "utf8")).body;
 
-// ── Parse ────────────────────────────────────────────────────────────────────
-// Split into blocks on blank lines, trim each, discard empties.
-const blocks = raw
-  .split(/\n\s*\n/)
-  .map(b => b.trim())
-  .filter(Boolean);
+// ── Sizes (docx half-points: 22 = 11pt) ───────────────────────────────────────
+const BODY_SIZE = 22;     // 11pt body
+const NAME_SIZE = 36;     // 18pt letterhead name
+const CONTACT_SIZE = 19;  // ~9.5pt contact line
 
-if (blocks.length < 3) {
-  console.error("Cover letter must have at least a salutation, one body paragraph, and a signature.");
-  process.exit(1);
-}
-
-// First block = salutation ("Dear ...")
-const salutation = blocks[0];
-
-// Last block = signature (candidate name, possibly with closing like "Best,")
-const signatureBlock = blocks[blocks.length - 1];
-const signatureLines = signatureBlock.split("\n").map(l => l.trim()).filter(Boolean);
-
-// Everything in between = body paragraphs
-const bodyBlocks = blocks.slice(1, blocks.length - 1);
-
-// ── Font helpers ─────────────────────────────────────────────────────────────
-const bodyFont = { size: 22, font: FONT, color: COLORS.black };  // 11pt
-
-function bodyParagraph(text: string, spacingAfter = 200): Paragraph {
-  return new Paragraph({
-    spacing: { after: spacingAfter, line: 276 },  // 1.15x line spacing
-    children: [new TextRun({ text, ...bodyFont })],
+// ── Inline `**bold**` → TextRun[] ──────────────────────────────────────────────
+interface RunBase { size: number; color: string; bold?: boolean }
+function inlineRuns(text: string, base: RunBase): TextRun[] {
+  const segments = text.split(/(\*\*[^*]+\*\*)/g).filter(s => s.length > 0);
+  if (segments.length === 0) return [new TextRun({ text: "", size: base.size, font: FONT, color: base.color })];
+  return segments.map(seg => {
+    const m = seg.match(/^\*\*([^*]+)\*\*$/);
+    return new TextRun({
+      text: m ? m[1] : seg,
+      bold: m ? true : !!base.bold,
+      size: base.size,
+      font: FONT,
+      color: base.color,
+    });
   });
 }
 
-// ── Build document ───────────────────────────────────────────────────────────
-const children: Paragraph[] = [];
+// ── Parse into blank-line-separated blocks ─────────────────────────────────────
+const blocks = raw.split(/\n\s*\n/).map(b => b.trim()).filter(Boolean);
 
-// Salutation
-children.push(new Paragraph({
-  spacing: { after: 200 },
-  children: [new TextRun({ text: salutation, ...bodyFont })],
-}));
-
-// Body paragraphs
-for (const block of bodyBlocks) {
-  // Join any line breaks within a block into a single paragraph
-  const text = block.replace(/\n/g, " ");
-  children.push(bodyParagraph(text));
+if (blocks.length < 3) {
+  console.error("Cover letter must have at least a header, one body paragraph, and a signature.");
+  process.exit(1);
 }
 
-// Signature block — closing line + name on separate lines
-children.push(new Paragraph({
-  spacing: { before: 200, after: 0 },
-  children: signatureLines.map((line, i) => {
-    const runs: TextRun[] = [new TextRun({ text: line, ...bodyFont })];
-    if (i < signatureLines.length - 1) {
-      runs.push(new TextRun({ break: 1 }));
-    }
-    return runs;
-  }).flat(),
-}));
+// ── Build document ─────────────────────────────────────────────────────────────
+const children: Paragraph[] = [];
+let nameRendered = false;
+let contactRendered = false;
+
+blocks.forEach((block, idx) => {
+  const isLast = idx === blocks.length - 1;
+
+  // Horizontal rule
+  if (/^-{3,}$/.test(block)) {
+    children.push(rule(COLORS.midBlue));
+    return;
+  }
+
+  // Letterhead name (`# Name`)
+  if (block.startsWith('# ')) {
+    children.push(new Paragraph({
+      spacing: { after: 40 },
+      children: [new TextRun({
+        text: block.replace(/^#\s+/, ''),
+        bold: true, size: NAME_SIZE, color: COLORS.darkBlue, font: FONT,
+      })],
+    }));
+    nameRendered = true;
+    return;
+  }
+
+  // Contact line (first `|`-delimited line with an email/linkedin)
+  if (nameRendered && !contactRendered && block.includes('|') && /@|linkedin/i.test(block)) {
+    children.push(new Paragraph({
+      spacing: { after: 80 },
+      children: inlineRuns(block.replace(/\n/g, '   '), { size: CONTACT_SIZE, color: COLORS.gray }),
+    }));
+    contactRendered = true;
+    return;
+  }
+
+  // Recipient/signature blocks keep their internal line breaks; body paragraphs
+  // join wrapped lines into one flowing paragraph.
+  const lines = block.split('\n').map(l => l.trim()).filter(Boolean);
+  const keepBreaks = isLast || lines.some(l => /^RE:/i.test(l));
+
+  if (keepBreaks) {
+    const runs: TextRun[] = [];
+    lines.forEach((line, i) => {
+      const isRE = /^RE:/i.test(line);
+      runs.push(...inlineRuns(line, { size: BODY_SIZE, color: COLORS.black, bold: isRE }));
+      if (i < lines.length - 1) runs.push(new TextRun({ break: 1 }));
+    });
+    children.push(new Paragraph({ spacing: { before: isLast ? 200 : 0, after: 200 }, children: runs }));
+  } else {
+    children.push(new Paragraph({
+      spacing: { after: 200, line: 276 },  // 1.15x line spacing
+      children: inlineRuns(lines.join(' '), { size: BODY_SIZE, color: COLORS.black }),
+    }));
+  }
+});
 
 const margin = PAGE.margin.coverLetter;
 
