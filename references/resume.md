@@ -19,7 +19,7 @@ Senior Engineering Leader specializing in delivery transformation at post-IPO an
 - **Revenue Impact** — Delivered $18M+ in business value through delivery transformation and international expansion, unlocking new market revenue 6 months ahead of schedule.
 - **Delivery Excellence** — Transformed CI/CD from 1% to 95% reliability for the organization, improving the delivery velocity 2x for all product teams.
 - **Speed to Market** — Cut localization delivery from 6 months to minutes driving a 20x release velocity, enabling entrance into international markets 1 year ahead of schedule.
-- **Platform Scaling** — Drove 85% design system adoption across 185 repos in 6 months via automation, the fastest rollout in company history.
+- **Platform Scaling** — Drove 85% design system adoption across 187 repositories in 6 months via automated PR-based migration, the fastest rollout in company history.
 - **Cost Optimization** — Delivered $10M+ in operational savings through automation and platform consolidation, freeing engineering capacity for product investment.
 - **Global Leadership** — Scaled multinational organizations across the US, Europe, Africa, and Asia, establishing 24/5 follow-the-sun delivery for global product and platform features.
 
@@ -38,8 +38,8 @@ Hired to lead Procore's $50M+ web experience vision across 100+ global teams and
 
 - Led $50M+ frontend modernization across 125+ repos and 65+ global teams, unlocking $12M+ in revenue across all markets by enabling faster delivery and unblocking strategic customer features.
 - Cut localization deployment from 6-9 months to minutes, enabling multiple new international markets in 2026.
-- Drove 85% design system adoption across 185 repos in 6 months via automation, fastest rollout in company history and the foundation for product-wide UI consistency.
-- Built a contextual, customizable platform that enabled the AI product roadmap and empowered teams to re-envision core flows for the next product cycle.
+- Drove 85% design system adoption across 187 repositories and 100+ global teams in 6 months via automated PR-based migration — fastest rollout in company history.
+- Led an AI-first customer onboarding and support product using agentic chatbots and workflows to make onboarding self-serve and cut support call volume.
 - Partnered with VP Product, VP Engineering, and VP Customer Success on international platform roadmap, surpassing original timeline by 1 year across European and Asian markets.
 
 ### Director of Front-End Platforms | Babylon Health
@@ -48,7 +48,7 @@ Hired to lead Procore's $50M+ web experience vision across 100+ global teams and
 Hired to streamline delivery via automation, achieving best-in-industry releases across regulated European and domestic markets.
 
 - Led platform organizations across US and Europe to fully automate testing and mobile delivery for 20 product teams and deploy weekly mobile releases — best in industry.
-- Transformed CI/CD from 1% to 95% success rate by redesigning testing strategy, enabling product releases to be delivered consistently and with confidence.
+- As steward of the company-wide CI/CD pipeline, transformed reliability from 1% to 95% across ~20 product teams in Europe and the US by redesigning the testing strategy.
 - Architected micro-frontend mobile application as a single artifact, accelerating feature delivery and enabling 20 independent mobile teams to deliver at scale.
 
 ### Senior Software Engineering Manager / Director of Engineering | Vrbo (Expedia Group)
