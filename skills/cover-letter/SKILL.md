@@ -20,9 +20,15 @@ Read `skills/_shared/preflight.md` and execute.
 
 Then read these additional files:
 - `references/resume.md` — canonical markdown resume for full detailed accomplishments
-- Glob `references/writing-samples/*.md` — if any files exist, read them to
-  calibrate tone and voice before writing. Fall back to `references/voice-guide.md`
-  if the directory is empty or missing.
+- `references/voice-guide.md` — always read; the abstract rules for Chris's voice.
+- Glob `references/writing-samples/*.md` (skip `README.md`) — read every sample.
+  These are Chris's **actual published prose**. Do not just absorb the gist —
+  study the sentence-level texture: he writes in "we," names problems plainly
+  ("Building a trusting organization is a nebulous task"), uses dry one-line
+  asides ("The list of people I naturally trust is tiny."), and leads with the
+  concrete number before the meaning. Your letter must read like the same person
+  wrote it. If the directory has no samples, fall back to `references/voice-guide.md`
+  alone, but the abstract guide is weaker calibration than the samples — say so.
 
 Check if a `why-this-company` output already exists for this company
 (`output/{company-slug}/`). If so, read it to avoid duplicating research.
@@ -71,11 +77,13 @@ Not "I am writing to express my interest in..." — that's dead on arrival.
 Instead, open with a specific accomplishment or insight that immediately
 demonstrates fit.
 
-Example opening:
-"When I reduced localization deployment at Procore from six months to minutes,
-it unlocked $12M in revenue across European and Asian markets within the first
-year. I see [Company] facing a similar inflection point with [specific challenge],
-and that's exactly the kind of problem I've spent the last decade solving."
+Example opening (note the voice — "we," concrete number first, no aphoristic
+flourish, no "exactly the kind of problem I've spent my career solving" closer):
+"When we cut localization deployment at Procore from six months to minutes, it
+opened $12M in revenue across European and Asian markets in the first year. Most
+of that work was getting eight teams to trust a new deployment path — the pipeline
+was the easy part. [Company] looks to be at a similar point with [specific
+challenge]."
 
 **Body paragraphs (2)** — Map the candidate's experience to role requirements.
 Each paragraph should follow: [Role requirement] → [the candidate's specific
@@ -95,6 +103,42 @@ company and role. End with a clear call to action.
 - Underselling: own the candidate's actual scope — team size, org scale, company stage
 - Overselling: Don't claim CTO-level scope; be honest about Director-level experience with VP-level ambition
 
+### Structural AI Tells — Ban These
+
+Buzzwords are the obvious problem; these structural patterns are what actually
+make a letter read as machine-written. They are the LLM house style. Chris does
+not write this way — his blog posts contain almost none of these. Hunt them down
+before presenting. Each appeared in a real generated letter; the rewrite shows
+the fix.
+
+- **Cleft sentences** — "What made it stick *was*…", "What draws me to [Co] *is* that…".
+  Just say the thing. → "It stuck because we measured adoption weekly."
+- **Antithesis flourish** — "measure adoption — *not* announcements", "this isn't
+  procurement — *it's* mapping the duplication". One per letter, maximum; zero is
+  better. The em-dash-reversal is the single loudest tell. → "We measured adoption
+  weekly and cut anything nobody used."
+- **Rule-of-three imperative cadence** — "pick the problem, build the platform, and
+  measure the outcome." Reads like a TED talk. Break the rhythm or cut to one verb.
+- **Aphoristic closer with italics for punch** — "adoption *is* the product",
+  "the playbook is the same." Delete. State the fact plainly instead.
+- **Crutch metaphors reused across letters** — "path of least resistance,"
+  "playbook," "load-bearing," "the pattern repeats," "force-multiplier," "at scale."
+  If it shows up in two letters, it's a tell. Describe what actually happened.
+- **Em-dash sandwich for gravitas** — "That problem — turning X into Y — is exactly
+  the shape of this role." Rewrite as plain sentences.
+- **"Same X, same Y" parallelism** — "same fragmentation pattern, same modernization
+  opportunity." Pick the one real parallel and state it once.
+- **Hedge preambles before an admission** — "I want to be honest," "I want to be
+  straight about one gap," "To be candid," "Truthfully." Cut the preamble entirely
+  and state the thing. → not "I want to be honest: I haven't shipped X," just "I
+  haven't shipped X."
+
+Voice anchors from Chris's real prose (imitate these instead): start a paragraph
+with context, not "I." Use a dry one-line aside when it lands. Default to "we" for
+team work, "I" for personal decisions. Lead with the concrete number, then the
+meaning. Name a hard thing as hard ("Building a trusting organization is a nebulous
+task") rather than dressing it up.
+
 ## Output
 
 All files go in `output/{company-slug}/` (e.g., `output/natera/`).
@@ -111,7 +155,6 @@ All files go in `output/{company-slug}/` (e.g., `output/natera/`).
    generation script strips frontmatter automatically before parsing.
 2. Generate the .docx:
    ```fish
-   set NODE_PATH /opt/homebrew/lib/node_modules
    bun scripts/generate_coverletter_docx.ts \
      output/{company-slug}/{Name}_CoverLetter_{Company}.md \
      output/{company-slug}/{Name}_CoverLetter_{Company}.docx
@@ -127,6 +170,11 @@ Before presenting:
 - Does it address the top 3 requirements from the job posting?
 - Is it under 400 words? (Executives don't read long cover letters)
 - Would the candidate be comfortable sending this as-is?
+- **Anti-slop pass** — re-read against the "Structural AI Tells" list. Zero cleft
+  sentences, ≤1 antithesis flourish, no italicized aphoristic closer, no crutch
+  metaphor that you've used in another letter. Read the letter aloud in your head:
+  does it sound like the person who wrote the two HomeAway blog posts, or like a
+  generic AI? If the latter, rewrite the offending sentences before presenting.
 
 ## State Update
 
